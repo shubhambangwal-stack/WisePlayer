@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: wiseplayer
+  datasource:
+    password: postgres
+    url: jdbc:postgresql://localhost:5432/wiseplayer
+    username: postgres
+  jpa:
+    generate-ddl: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    hibernate:
+      ddl-auto: create
+
+stripe:
+  api-key: ${STRIPE_API_KEY:sk_test_placeholder}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_placeholder}
