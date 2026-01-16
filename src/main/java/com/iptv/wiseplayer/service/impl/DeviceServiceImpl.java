@@ -35,18 +35,26 @@ public class DeviceServiceImpl implements DeviceService {
     @Transactional
     public DeviceRegistrationResponse registerDevice(DeviceRegistrationRequest request) {
         // Validate input
-        if (request.getFingerprint() == null || request.getFingerprint().trim().isEmpty()) {
-            throw new IllegalArgumentException("Device fingerprint cannot be null or empty");
+        if (request.getDeviceId() == null || request.getDeviceId().trim().isEmpty()) {
+            throw new IllegalArgumentException("Device ID cannot be null or empty");
         }
 
-        // Hash the fingerprint (SHA-256)
-        String fingerprintHash = hashFingerprint(request.getFingerprint());
+        // Hash the fingerprint/deviceId (SHA-256)
+        String fingerprintHash = hashFingerprint(request.getDeviceId());
 
         // Check if device already exists (idempotent registration)
         Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
 
         if (existingDevice.isPresent()) {
             Device device = existingDevice.get();
+            // Update device metadata if changed (optional, but good for tracking updates)
+            if (request.getPlatform() != null && !request.getPlatform().equals(device.getPlatform())) {
+                device.setPlatform(request.getPlatform());
+                device.setDeviceModel(request.getDeviceModel());
+                device.setOsVersion(request.getOsVersion());
+                deviceRepository.save(device);
+            }
+
             return new DeviceRegistrationResponse(
                     device.getDeviceId(),
                     device.getDeviceStatus(),
@@ -57,6 +65,7 @@ public class DeviceServiceImpl implements DeviceService {
         Device newDevice = new Device(fingerprintHash, DeviceStatus.INACTIVE);
         newDevice.setDeviceModel(request.getDeviceModel());
         newDevice.setOsVersion(request.getOsVersion());
+        newDevice.setPlatform(request.getPlatform());
 
         // Save to database
         Device savedDevice = deviceRepository.save(newDevice);
@@ -71,25 +80,17 @@ public class DeviceServiceImpl implements DeviceService {
     @Transactional
     public DeviceValidationResponse validateDevice(DeviceValidationRequest request) {
         // Validate input
-        if (request.getDeviceId() == null) {
-            throw new IllegalArgumentException("Device ID cannot be null");
-        }
         if (request.getFingerprint() == null || request.getFingerprint().trim().isEmpty()) {
             throw new IllegalArgumentException("Device fingerprint cannot be null or empty");
         }
 
-        // Find device by ID
-        Device device = deviceRepository.findByDeviceId(request.getDeviceId())
-                .orElseThrow(() -> new DeviceNotFoundException(
-                        "Device not found with ID: " + request.getDeviceId()));
-
-        // Hash the provided fingerprint and compare
+        // Hash the provided fingerprint for lookup
         String providedFingerprintHash = hashFingerprint(request.getFingerprint());
 
-        if (!device.getFingerprintHash().equals(providedFingerprintHash)) {
-            throw new InvalidFingerprintException(
-                    "Fingerprint mismatch for device: " + request.getDeviceId());
-        }
+        // Find device by fingerprint hash
+        Device device = deviceRepository.findByFingerprintHash(providedFingerprintHash)
+                .orElseThrow(() -> new DeviceNotFoundException(
+                        "Device not found with fingerprint user provided. Please register device first."));
 
         // Update last seen timestamp
         device.setLastSeenAt(LocalDateTime.now());
@@ -117,7 +118,7 @@ public class DeviceServiceImpl implements DeviceService {
     private String hashFingerprint(String fingerprint) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(fingerprint.getBytes(StandardCharsets.UTF_8));
+            byte[] hashBytes = digest.digest(fingerprint.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
 
             // Convert bytes to hex string
             StringBuilder hexString = new StringBuilder();
@@ -148,5 +149,25 @@ public class DeviceServiceImpl implements DeviceService {
             case BLOCKED -> "Device has been blocked. Please contact support.";
             case EXPIRED -> "Device subscription has expired. Please renew your subscription.";
         };
+
+    }
+
+    @Override
+    @Transactional
+    public void updateDeviceSubscription(java.util.UUID deviceId, DeviceStatus status, LocalDateTime expiresAt) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new DeviceNotFoundException("Device not found with ID: " + deviceId));
+
+        device.setDeviceStatus(status);
+        device.setExpiresAt(expiresAt);
+        deviceRepository.save(device);
+    }
+
+    @Override
+    public java.util.UUID getDeviceIdByFingerprint(String fingerprint) {
+        String fingerprintHash = hashFingerprint(fingerprint);
+        Device device = deviceRepository.findByFingerprintHash(fingerprintHash)
+                .orElseThrow(() -> new DeviceNotFoundException("Device not found with fingerprint user provided."));
+        return device.getDeviceId();
     }
 }

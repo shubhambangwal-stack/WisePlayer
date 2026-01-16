@@ -25,6 +25,9 @@ public class SecurityConfig {
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/device/**").permitAll() // Allow device registration/validation
+                        .requestMatchers("/api/subscription/**").permitAll() // Allow subscription operations
+                        .requestMatchers("/api/playlist/**").permitAll() // Allow playlist operations
+                        .requestMatchers("/api/payment/webhook").permitAll() // Allow Stripe webhooks
                         .anyRequest().authenticated());
 
         return http.build();

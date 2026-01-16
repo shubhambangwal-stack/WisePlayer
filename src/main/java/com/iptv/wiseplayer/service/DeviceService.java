@@ -36,4 +36,24 @@ public interface DeviceService {
      *                                                                   match
      */
     DeviceValidationResponse validateDevice(DeviceValidationRequest request);
+
+    /**
+     * Update device subscription status.
+     * Called by Subscription module when subscription status changes.
+     *
+     * @param deviceId  Device ID
+     * @param status    New device status
+     * @param expiresAt New expiration date (nullable)
+     */
+    void updateDeviceSubscription(java.util.UUID deviceId, com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            java.time.LocalDateTime expiresAt);
+
+    /**
+     * Resolve internal Device UUID from raw fingerprint (MAC).
+     *
+     * @param fingerprint Raw fingerprint
+     * @return Device UUID
+     * @throws com.iptv.wiseplayer.exception.DeviceNotFoundException if not found
+     */
+    java.util.UUID getDeviceIdByFingerprint(String fingerprint);
 }

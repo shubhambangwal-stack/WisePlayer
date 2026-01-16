@@ -40,6 +40,9 @@ public class Device {
     @Column(name = "os_version", length = 50)
     private String osVersion;
 
+    @Column(name = "platform", length = 50)
+    private String platform;
+
     @Column(name = "registered_at", nullable = false, updatable = false)
     private LocalDateTime registeredAt;
 
@@ -110,6 +113,14 @@ public class Device {
 
     public void setOsVersion(String osVersion) {
         this.osVersion = osVersion;
+    }
+
+    public String getPlatform() {
+        return platform;
+    }
+
+    public void setPlatform(String platform) {
+        this.platform = platform;
     }
 
     public LocalDateTime getRegisteredAt() {
