@@ -13,6 +13,7 @@ public class DeviceValidationResponse {
 
     private UUID deviceId;
     private DeviceStatus status;
+    private String token;
     private boolean allowed;
     private String message;
     private LocalDateTime lastSeenAt;
@@ -21,13 +22,22 @@ public class DeviceValidationResponse {
     public DeviceValidationResponse() {
     }
 
-    public DeviceValidationResponse(UUID deviceId, DeviceStatus status, boolean allowed,
+    public DeviceValidationResponse(UUID deviceId, DeviceStatus status, String token, boolean allowed,
             String message, LocalDateTime lastSeenAt) {
         this.deviceId = deviceId;
         this.status = status;
+        this.token = token;
         this.allowed = allowed;
         this.message = message;
         this.lastSeenAt = lastSeenAt;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 
     // Getters and Setters

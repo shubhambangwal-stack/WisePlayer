@@ -7,31 +7,29 @@ import java.time.LocalDateTime;
  */
 public class ErrorResponse {
 
-    private LocalDateTime timestamp;
+    private boolean success;
     private int status;
-    private String error;
     private String message;
-    private String path;
+    private LocalDateTime timestamp;
 
     public ErrorResponse() {
+        this.success = false;
         this.timestamp = LocalDateTime.now();
     }
 
-    public ErrorResponse(int status, String error, String message, String path) {
-        this.timestamp = LocalDateTime.now();
+    public ErrorResponse(int status, String message) {
+        this();
         this.status = status;
-        this.error = error;
         this.message = message;
-        this.path = path;
     }
 
     // Getters and Setters
-    public LocalDateTime getTimestamp() {
-        return timestamp;
+    public boolean isSuccess() {
+        return success;
     }
 
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
+    public void setSuccess(boolean success) {
+        this.success = success;
     }
 
     public int getStatus() {
@@ -42,14 +40,6 @@ public class ErrorResponse {
         this.status = status;
     }
 
-    public String getError() {
-        return error;
-    }
-
-    public void setError(String error) {
-        this.error = error;
-    }
-
     public String getMessage() {
         return message;
     }
@@ -58,11 +48,11 @@ public class ErrorResponse {
         this.message = message;
     }
 
-    public String getPath() {
-        return path;
+    public LocalDateTime getTimestamp() {
+        return timestamp;
     }
 
-    public void setPath(String path) {
-        this.path = path;
+    public void setTimestamp(LocalDateTime timestamp) {
+        this.timestamp = timestamp;
     }
 }

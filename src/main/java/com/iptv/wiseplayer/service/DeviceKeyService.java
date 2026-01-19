@@ -6,6 +6,8 @@ import com.iptv.wiseplayer.dto.response.DeviceActivationResponse;
 import com.iptv.wiseplayer.dto.response.DeviceKeyResponse;
 import com.iptv.wiseplayer.dto.response.DeviceKeyStatusResponse;
 
+import java.util.UUID;
+
 /**
  * Service interface for managing device activation keys.
  */
@@ -32,8 +34,8 @@ public interface DeviceKeyService {
     /**
      * Check the status of the most recent key for a device.
      *
-     * @param deviceId Device ID (physical)
+     * @param deviceId Internal Device UUID
      * @return Status response
      */
-    DeviceKeyStatusResponse getKeyStatus(String deviceId);
+    DeviceKeyStatusResponse getKeyStatus(UUID deviceId);
 }

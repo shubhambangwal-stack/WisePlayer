@@ -7,16 +7,14 @@ import com.iptv.wiseplayer.dto.request.DeviceValidationRequest;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.DeviceValidationResponse;
 import com.iptv.wiseplayer.exception.DeviceNotFoundException;
-import com.iptv.wiseplayer.exception.InvalidFingerprintException;
 import com.iptv.wiseplayer.repository.DeviceRepository;
+import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.DeviceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementation of DeviceService.
@@ -26,9 +24,11 @@ import java.util.Optional;
 public class DeviceServiceImpl implements DeviceService {
 
     private final DeviceRepository deviceRepository;
+    private final DeviceTokenUtil tokenUtil;
 
-    public DeviceServiceImpl(DeviceRepository deviceRepository) {
+    public DeviceServiceImpl(DeviceRepository deviceRepository, DeviceTokenUtil tokenUtil) {
         this.deviceRepository = deviceRepository;
+        this.tokenUtil = tokenUtil;
     }
 
     @Override
@@ -58,6 +58,7 @@ public class DeviceServiceImpl implements DeviceService {
             return new DeviceRegistrationResponse(
                     device.getDeviceId(),
                     device.getDeviceStatus(),
+                    tokenUtil.generateToken(device.getDeviceId().toString(), hashFingerprint(request.getDeviceId())),
                     device.getRegisteredAt());
         }
 
@@ -73,6 +74,7 @@ public class DeviceServiceImpl implements DeviceService {
         return new DeviceRegistrationResponse(
                 savedDevice.getDeviceId(),
                 savedDevice.getDeviceStatus(),
+                tokenUtil.generateToken(savedDevice.getDeviceId().toString(), fingerprintHash),
                 savedDevice.getRegisteredAt());
     }
 
@@ -103,6 +105,7 @@ public class DeviceServiceImpl implements DeviceService {
         return new DeviceValidationResponse(
                 device.getDeviceId(),
                 device.getDeviceStatus(),
+                tokenUtil.generateToken(device.getDeviceId().toString(), providedFingerprintHash),
                 allowed,
                 message,
                 device.getLastSeenAt());
@@ -116,24 +119,7 @@ public class DeviceServiceImpl implements DeviceService {
      * @return SHA-256 hash as hex string
      */
     private String hashFingerprint(String fingerprint) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(fingerprint.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
-
-            // Convert bytes to hex string
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hashBytes) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
-                }
-                hexString.append(hex);
-            }
-
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
-        }
+        return tokenUtil.hashFingerprint(fingerprint);
     }
 
     /**
@@ -164,10 +150,28 @@ public class DeviceServiceImpl implements DeviceService {
     }
 
     @Override
-    public java.util.UUID getDeviceIdByFingerprint(String fingerprint) {
-        String fingerprintHash = hashFingerprint(fingerprint);
-        Device device = deviceRepository.findByFingerprintHash(fingerprintHash)
-                .orElseThrow(() -> new DeviceNotFoundException("Device not found with fingerprint user provided."));
-        return device.getDeviceId();
+    public java.util.UUID resolveDeviceId(String identity) {
+        if (identity == null || identity.trim().isEmpty()) {
+            throw new IllegalArgumentException("Device identity cannot be null or empty");
+        }
+
+        String trimmedIdentity = identity.trim();
+
+        // 1. Try as UUID
+        try {
+            UUID uuid = UUID.fromString(trimmedIdentity);
+            Optional<Device> device = deviceRepository.findByDeviceId(uuid);
+            if (device.isPresent()) {
+                return device.get().getDeviceId();
+            }
+        } catch (IllegalArgumentException e) {
+            // Not a valid UUID format, proceed to fingerprint hash
+        }
+
+        // 2. Try as Fingerprint (MAC)
+        String fingerprintHash = hashFingerprint(trimmedIdentity);
+        return deviceRepository.findByFingerprintHash(fingerprintHash)
+                .map(Device::getDeviceId)
+                .orElseThrow(() -> new DeviceNotFoundException("Device not found with identity: " + identity));
     }
 }

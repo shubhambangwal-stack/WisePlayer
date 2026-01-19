@@ -1,5 +1,6 @@
 package com.iptv.wiseplayer.config;
 
+import com.iptv.wiseplayer.security.DeviceAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -7,10 +8,17 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private final DeviceAuthenticationFilter deviceAuthenticationFilter;
+
+    public SecurityConfig(DeviceAuthenticationFilter deviceAuthenticationFilter) {
+        this.deviceAuthenticationFilter = deviceAuthenticationFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -24,11 +32,22 @@ public class SecurityConfig {
 
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/device/**").permitAll() // Allow device registration/validation
-                        .requestMatchers("/api/subscription/**").permitAll() // Allow subscription operations
-                        .requestMatchers("/api/playlist/**").permitAll() // Allow playlist operations
-                        .requestMatchers("/api/payment/webhook").permitAll() // Allow Stripe webhooks
-                        .anyRequest().authenticated());
+                        // Public Endpoints
+                        .requestMatchers("/api/device/register").permitAll()
+                        .requestMatchers("/api/device/key").permitAll()
+                        .requestMatchers("/api/device/activate").permitAll()
+                        .requestMatchers("/api/payment/**").permitAll()
+
+                        // Protected Endpoints (Require Device Token)
+                        .requestMatchers("/api/device/validate").authenticated()
+                        .requestMatchers("/api/playlist/**").authenticated()
+                        .requestMatchers("/api/subscription/status").authenticated()
+                        .requestMatchers("/api/device/key/status").authenticated()
+
+                        .anyRequest().authenticated())
+
+                // Register custom device authentication filter
+                .addFilterBefore(deviceAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

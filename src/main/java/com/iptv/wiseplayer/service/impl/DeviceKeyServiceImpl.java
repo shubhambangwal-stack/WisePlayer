@@ -12,6 +12,7 @@ import com.iptv.wiseplayer.exception.DeviceNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceKeyRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.service.DeviceKeyService;
+import com.iptv.wiseplayer.service.DeviceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class DeviceKeyServiceImpl implements DeviceKeyService {
@@ -31,10 +33,14 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
 
     private final DeviceRepository deviceRepository;
     private final DeviceKeyRepository deviceKeyRepository;
+    private final DeviceService deviceService;
 
-    public DeviceKeyServiceImpl(DeviceRepository deviceRepository, DeviceKeyRepository deviceKeyRepository) {
+    public DeviceKeyServiceImpl(DeviceRepository deviceRepository,
+            DeviceKeyRepository deviceKeyRepository,
+            DeviceService deviceService) {
         this.deviceRepository = deviceRepository;
         this.deviceKeyRepository = deviceKeyRepository;
+        this.deviceService = deviceService;
     }
 
     @Override
@@ -51,8 +57,8 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
             throw new IllegalArgumentException("Device ID cannot be null or empty");
         }
 
-        String deviceHash = hashString(inputDeviceId);
-        Device device = deviceRepository.findByFingerprintHash(deviceHash)
+        UUID deviceId = deviceService.resolveDeviceId(inputDeviceId);
+        Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found. Please register device first."));
 
         // 2. Invalidate/Delete existing keys for this device to ensure only one active
@@ -85,8 +91,8 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
         }
 
         // 1. Find device
-        String deviceHash = hashString(inputDeviceId);
-        Device device = deviceRepository.findByFingerprintHash(deviceHash)
+        UUID deviceId = deviceService.resolveDeviceId(inputDeviceId);
+        Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found"));
 
         // 2. Find active key for device
@@ -125,29 +131,24 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
     }
 
     @Override
-    public DeviceKeyStatusResponse getKeyStatus(String deviceId) {
-        String deviceHash = hashString(deviceId);
-        Optional<Device> deviceOpt = deviceRepository.findByFingerprintHash(deviceHash);
+    public DeviceKeyStatusResponse getKeyStatus(UUID deviceId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new DeviceNotFoundException("Device not found with ID: " + deviceId));
 
-        if (deviceOpt.isEmpty()) {
-            return new DeviceKeyStatusResponse("DEVICE_NOT_FOUND", deviceId);
-        }
-
-        Device device = deviceOpt.get();
         if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
-            return new DeviceKeyStatusResponse("ACTIVATED", deviceId);
+            return new DeviceKeyStatusResponse("ACTIVATED", deviceId.toString());
         }
 
         Optional<DeviceKey> optionalKey = deviceKeyRepository.findByDeviceDeviceId(device.getDeviceId());
         if (optionalKey.isPresent()) {
             if (optionalKey.get().getExpiresAt().isBefore(LocalDateTime.now())) {
-                return new DeviceKeyStatusResponse("EXPIRED", deviceId);
+                return new DeviceKeyStatusResponse("EXPIRED", deviceId.toString());
             } else {
-                return new DeviceKeyStatusResponse("PENDING_ACTIVATION", deviceId);
+                return new DeviceKeyStatusResponse("PENDING_ACTIVATION", deviceId.toString());
             }
         }
 
-        return new DeviceKeyStatusResponse("NO_CODE", deviceId);
+        return new DeviceKeyStatusResponse("NO_CODE", deviceId.toString());
     }
 
     private String generateRandomNumericKey(int length) {

@@ -4,57 +4,79 @@ import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
 import com.iptv.wiseplayer.dto.request.DeviceValidationRequest;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.DeviceValidationResponse;
+import com.iptv.wiseplayer.dto.request.DeviceActivationRequest;
+import com.iptv.wiseplayer.dto.response.DeviceActivationResponse;
+import com.iptv.wiseplayer.dto.request.DeviceKeyRequest;
+import com.iptv.wiseplayer.dto.response.DeviceKeyResponse;
+import com.iptv.wiseplayer.dto.response.DeviceKeyStatusResponse;
+import com.iptv.wiseplayer.security.DeviceContext;
+import com.iptv.wiseplayer.service.DeviceKeyService;
 import com.iptv.wiseplayer.service.DeviceService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * REST Controller for device management.
- * Exposes endpoints for device registration and validation.
- * No authentication required for these endpoints as they are used for initial
- * handshake.
+ * Exposes endpoints for device registration, validation, and activation keys.
  */
 @RestController
 @RequestMapping("/api/device")
 public class DeviceController {
 
     private final DeviceService deviceService;
+    private final DeviceKeyService deviceKeyService;
+    private final DeviceContext deviceContext;
 
-    public DeviceController(DeviceService deviceService) {
+    public DeviceController(DeviceService deviceService, DeviceKeyService deviceKeyService,
+            DeviceContext deviceContext) {
         this.deviceService = deviceService;
+        this.deviceKeyService = deviceKeyService;
+        this.deviceContext = deviceContext;
     }
 
     /**
      * Register a new device.
-     * Idempotent: returns existing device if fingerprint matches.
-     *
-     * @param request Device registration details
-     * @return Registered device information
      */
     @PostMapping("/register")
     public ResponseEntity<DeviceRegistrationResponse> registerDevice(@RequestBody DeviceRegistrationRequest request) {
         DeviceRegistrationResponse response = deviceService.registerDevice(request);
-        // Using CREATED (201) even if it existed, or could use OK (200) if strict
-        // idempotency semantics desired.
-        // Given requirements, returning OK is often safer for clients unless we
-        // strictly track creations.
-        // Let's use OK (200) since it might return an existing device.
         return ResponseEntity.ok(response);
     }
 
     /**
      * Validate a device on app launch.
-     * Checks fingerprint and subscription status.
-     *
-     * @param request Device validation details
-     * @return Validation status and access permission
      */
     @PostMapping("/validate")
     public ResponseEntity<DeviceValidationResponse> validateDevice(@RequestBody DeviceValidationRequest request) {
         DeviceValidationResponse response = deviceService.validateDevice(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Generate a 6-digit numeric activation key for a device.
+     */
+    @PostMapping("/key")
+    public ResponseEntity<DeviceKeyResponse> generateKey(@RequestBody DeviceKeyRequest request) {
+        DeviceKeyResponse response = deviceKeyService.generateDeviceKey(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Activate a device using the 6-digit code.
+     */
+    @PostMapping("/activate")
+    public ResponseEntity<DeviceActivationResponse> activateDevice(@RequestBody DeviceActivationRequest request) {
+        DeviceActivationResponse response = deviceKeyService.activateDevice(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Check the activation status of a device key.
+     * Uses the authenticated device context.
+     */
+    @GetMapping("/key/status")
+    public ResponseEntity<DeviceKeyStatusResponse> getKeyStatus() {
+        DeviceKeyStatusResponse response = deviceKeyService.getKeyStatus(deviceContext.getCurrentDeviceId());
         return ResponseEntity.ok(response);
     }
 }

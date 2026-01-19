@@ -49,11 +49,12 @@ public interface DeviceService {
             java.time.LocalDateTime expiresAt);
 
     /**
-     * Resolve internal Device UUID from raw fingerprint (MAC).
-     *
-     * @param fingerprint Raw fingerprint
+     * Resolve internal Device UUID from either a raw fingerprint (MAC) or a UUID
+     * string.
+     * 
+     * @param identity Raw fingerprint (MAC) or UUID string
      * @return Device UUID
      * @throws com.iptv.wiseplayer.exception.DeviceNotFoundException if not found
      */
-    java.util.UUID getDeviceIdByFingerprint(String fingerprint);
+    java.util.UUID resolveDeviceId(String identity);
 }

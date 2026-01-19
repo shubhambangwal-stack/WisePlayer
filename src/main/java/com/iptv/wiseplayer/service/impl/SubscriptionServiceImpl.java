@@ -38,7 +38,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         }
 
         // 0. Resolve UUID from Fingerprint
-        UUID resolvedDeviceId = deviceService.getDeviceIdByFingerprint(request.getDeviceId());
+        UUID resolvedDeviceId = deviceService.resolveDeviceId(request.getDeviceId());
 
         // 1. Check for existing active subscription
         Optional<Subscription> existingSub = subscriptionRepository.findByDeviceIdAndStatus(
@@ -75,7 +75,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         // Resolve UUID
         UUID resolvedDeviceId;
         try {
-            resolvedDeviceId = deviceService.getDeviceIdByFingerprint(deviceIdFingerprint);
+            resolvedDeviceId = deviceService.resolveDeviceId(deviceIdFingerprint);
         } catch (Exception e) {
             // If device not found, throw exception
             throw e;
