@@ -37,7 +37,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
                         .requestMatchers("/api/payment/**").permitAll()
-
                         // Protected Endpoints (Require Device Token)
                         .requestMatchers("/api/device/validate").authenticated()
                         .requestMatchers("/api/playlist/**").authenticated()
