@@ -12,4 +12,6 @@ public interface PlaylistService {
     void saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request);
 
     PlaylistResponse getPlaylist(UUID deviceId);
+
+    void validatePlaylist(UUID deviceId, Object request);
 }

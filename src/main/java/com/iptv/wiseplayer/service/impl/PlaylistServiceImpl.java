@@ -28,13 +28,16 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final PlaylistRepository playlistRepository;
     private final DeviceRepository deviceRepository;
     private final EncryptionUtil encryptionUtil;
+    private final com.iptv.wiseplayer.service.iptv.XtreamClient xtreamClient;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository,
             DeviceRepository deviceRepository,
-            EncryptionUtil encryptionUtil) {
+            EncryptionUtil encryptionUtil,
+            com.iptv.wiseplayer.service.iptv.XtreamClient xtreamClient) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
         this.encryptionUtil = encryptionUtil;
+        this.xtreamClient = xtreamClient;
     }
 
     @Override
@@ -103,5 +106,30 @@ public class PlaylistServiceImpl implements PlaylistService {
                 username,
                 password,
                 m3uUrl);
+    }
+
+    @Override
+    public void validatePlaylist(UUID deviceId, Object request) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new RuntimeException("Device not found"));
+
+        if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
+            throw new AccessDeniedException("Validation allowed only for active devices");
+        }
+
+        if (request instanceof XtreamPlaylistRequest xtreamRequest) {
+            xtreamClient.authenticate(xtreamRequest.getServerUrl(), xtreamRequest.getUsername(),
+                    xtreamRequest.getPassword())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid Xtream credentials or inactive account"));
+
+            // If valid, save it
+            saveXtreamPlaylist(deviceId, xtreamRequest);
+        } else if (request instanceof M3uPlaylistRequest m3uRequest) {
+            // M3U validation could be as simple as checking if URL is reachable (optional
+            // for now)
+            saveM3uPlaylist(deviceId, m3uRequest);
+        } else {
+            throw new IllegalArgumentException("Unsupported playlist request type");
+        }
     }
 }

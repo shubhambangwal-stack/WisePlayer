@@ -43,4 +43,23 @@ public class PlaylistController {
         PlaylistResponse response = playlistService.getPlaylist(deviceContext.getCurrentDeviceId());
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/validate")
+    public ResponseEntity<?> validatePlaylist(@RequestBody Map<String, Object> payload) {
+        String type = (String) payload.get("type");
+        if ("XTREAM".equalsIgnoreCase(type)) {
+            com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request = new com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest();
+            request.setServerUrl((String) payload.get("serverUrl"));
+            request.setUsername((String) payload.get("username"));
+            request.setPassword((String) payload.get("password"));
+            playlistService.validatePlaylist(deviceContext.getCurrentDeviceId(), request);
+        } else if ("M3U".equalsIgnoreCase(type)) {
+            com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request = new com.iptv.wiseplayer.dto.request.M3uPlaylistRequest();
+            request.setM3uUrl((String) payload.get("m3uUrl"));
+            playlistService.validatePlaylist(deviceContext.getCurrentDeviceId(), request);
+        } else {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Invalid playlist type"));
+        }
+        return ResponseEntity.ok(Map.of("success", true, "message", "Playlist validated and saved successfully"));
+    }
 }
