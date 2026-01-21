@@ -30,7 +30,7 @@ public class StreamServiceImpl implements StreamService {
     }
 
     @Override
-    public String authorizeAndGetUrl(UUID deviceId, String streamId) {
+    public String authorizeAndGetUrl(UUID deviceId, UUID playlistId, String streamId) {
         // 1. Validate device and subscription
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new RuntimeException("Device not found"));
@@ -40,8 +40,11 @@ public class StreamServiceImpl implements StreamService {
         }
 
         // 2. Fetch playlist
-        Playlist playlist = playlistRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new PlaylistNotFoundException("No playlist found for your device"));
+        Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
+                .filter(p -> p.getId().equals(playlistId))
+                .findFirst()
+                .orElseThrow(
+                        () -> new PlaylistNotFoundException("Playlist not found or does not belong to your device"));
 
         // 3. Generate URL
         if (playlist.getType() == PlaylistType.XTREAM) {
@@ -50,14 +53,16 @@ public class StreamServiceImpl implements StreamService {
             String password = encryptionUtil.decrypt(playlist.getPassword());
 
             // Xtream URL format: http://server:port/live/username/password/stream_id.ts
-            // Note: We should ensure serverUrl does not end with /
             if (serverUrl.endsWith("/")) {
                 serverUrl = serverUrl.substring(0, serverUrl.length() - 1);
             }
             return String.format("%s/live/%s/%s/%s.ts", serverUrl, username, password, streamId);
+        } else if (playlist.getType() == PlaylistType.M3U) {
+            // For M3U, the stream_id passed is already the full URL (as returned by
+            // M3uService)
+            return streamId;
         }
 
-        // TODO: Handle M3U parsing/lookup
-        throw new UnsupportedOperationException("Stream play not yet supported for M3U playlists");
+        throw new UnsupportedOperationException("Stream play not supported for this playlist type");
     }
 }

@@ -13,5 +13,5 @@ public interface StreamService {
      * @param streamId Stream ID (from provider)
      * @return Stream URL
      */
-    String authorizeAndGetUrl(UUID deviceId, String streamId);
+    String authorizeAndGetUrl(UUID deviceId, UUID playlistId, String streamId);
 }

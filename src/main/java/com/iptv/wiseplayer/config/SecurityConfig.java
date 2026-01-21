@@ -34,14 +34,20 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public Endpoints
                         .requestMatchers("/api/device/register").permitAll()
+                        .requestMatchers("/api/device/validate").permitAll()
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
-                        .requestMatchers("/api/payment/**").permitAll()
+                        .requestMatchers("/api/payment/webhook").permitAll()
+
                         // Protected Endpoints (Require Device Token)
-                        .requestMatchers("/api/device/validate").authenticated()
-                        .requestMatchers("/api/playlist/**").authenticated()
-                        .requestMatchers("/api/subscription/status").authenticated()
+                        .requestMatchers("/api/payment/checkout").authenticated()
+                        .requestMatchers("/api/subscription/**").authenticated()
                         .requestMatchers("/api/device/key/status").authenticated()
+
+                        // Content Endpoints (Require ACTIVE status)
+                        .requestMatchers("/api/playlist/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/live/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/stream/**").hasRole("ACTIVE")
 
                         .anyRequest().authenticated())
 

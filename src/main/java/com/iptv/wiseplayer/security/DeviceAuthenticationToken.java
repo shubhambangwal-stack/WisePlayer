@@ -16,6 +16,12 @@ public class DeviceAuthenticationToken extends AbstractAuthenticationToken {
         setAuthenticated(true);
     }
 
+    public DeviceAuthenticationToken(Device device, Collection<? extends GrantedAuthority> authorities) {
+        super(authorities);
+        this.device = device;
+        setAuthenticated(true);
+    }
+
     @Override
     public Object getCredentials() {
         return null;

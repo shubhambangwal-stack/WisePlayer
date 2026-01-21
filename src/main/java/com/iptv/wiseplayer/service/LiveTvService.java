@@ -10,10 +10,10 @@ public interface LiveTvService {
     /**
      * Get live categories for the device's playlist.
      */
-    JsonNode getCategories(UUID deviceId);
+    JsonNode getCategories(UUID deviceId, UUID playlistId);
 
     /**
      * Get live channels for a specific category.
      */
-    JsonNode getChannels(UUID deviceId, String categoryId);
+    JsonNode getChannels(UUID deviceId, UUID playlistId, String categoryId);
 }

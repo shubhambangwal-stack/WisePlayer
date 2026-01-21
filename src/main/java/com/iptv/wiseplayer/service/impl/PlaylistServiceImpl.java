@@ -8,10 +8,10 @@ import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import com.iptv.wiseplayer.exception.AccessDeniedException;
-import com.iptv.wiseplayer.exception.PlaylistNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.PlaylistRepository;
 import com.iptv.wiseplayer.service.PlaylistService;
+import com.iptv.wiseplayer.service.iptv.XtreamClient;
 import com.iptv.wiseplayer.util.EncryptionUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,12 +28,12 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final PlaylistRepository playlistRepository;
     private final DeviceRepository deviceRepository;
     private final EncryptionUtil encryptionUtil;
-    private final com.iptv.wiseplayer.service.iptv.XtreamClient xtreamClient;
+    private final XtreamClient xtreamClient;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository,
             DeviceRepository deviceRepository,
             EncryptionUtil encryptionUtil,
-            com.iptv.wiseplayer.service.iptv.XtreamClient xtreamClient) {
+            XtreamClient xtreamClient) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
         this.encryptionUtil = encryptionUtil;
@@ -43,10 +43,13 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     @Transactional
     public void saveXtreamPlaylist(UUID deviceId, XtreamPlaylistRequest request) {
-        Playlist playlist = playlistRepository.findByDeviceId(deviceId)
+        Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
+                .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
+                .findFirst()
                 .orElseGet(() -> {
                     Playlist p = new Playlist();
                     p.setDeviceId(deviceId);
+                    p.setName(request.getName());
                     return p;
                 });
 
@@ -62,10 +65,13 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     @Transactional
     public void saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request) {
-        Playlist playlist = playlistRepository.findByDeviceId(deviceId)
+        Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
+                .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
+                .findFirst()
                 .orElseGet(() -> {
                     Playlist p = new Playlist();
                     p.setDeviceId(deviceId);
+                    p.setName(request.getName());
                     return p;
                 });
 
@@ -79,7 +85,7 @@ public class PlaylistServiceImpl implements PlaylistService {
     }
 
     @Override
-    public PlaylistResponse getPlaylist(UUID deviceId) {
+    public java.util.List<PlaylistResponse> getPlaylists(UUID deviceId) {
         // Validation check for device status
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new RuntimeException(
@@ -89,23 +95,28 @@ public class PlaylistServiceImpl implements PlaylistService {
             throw new AccessDeniedException("Access Denied: Your device status is " + device.getDeviceStatus());
         }
 
-        Playlist playlist = playlistRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new PlaylistNotFoundException("No playlist found for your device"));
+        return playlistRepository.findByDeviceId(deviceId).stream()
+                .map(playlist -> {
+                    // Decrypt fields for response
+                    String serverUrl = playlist.getServerUrl() != null ? encryptionUtil.decrypt(playlist.getServerUrl())
+                            : null;
+                    String username = playlist.getUsername() != null ? encryptionUtil.decrypt(playlist.getUsername())
+                            : null;
+                    String password = playlist.getPassword() != null ? encryptionUtil.decrypt(playlist.getPassword())
+                            : null;
+                    String m3uUrl = playlist.getM3uUrl() != null ? encryptionUtil.decrypt(playlist.getM3uUrl()) : null;
 
-        // Decrypt fields for response
-        String serverUrl = playlist.getServerUrl() != null ? encryptionUtil.decrypt(playlist.getServerUrl()) : null;
-        String username = playlist.getUsername() != null ? encryptionUtil.decrypt(playlist.getUsername()) : null;
-        String password = playlist.getPassword() != null ? encryptionUtil.decrypt(playlist.getPassword()) : null;
-        String m3uUrl = playlist.getM3uUrl() != null ? encryptionUtil.decrypt(playlist.getM3uUrl()) : null;
-
-        return new PlaylistResponse(
-                playlist.getId(),
-                playlist.getDeviceId(),
-                playlist.getType(),
-                serverUrl,
-                username,
-                password,
-                m3uUrl);
+                    return new PlaylistResponse(
+                            playlist.getId(),
+                            playlist.getDeviceId(),
+                            playlist.getName(),
+                            playlist.getType(),
+                            serverUrl,
+                            username,
+                            password,
+                            m3uUrl);
+                })
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Override

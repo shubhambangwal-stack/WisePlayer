@@ -7,6 +7,7 @@ import java.util.UUID;
 public class PlaylistResponse {
     private UUID id;
     private UUID deviceId;
+    private String name;
     private PlaylistType type;
     private String serverUrl;
     private String username;
@@ -16,11 +17,11 @@ public class PlaylistResponse {
     public PlaylistResponse() {
     }
 
-    // Constructor with Builder pattern or full args
-    public PlaylistResponse(UUID id, UUID deviceId, PlaylistType type, String serverUrl, String username,
+    public PlaylistResponse(UUID id, UUID deviceId, String name, PlaylistType type, String serverUrl, String username,
             String password, String m3uUrl) {
         this.id = id;
         this.deviceId = deviceId;
+        this.name = name;
         this.type = type;
         this.serverUrl = serverUrl;
         this.username = username;
@@ -74,6 +75,14 @@ public class PlaylistResponse {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getM3uUrl() {

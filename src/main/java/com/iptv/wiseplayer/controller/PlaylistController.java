@@ -8,6 +8,7 @@ import com.iptv.wiseplayer.service.PlaylistService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,8 +40,8 @@ public class PlaylistController {
     }
 
     @GetMapping
-    public ResponseEntity<PlaylistResponse> getPlaylist() {
-        PlaylistResponse response = playlistService.getPlaylist(deviceContext.getCurrentDeviceId());
+    public ResponseEntity<List<PlaylistResponse>> getPlaylists() {
+        List<PlaylistResponse> response = playlistService.getPlaylists(deviceContext.getCurrentDeviceId());
         return ResponseEntity.ok(response);
     }
 
@@ -49,12 +50,14 @@ public class PlaylistController {
         String type = (String) payload.get("type");
         if ("XTREAM".equalsIgnoreCase(type)) {
             com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request = new com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest();
+            request.setName((String) payload.get("name"));
             request.setServerUrl((String) payload.get("serverUrl"));
             request.setUsername((String) payload.get("username"));
             request.setPassword((String) payload.get("password"));
             playlistService.validatePlaylist(deviceContext.getCurrentDeviceId(), request);
         } else if ("M3U".equalsIgnoreCase(type)) {
             com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request = new com.iptv.wiseplayer.dto.request.M3uPlaylistRequest();
+            request.setName((String) payload.get("name"));
             request.setM3uUrl((String) payload.get("m3uUrl"));
             playlistService.validatePlaylist(deviceContext.getCurrentDeviceId(), request);
         } else {
