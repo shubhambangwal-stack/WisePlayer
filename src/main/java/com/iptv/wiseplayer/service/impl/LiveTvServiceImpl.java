@@ -40,10 +40,10 @@ public class LiveTvServiceImpl implements LiveTvService {
         Playlist playlist = getPlaylist(deviceId, playlistId);
 
         if (playlist.getType() == PlaylistType.XTREAM) {
-            return xtreamClient.getLiveCategories(
+            return objectMapper.valueToTree(xtreamClient.getLiveCategories(
                     encryptionUtil.decrypt(playlist.getServerUrl()),
                     encryptionUtil.decrypt(playlist.getUsername()),
-                    encryptionUtil.decrypt(playlist.getPassword()));
+                    encryptionUtil.decrypt(playlist.getPassword())));
         } else if (playlist.getType() == PlaylistType.M3U) {
             return m3uService.getCategories(encryptionUtil.decrypt(playlist.getM3uUrl()));
         }
@@ -56,11 +56,11 @@ public class LiveTvServiceImpl implements LiveTvService {
         Playlist playlist = getPlaylist(deviceId, playlistId);
 
         if (playlist.getType() == PlaylistType.XTREAM) {
-            return xtreamClient.getLiveStreams(
+            return objectMapper.valueToTree(xtreamClient.getLiveStreams(
                     encryptionUtil.decrypt(playlist.getServerUrl()),
                     encryptionUtil.decrypt(playlist.getUsername()),
                     encryptionUtil.decrypt(playlist.getPassword()),
-                    categoryId);
+                    categoryId));
         } else if (playlist.getType() == PlaylistType.M3U) {
             return m3uService.getChannels(encryptionUtil.decrypt(playlist.getM3uUrl()), categoryId);
         }

@@ -1,39 +1,48 @@
 package com.iptv.wiseplayer.service.iptv;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.iptv.wiseplayer.dto.iptv.XtreamAuthResponse;
+import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
+import com.iptv.wiseplayer.dto.iptv.XtreamLiveStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /**
  * Client for interacting with Xtream Codes player_api.php.
+ * Compliant with production requirements (okhttp User-Agent, typed DTOs).
  */
 @Component
 public class XtreamClient {
 
     private static final Logger logger = LoggerFactory.getLogger(XtreamClient.class);
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+    private static final String USER_AGENT = "okhttp/4.9.0";
 
-    public XtreamClient(ObjectMapper objectMapper) {
+    private final RestTemplate restTemplate;
+
+    public XtreamClient() {
         this.restTemplate = new RestTemplate();
-        this.objectMapper = objectMapper;
+    }
+
+    private HttpHeaders createHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.USER_AGENT, USER_AGENT);
+        return headers;
     }
 
     /**
      * Authenticates with Xtream Codes server.
-     *
-     * @param serverUrl Xtream server URL
-     * @param username  Username
-     * @param password  Password
-     * @return User info if successful, empty otherwise.
      */
-    public Optional<JsonNode> authenticate(String serverUrl, String username, String password) {
+    public Optional<XtreamAuthResponse> authenticate(String serverUrl, String username, String password) {
         String url = UriComponentsBuilder.fromHttpUrl(serverUrl)
                 .path("/player_api.php")
                 .queryParam("username", username)
@@ -41,13 +50,14 @@ public class XtreamClient {
                 .toUriString();
 
         try {
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+            XtreamAuthResponse response = restTemplate.exchange(url, HttpMethod.GET, entity, XtreamAuthResponse.class)
+                    .getBody();
 
-            if (root.has("user_info") && "Active".equalsIgnoreCase(root.path("user_info").path("status").asText())) {
-                return Optional.of(root);
+            if (response != null && response.getUserInfo() != null) {
+                return Optional.of(response);
             }
-            logger.warn("Authentication failed or user inactive for {}: {}", username, response);
+            logger.warn("Authentication failed for {}: No user info in response", username);
         } catch (Exception e) {
             logger.error("Error authenticating with Xtream server: {}", e.getMessage());
         }
@@ -57,45 +67,47 @@ public class XtreamClient {
     /**
      * Fetches live categories from Xtream server.
      */
-    public JsonNode getLiveCategories(String serverUrl, String username, String password) {
-        return fetchXtreamData(serverUrl, username, password, "get_live_categories");
+    public List<XtreamCategory> getLiveCategories(String serverUrl, String username, String password) {
+        String url = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_live_categories")
+                .toUriString();
+
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+            return restTemplate
+                    .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamCategory>>() {
+                    }).getBody();
+        } catch (Exception e) {
+            logger.error("Error fetching live categories: {}", e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     /**
      * Fetches live streams for a category.
      */
-    public JsonNode getLiveStreams(String serverUrl, String username, String password, String categoryId) {
-        String url = UriComponentsBuilder.fromHttpUrl(serverUrl)
-                .path("/player_api.php")
-                .queryParam("username", username)
-                .queryParam("password", password)
+    public List<XtreamLiveStream> getLiveStreams(String serverUrl, String username, String password,
+            String categoryId) {
+        String url = buildBaseUrl(serverUrl, username, password)
                 .queryParam("action", "get_live_streams")
                 .queryParam("category_id", categoryId)
                 .toUriString();
 
         try {
-            String response = restTemplate.getForObject(url, String.class);
-            return objectMapper.readTree(response);
+            HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+            return restTemplate
+                    .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamLiveStream>>() {
+                    }).getBody();
         } catch (Exception e) {
             logger.error("Error fetching live streams: {}", e.getMessage());
-            return objectMapper.createArrayNode();
+            return Collections.emptyList();
         }
     }
 
-    private JsonNode fetchXtreamData(String serverUrl, String username, String password, String action) {
-        String url = UriComponentsBuilder.fromHttpUrl(serverUrl)
+    private UriComponentsBuilder buildBaseUrl(String serverUrl, String username, String password) {
+        return UriComponentsBuilder.fromHttpUrl(serverUrl)
                 .path("/player_api.php")
                 .queryParam("username", username)
-                .queryParam("password", password)
-                .queryParam("action", action)
-                .toUriString();
-
-        try {
-            String response = restTemplate.getForObject(url, String.class);
-            return objectMapper.readTree(response);
-        } catch (Exception e) {
-            logger.error("Error fetching action {}: {}", action, e.getMessage());
-            return objectMapper.createArrayNode();
-        }
+                .queryParam("password", password);
     }
 }

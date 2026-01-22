@@ -29,15 +29,18 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final DeviceRepository deviceRepository;
     private final EncryptionUtil encryptionUtil;
     private final XtreamClient xtreamClient;
+    private final com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository,
             DeviceRepository deviceRepository,
             EncryptionUtil encryptionUtil,
-            XtreamClient xtreamClient) {
+            XtreamClient xtreamClient,
+            com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
         this.encryptionUtil = encryptionUtil;
         this.xtreamClient = xtreamClient;
+        this.xtreamUrlParser = xtreamUrlParser;
     }
 
     @Override
@@ -65,6 +68,18 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     @Transactional
     public void saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request) {
+        // Smart Promotion Check
+        var xtreamDetails = xtreamUrlParser.parse(request.getM3uUrl());
+        if (xtreamDetails != null) {
+            XtreamPlaylistRequest xtreamRequest = new XtreamPlaylistRequest();
+            xtreamRequest.setName(request.getName());
+            xtreamRequest.setServerUrl(xtreamDetails.getServerUrl());
+            xtreamRequest.setUsername(xtreamDetails.getUsername());
+            xtreamRequest.setPassword(xtreamDetails.getPassword());
+            saveXtreamPlaylist(deviceId, xtreamRequest);
+            return;
+        }
+
         Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
                 .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
                 .findFirst()
@@ -136,9 +151,25 @@ public class PlaylistServiceImpl implements PlaylistService {
             // If valid, save it
             saveXtreamPlaylist(deviceId, xtreamRequest);
         } else if (request instanceof M3uPlaylistRequest m3uRequest) {
-            // M3U validation could be as simple as checking if URL is reachable (optional
-            // for now)
-            saveM3uPlaylist(deviceId, m3uRequest);
+            // Check for Xtream Promotion during validation
+            var xtreamDetails = xtreamUrlParser.parse(m3uRequest.getM3uUrl());
+            if (xtreamDetails != null) {
+                XtreamPlaylistRequest xtreamRequest = new XtreamPlaylistRequest();
+                xtreamRequest.setName(m3uRequest.getName());
+                xtreamRequest.setServerUrl(xtreamDetails.getServerUrl());
+                xtreamRequest.setUsername(xtreamDetails.getUsername());
+                xtreamRequest.setPassword(xtreamDetails.getPassword());
+
+                // Validate as Xtream
+                xtreamClient.authenticate(xtreamRequest.getServerUrl(), xtreamRequest.getUsername(),
+                        xtreamRequest.getPassword())
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Invalid Xtream credentials extracted from M3U URL"));
+
+                saveXtreamPlaylist(deviceId, xtreamRequest);
+            } else {
+                saveM3uPlaylist(deviceId, m3uRequest);
+            }
         } else {
             throw new IllegalArgumentException("Unsupported playlist request type");
         }
