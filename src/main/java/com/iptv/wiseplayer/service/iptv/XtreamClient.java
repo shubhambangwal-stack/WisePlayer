@@ -3,6 +3,8 @@ package com.iptv.wiseplayer.service.iptv;
 import com.iptv.wiseplayer.dto.iptv.XtreamAuthResponse;
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamLiveStream;
+import com.iptv.wiseplayer.dto.iptv.XtreamSeries;
+import com.iptv.wiseplayer.dto.iptv.XtreamVodStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
@@ -109,5 +111,85 @@ public class XtreamClient {
                 .path("/player_api.php")
                 .queryParam("username", username)
                 .queryParam("password", password);
+    }
+
+    /**
+     * Fetches VOD categories from Xtream server.
+     */
+    public List<XtreamCategory> getVodCategories(String serverUrl, String username, String password) {
+        String url = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_vod_categories")
+                .toUriString();
+
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+            return restTemplate
+                    .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamCategory>>() {
+                    }).getBody();
+        } catch (Exception e) {
+            logger.error("Error fetching VOD categories: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Fetches VOD streams for a category.
+     */
+    public List<XtreamVodStream> getVodStreams(String serverUrl, String username, String password,
+            String categoryId) {
+        String url = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_vod_streams")
+                .queryParam("category_id", categoryId)
+                .toUriString();
+
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+            return restTemplate
+                    .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamVodStream>>() {
+                    }).getBody();
+        } catch (Exception e) {
+            logger.error("Error fetching VOD streams: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Fetches Series categories from Xtream server.
+     */
+    public List<XtreamCategory> getSeriesCategories(String serverUrl, String username, String password) {
+        String url = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_series_categories")
+                .toUriString();
+
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+            return restTemplate
+                    .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamCategory>>() {
+                    }).getBody();
+        } catch (Exception e) {
+            logger.error("Error fetching Series categories: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Fetches Series for a category.
+     */
+    public List<XtreamSeries> getSeries(String serverUrl, String username, String password,
+            String categoryId) {
+        String url = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_series")
+                .queryParam("category_id", categoryId)
+                .toUriString();
+
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+            return restTemplate
+                    .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamSeries>>() {
+                    }).getBody();
+        } catch (Exception e) {
+            logger.error("Error fetching Series: {}", e.getMessage());
+            return Collections.emptyList();
+        }
     }
 }

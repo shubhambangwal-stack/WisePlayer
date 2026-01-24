@@ -3,6 +3,8 @@ package com.iptv.wiseplayer.controller;
 import com.iptv.wiseplayer.dto.iptv.XtreamAuthResponse;
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamLiveStream;
+import com.iptv.wiseplayer.dto.iptv.XtreamSeries;
+import com.iptv.wiseplayer.dto.iptv.XtreamVodStream;
 import com.iptv.wiseplayer.service.iptv.XtreamAuthService;
 import com.iptv.wiseplayer.service.iptv.XtreamCatalogService;
 import com.iptv.wiseplayer.service.iptv.XtreamStreamResolver;
@@ -43,6 +45,28 @@ public class XtreamController {
     public ResponseEntity<List<XtreamLiveStream>> getStreams(@RequestParam UUID playlistId,
             @RequestParam String categoryId) {
         return ResponseEntity.ok(catalogService.getLiveStreams(playlistId, categoryId));
+    }
+
+    @GetMapping("/vod/categories")
+    public ResponseEntity<List<XtreamCategory>> getVodCategories(@RequestParam UUID playlistId) {
+        return ResponseEntity.ok(catalogService.getVodCategories(playlistId));
+    }
+
+    @GetMapping("/vod/streams")
+    public ResponseEntity<List<XtreamVodStream>> getVodStreams(@RequestParam UUID playlistId,
+            @RequestParam String categoryId) {
+        return ResponseEntity.ok(catalogService.getVodStreams(playlistId, categoryId));
+    }
+
+    @GetMapping("/series/categories")
+    public ResponseEntity<List<XtreamCategory>> getSeriesCategories(@RequestParam UUID playlistId) {
+        return ResponseEntity.ok(catalogService.getSeriesCategories(playlistId));
+    }
+
+    @GetMapping("/series")
+    public ResponseEntity<List<XtreamSeries>> getSeries(@RequestParam UUID playlistId,
+            @RequestParam String categoryId) {
+        return ResponseEntity.ok(catalogService.getSeries(playlistId, categoryId));
     }
 
     @GetMapping("/play")
