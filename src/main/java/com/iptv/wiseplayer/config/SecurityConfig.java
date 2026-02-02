@@ -38,6 +38,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
                         .requestMatchers("/api/payment/webhook").permitAll()
+                        // Swagger UI
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // Protected Endpoints (Require Device Token)
                         .requestMatchers("/api/payment/checkout").authenticated()
