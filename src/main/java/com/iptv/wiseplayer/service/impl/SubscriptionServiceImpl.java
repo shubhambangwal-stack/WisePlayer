@@ -24,10 +24,12 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
     private final DeviceService deviceService;
+    private final com.iptv.wiseplayer.repository.DeviceRepository deviceRepository;
 
-    public SubscriptionServiceImpl(SubscriptionRepository subscriptionRepository, DeviceService deviceService) {
+    public SubscriptionServiceImpl(SubscriptionRepository subscriptionRepository, DeviceService deviceService, com.iptv.wiseplayer.repository.DeviceRepository deviceRepository) {
         this.subscriptionRepository = subscriptionRepository;
         this.deviceService = deviceService;
+        this.deviceRepository = deviceRepository;
     }
 
     @Override
@@ -88,6 +90,18 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             return mapToResponse(subOpt.get());
         }
 
+        // Check if device is in TRIAL
+        com.iptv.wiseplayer.domain.entity.Device device = deviceRepository.findByDeviceId(resolvedDeviceId)
+                .orElseThrow(() -> new com.iptv.wiseplayer.exception.DeviceNotFoundException("Device not found"));
+
+        if (device.getDeviceStatus() == com.iptv.wiseplayer.domain.enums.DeviceStatus.TRIAL) {
+            SubscriptionResponse resp = new SubscriptionResponse();
+            resp.setDeviceId(resolvedDeviceId);
+            resp.setStatus(SubscriptionStatus.TRIAL);
+            resp.setEndDate(device.getExpiresAt());
+            return resp;
+        }
+
         SubscriptionResponse resp = new SubscriptionResponse();
         resp.setDeviceId(resolvedDeviceId);
         resp.setStatus(SubscriptionStatus.EXPIRED);
@@ -97,6 +111,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     @Transactional
     public void expireOverdueSubscriptions(LocalDateTime now) {
+        // 1. Expire normal subscriptions
         List<Subscription> expiredSubs = subscriptionRepository.findExpiredActiveSubscriptions(now);
 
         for (Subscription sub : expiredSubs) {
@@ -106,9 +121,18 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             // Update Device status
             deviceService.updateDeviceSubscription(
                     sub.getDeviceId(),
-                    DeviceStatus.EXPIRED,
-                    sub.getEndDate() // Keep the original end date
+                    com.iptv.wiseplayer.domain.enums.DeviceStatus.EXPIRED,
+                    sub.getEndDate()
             );
+        }
+
+        // 2. Expire trial devices
+        List<com.iptv.wiseplayer.domain.entity.Device> expiredTrialDevices = deviceRepository.findByDeviceStatusAndExpiresAtBefore(
+                com.iptv.wiseplayer.domain.enums.DeviceStatus.TRIAL, now);
+
+        for (com.iptv.wiseplayer.domain.entity.Device device : expiredTrialDevices) {
+            device.setDeviceStatus(com.iptv.wiseplayer.domain.enums.DeviceStatus.EXPIRED);
+            deviceRepository.save(device);
         }
     }
 

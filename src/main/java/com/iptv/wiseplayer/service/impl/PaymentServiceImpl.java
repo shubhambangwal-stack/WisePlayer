@@ -56,11 +56,11 @@ public class PaymentServiceImpl implements PaymentService {
 
         // For simplicity, we define static prices here. In production, these should be
         // from DB or Stripe Product ID.
+        // Pricing: Annual 6 EUR, Lifetime 10 EUR
         long amountInCents = 0;
         switch (request.getPlan()) {
-            case MONTHLY -> amountInCents = 500; // $5.00
-            case QUARTERLY -> amountInCents = 1200; // $12.00
-            case YEARLY -> amountInCents = 4000; // $40.00
+            case ANNUAL -> amountInCents = 600; // 6.00 EUR
+            case LIFETIME -> amountInCents = 1000; // 10.00 EUR
         }
 
         SessionCreateParams params = SessionCreateParams.builder()
@@ -71,10 +71,10 @@ public class PaymentServiceImpl implements PaymentService {
                 .addLineItem(SessionCreateParams.LineItem.builder()
                         .setQuantity(1L)
                         .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
-                                .setCurrency("usd")
+                                .setCurrency("eur")
                                 .setUnitAmount(amountInCents)
                                 .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                        .setName(request.getPlan().name() + " Subscription")
+                                        .setName(request.getPlan().name() + " WisePlayer Subscription")
                                         .build())
                                 .build())
                         .build())
