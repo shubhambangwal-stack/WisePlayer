@@ -4,9 +4,16 @@ package com.iptv.wiseplayer.domain.enums;
  * Available subscription plans.
  */
 public enum SubscriptionPlan {
-    MONTHLY(30),
-    QUARTERLY(90),
-    YEARLY(365);
+    /**
+     * Annual Plan: 6 EUR for 12 months (365 days)
+     */
+    ANNUAL(365),
+
+    /**
+     * Lifetime Plan: 10 EUR for unlimited access
+     * Represented as a very large number of days (e.g., 100 years).
+     */
+    LIFETIME(36500);
 
     private final int days;
 
