@@ -24,4 +24,4 @@ app:
     # 256-bit secret for HMAC-SHA256 (Base64 encoded)
     # Using a fixed key for dev; in production this should be in an env var.
     token-secret: d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0
-    token-ttl-minutes: 300
+    token-ttl-minutes: 3000
