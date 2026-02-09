@@ -2,23 +2,23 @@ package com.iptv.wiseplayer.dto.request;
 
 public class M3uPlaylistRequest {
 
-    private String deviceId; // Fingerprint
+    private String name;
     private String m3uUrl;
 
     public M3uPlaylistRequest() {
     }
 
-    public M3uPlaylistRequest(String deviceId, String m3uUrl) {
-        this.deviceId = deviceId;
+    public M3uPlaylistRequest(String name, String m3uUrl) {
+        this.name = name;
         this.m3uUrl = m3uUrl;
     }
 
-    public String getDeviceId() {
-        return deviceId;
+    public String getName() {
+        return name;
     }
 
-    public void setDeviceId(String deviceId) {
-        this.deviceId = deviceId;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getM3uUrl() {

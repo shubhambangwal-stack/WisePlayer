@@ -24,6 +24,11 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
     Optional<Device> findByFingerprintHash(String fingerprintHash);
 
     /**
+     * Find devices by status and expiration date.
+     */
+    java.util.List<Device> findByDeviceStatusAndExpiresAtBefore(com.iptv.wiseplayer.domain.enums.DeviceStatus status, java.time.LocalDateTime now);
+
+    /**
      * Find device by device ID.
      *
      * @param deviceId UUID of the device

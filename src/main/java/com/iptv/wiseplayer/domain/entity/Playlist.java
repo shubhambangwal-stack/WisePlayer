@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "playlists", indexes = {
-        @Index(name = "idx_playlist_device_id", columnList = "device_id", unique = true)
+        @Index(name = "idx_playlist_device_id", columnList = "device_id")
 })
 public class Playlist {
 
@@ -19,8 +19,11 @@ public class Playlist {
     @Column(name = "playlist_id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "device_id", nullable = false, unique = true)
+    @Column(name = "device_id", nullable = false)
     private UUID deviceId;
+
+    @Column(name = "name", nullable = false, length = 100)
+    private String name;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
@@ -51,8 +54,9 @@ public class Playlist {
     }
 
     // Constructor for Xtream
-    public Playlist(UUID deviceId, String serverUrl, String username, String password) {
+    public Playlist(UUID deviceId, String name, String serverUrl, String username, String password) {
         this.deviceId = deviceId;
+        this.name = name;
         this.type = PlaylistType.XTREAM;
         this.serverUrl = serverUrl;
         this.username = username;
@@ -60,8 +64,9 @@ public class Playlist {
     }
 
     // Constructor for M3U
-    public Playlist(UUID deviceId, String m3uUrl) {
+    public Playlist(UUID deviceId, String name, String m3uUrl) {
         this.deviceId = deviceId;
+        this.name = name;
         this.type = PlaylistType.M3U;
         this.m3uUrl = m3uUrl;
     }
@@ -120,6 +125,14 @@ public class Playlist {
 
     public void setM3uUrl(String m3uUrl) {
         this.m3uUrl = m3uUrl;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public LocalDateTime getCreatedAt() {

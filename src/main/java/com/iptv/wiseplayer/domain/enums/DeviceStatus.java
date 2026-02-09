@@ -23,6 +23,11 @@ public enum DeviceStatus {
     BLOCKED,
 
     /**
+     * Device is in the 7-day free trial period.
+     */
+    TRIAL,
+
+    /**
      * Device subscription has expired.
      * Access is denied until subscription is renewed.
      */

@@ -3,75 +3,96 @@ package com.iptv.wiseplayer.service.impl;
 import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.entity.Playlist;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
+import com.iptv.wiseplayer.domain.enums.PlaylistType;
 import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import com.iptv.wiseplayer.exception.AccessDeniedException;
-import com.iptv.wiseplayer.exception.PlaylistNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.PlaylistRepository;
-import com.iptv.wiseplayer.service.DeviceService;
 import com.iptv.wiseplayer.service.PlaylistService;
+import com.iptv.wiseplayer.service.iptv.XtreamClient;
 import com.iptv.wiseplayer.util.EncryptionUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+/**
+ * Implementation of PlaylistService.
+ * Handles encrypted storage and retrieval of playlists.
+ */
 @Service
 public class PlaylistServiceImpl implements PlaylistService {
 
     private final PlaylistRepository playlistRepository;
     private final DeviceRepository deviceRepository;
-    private final DeviceService deviceService;
     private final EncryptionUtil encryptionUtil;
+    private final XtreamClient xtreamClient;
+    private final com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository,
             DeviceRepository deviceRepository,
-            DeviceService deviceService,
-            EncryptionUtil encryptionUtil) {
+            EncryptionUtil encryptionUtil,
+            XtreamClient xtreamClient,
+            com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
-        this.deviceService = deviceService;
         this.encryptionUtil = encryptionUtil;
+        this.xtreamClient = xtreamClient;
+        this.xtreamUrlParser = xtreamUrlParser;
     }
 
     @Override
     @Transactional
-    public void saveXtreamPlaylist(XtreamPlaylistRequest request) {
-        UUID deviceId = deviceService.getDeviceIdByFingerprint(request.getDeviceId());
-
-        Playlist playlist = playlistRepository.findByDeviceId(deviceId)
+    public void saveXtreamPlaylist(UUID deviceId, XtreamPlaylistRequest request) {
+        Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
+                .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
+                .findFirst()
                 .orElseGet(() -> {
                     Playlist p = new Playlist();
                     p.setDeviceId(deviceId);
+                    p.setName(request.getName());
                     return p;
                 });
 
-        playlist.setType(com.iptv.wiseplayer.domain.enums.PlaylistType.XTREAM);
+        playlist.setType(PlaylistType.XTREAM);
         playlist.setServerUrl(encryptionUtil.encrypt(request.getServerUrl()));
         playlist.setUsername(encryptionUtil.encrypt(request.getUsername()));
         playlist.setPassword(encryptionUtil.encrypt(request.getPassword()));
-        playlist.setM3uUrl(null); // Clear other type fields
+        playlist.setM3uUrl(null);
 
         playlistRepository.save(playlist);
     }
 
     @Override
     @Transactional
-    public void saveM3uPlaylist(M3uPlaylistRequest request) {
-        UUID deviceId = deviceService.getDeviceIdByFingerprint(request.getDeviceId());
+    public void saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request) {
+        // Smart Promotion Check
+        var xtreamDetails = xtreamUrlParser.parse(request.getM3uUrl());
+        if (xtreamDetails != null) {
+            XtreamPlaylistRequest xtreamRequest = new XtreamPlaylistRequest();
+            xtreamRequest.setName(request.getName());
+            xtreamRequest.setServerUrl(xtreamDetails.getServerUrl());
+            xtreamRequest.setUsername(xtreamDetails.getUsername());
+            xtreamRequest.setPassword(xtreamDetails.getPassword());
+            saveXtreamPlaylist(deviceId, xtreamRequest);
+            return;
+        }
 
-        Playlist playlist = playlistRepository.findByDeviceId(deviceId)
+        Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
+                .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
+                .findFirst()
                 .orElseGet(() -> {
                     Playlist p = new Playlist();
                     p.setDeviceId(deviceId);
+                    p.setName(request.getName());
                     return p;
                 });
 
-        playlist.setType(com.iptv.wiseplayer.domain.enums.PlaylistType.M3U);
+        playlist.setType(PlaylistType.M3U);
         playlist.setM3uUrl(encryptionUtil.encrypt(request.getM3uUrl()));
-        playlist.setServerUrl(null); // Clear other type fields
+        playlist.setServerUrl(null);
         playlist.setUsername(null);
         playlist.setPassword(null);
 
@@ -79,35 +100,78 @@ public class PlaylistServiceImpl implements PlaylistService {
     }
 
     @Override
-    public PlaylistResponse getPlaylist(String deviceIdFingerprint) {
-        UUID deviceId = deviceService.getDeviceIdByFingerprint(deviceIdFingerprint);
-
-        // Check if device is ACTIVE
+    public java.util.List<PlaylistResponse> getPlaylists(UUID deviceId) {
+        // Validation check for device status
         Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new RuntimeException("Internal Error: Device ID resolved but entity not found"));
+                .orElseThrow(() -> new RuntimeException(
+                        "Internal Security Error: Authenticated device not found in database"));
 
         if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
-            throw new AccessDeniedException(
-                    "Access Denied: Device subscription is not active. Current status: " + device.getDeviceStatus());
+            throw new AccessDeniedException("Access Denied: Your device status is " + device.getDeviceStatus());
         }
 
-        Playlist playlist = playlistRepository.findByDeviceId(deviceId)
-                .orElseThrow(
-                        () -> new PlaylistNotFoundException("Playlist not found for device: " + deviceIdFingerprint));
+        return playlistRepository.findByDeviceId(deviceId).stream()
+                .map(playlist -> {
+                    // Decrypt fields for response
+                    String serverUrl = playlist.getServerUrl() != null ? encryptionUtil.decrypt(playlist.getServerUrl())
+                            : null;
+                    String username = playlist.getUsername() != null ? encryptionUtil.decrypt(playlist.getUsername())
+                            : null;
+                    String password = playlist.getPassword() != null ? encryptionUtil.decrypt(playlist.getPassword())
+                            : null;
+                    String m3uUrl = playlist.getM3uUrl() != null ? encryptionUtil.decrypt(playlist.getM3uUrl()) : null;
 
-        // Decrypt fields
-        String serverUrl = encryptionUtil.decrypt(playlist.getServerUrl());
-        String username = encryptionUtil.decrypt(playlist.getUsername());
-        String password = encryptionUtil.decrypt(playlist.getPassword());
-        String m3uUrl = encryptionUtil.decrypt(playlist.getM3uUrl());
+                    return new PlaylistResponse(
+                            playlist.getId(),
+                            playlist.getDeviceId(),
+                            playlist.getName(),
+                            playlist.getType(),
+                            serverUrl,
+                            username,
+                            password,
+                            m3uUrl);
+                })
+                .collect(java.util.stream.Collectors.toList());
+    }
 
-        return new PlaylistResponse(
-                playlist.getId(),
-                playlist.getDeviceId(),
-                playlist.getType(),
-                serverUrl,
-                username,
-                password,
-                m3uUrl);
+    @Override
+    public void validatePlaylist(UUID deviceId, Object request) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new RuntimeException("Device not found"));
+
+        if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
+            throw new AccessDeniedException("Validation allowed only for active devices");
+        }
+
+        if (request instanceof XtreamPlaylistRequest xtreamRequest) {
+            xtreamClient.authenticate(xtreamRequest.getServerUrl(), xtreamRequest.getUsername(),
+                    xtreamRequest.getPassword())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid Xtream credentials or inactive account"));
+
+            // If valid, save it
+            saveXtreamPlaylist(deviceId, xtreamRequest);
+        } else if (request instanceof M3uPlaylistRequest m3uRequest) {
+            // Check for Xtream Promotion during validation
+            var xtreamDetails = xtreamUrlParser.parse(m3uRequest.getM3uUrl());
+            if (xtreamDetails != null) {
+                XtreamPlaylistRequest xtreamRequest = new XtreamPlaylistRequest();
+                xtreamRequest.setName(m3uRequest.getName());
+                xtreamRequest.setServerUrl(xtreamDetails.getServerUrl());
+                xtreamRequest.setUsername(xtreamDetails.getUsername());
+                xtreamRequest.setPassword(xtreamDetails.getPassword());
+
+                // Validate as Xtream
+                xtreamClient.authenticate(xtreamRequest.getServerUrl(), xtreamRequest.getUsername(),
+                        xtreamRequest.getPassword())
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Invalid Xtream credentials extracted from M3U URL"));
+
+                saveXtreamPlaylist(deviceId, xtreamRequest);
+            } else {
+                saveM3uPlaylist(deviceId, m3uRequest);
+            }
+        } else {
+            throw new IllegalArgumentException("Unsupported playlist request type");
+        }
     }
 }

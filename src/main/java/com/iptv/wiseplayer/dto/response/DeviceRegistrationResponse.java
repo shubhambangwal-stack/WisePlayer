@@ -13,15 +13,17 @@ public class DeviceRegistrationResponse {
 
     private UUID deviceId;
     private DeviceStatus status;
+    private String token;
     private LocalDateTime registeredAt;
 
     // Constructors
     public DeviceRegistrationResponse() {
     }
 
-    public DeviceRegistrationResponse(UUID deviceId, DeviceStatus status, LocalDateTime registeredAt) {
+    public DeviceRegistrationResponse(UUID deviceId, DeviceStatus status, String token, LocalDateTime registeredAt) {
         this.deviceId = deviceId;
         this.status = status;
+        this.token = token;
         this.registeredAt = registeredAt;
     }
 
@@ -40,6 +42,14 @@ public class DeviceRegistrationResponse {
 
     public void setStatus(DeviceStatus status) {
         this.status = status;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public LocalDateTime getRegisteredAt() {
