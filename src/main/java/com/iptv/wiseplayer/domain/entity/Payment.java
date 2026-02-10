@@ -18,9 +18,6 @@ import java.util.UUID;
         @Index(name = "idx_payment_session_id", columnList = "stripe_session_id"),
         @Index(name = "idx_payment_event_id", columnList = "stripe_event_id", unique = true)
 })
-@Getter
-@Setter
-@NoArgsConstructor
 public class Payment {
 
     @Id
@@ -55,4 +52,79 @@ public class Payment {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public Payment() {
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public UUID getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(UUID deviceId) {
+        this.deviceId = deviceId;
+    }
+
+    public PaymentStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PaymentStatus status) {
+        this.status = status;
+    }
+
+    public String getStripeSessionId() {
+        return stripeSessionId;
+    }
+
+    public void setStripeSessionId(String stripeSessionId) {
+        this.stripeSessionId = stripeSessionId;
+    }
+
+    public String getStripeEventId() {
+        return stripeEventId;
+    }
+
+    public void setStripeEventId(String stripeEventId) {
+        this.stripeEventId = stripeEventId;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public SubscriptionPlan getPlan() {
+        return plan;
+    }
+
+    public void setPlan(SubscriptionPlan plan) {
+        this.plan = plan;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }

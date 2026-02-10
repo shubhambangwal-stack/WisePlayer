@@ -1,7 +1,10 @@
 package com.iptv.wiseplayer.service.iptv;
 
+import com.iptv.wiseplayer.domain.entity.Playlist;
+import com.iptv.wiseplayer.domain.enums.PlaylistType;
 import com.iptv.wiseplayer.dto.iptv.XtreamAuthResponse;
 import com.iptv.wiseplayer.dto.iptv.XtreamUserInfo;
+import com.iptv.wiseplayer.repository.PlaylistRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -12,13 +15,23 @@ public class XtreamAuthService {
 
     private final XtreamClient xtreamClient;
     private final SecureCredentialStore credentialStore;
+    private final PlaylistRepository playlistRepository;
 
-    public XtreamAuthService(XtreamClient xtreamClient, SecureCredentialStore credentialStore) {
+    public XtreamAuthService(XtreamClient xtreamClient, SecureCredentialStore credentialStore,
+            PlaylistRepository playlistRepository) {
         this.xtreamClient = xtreamClient;
         this.credentialStore = credentialStore;
+        this.playlistRepository = playlistRepository;
     }
 
     public XtreamAuthResponse checkAuth(UUID playlistId) {
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new RuntimeException("Playlist not found"));
+
+        if (playlist.getType() != PlaylistType.XTREAM) {
+            throw new IllegalArgumentException("This operation is only available for XTREAM playlists.");
+        }
+
         SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
 
         XtreamAuthResponse response = xtreamClient.authenticate(creds.serverUrl(), creds.username(), creds.password())

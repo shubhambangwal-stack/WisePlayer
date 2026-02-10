@@ -62,11 +62,12 @@ public class DeviceServiceImpl implements DeviceService {
                     device.getRegisteredAt());
         }
 
-        // Create new device
-        Device newDevice = new Device(fingerprintHash, DeviceStatus.INACTIVE);
+        // Create new device with 7-day free trial
+        Device newDevice = new Device(fingerprintHash, DeviceStatus.TRIAL);
         newDevice.setDeviceModel(request.getDeviceModel());
         newDevice.setOsVersion(request.getOsVersion());
         newDevice.setPlatform(request.getPlatform());
+        newDevice.setExpiresAt(LocalDateTime.now().plusDays(7));
 
         // Save to database
         Device savedDevice = deviceRepository.save(newDevice);
@@ -99,7 +100,7 @@ public class DeviceServiceImpl implements DeviceService {
         deviceRepository.save(device);
 
         // Determine access permission based on device status
-        boolean allowed = device.getDeviceStatus() == DeviceStatus.ACTIVE;
+        boolean allowed = (device.getDeviceStatus() == DeviceStatus.ACTIVE || device.getDeviceStatus() == DeviceStatus.TRIAL);
         String message = determineValidationMessage(device.getDeviceStatus());
 
         return new DeviceValidationResponse(
@@ -132,9 +133,10 @@ public class DeviceServiceImpl implements DeviceService {
     private String determineValidationMessage(DeviceStatus status) {
         return switch (status) {
             case ACTIVE -> "Device is active and authorized";
+            case TRIAL -> "Device is in free trial period. Please subscribe to continue access later.";
             case INACTIVE -> "Device is registered but not activated. Please activate your subscription.";
             case BLOCKED -> "Device has been blocked. Please contact support.";
-            case EXPIRED -> "Device subscription has expired. Please renew your subscription.";
+            case EXPIRED -> "Device subscription has expired. Please renew your subscription to continue.";
         };
 
     }

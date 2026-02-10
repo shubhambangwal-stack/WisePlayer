@@ -5,6 +5,7 @@ package com.iptv.wiseplayer.domain.enums;
  */
 public enum SubscriptionStatus {
     ACTIVE,
+    TRIAL,
     EXPIRED,
     CANCELLED
 }
