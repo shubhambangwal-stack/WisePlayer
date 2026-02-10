@@ -109,6 +109,7 @@ public class DeviceServiceImpl implements DeviceService {
                 allowed,
                 message,
                 device.getLastSeenAt());
+
     }
 
     /**
