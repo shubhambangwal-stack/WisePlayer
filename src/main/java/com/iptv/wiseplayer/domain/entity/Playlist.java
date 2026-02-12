@@ -22,12 +22,15 @@ public class Playlist {
     @Column(name = "device_id", nullable = false)
     private UUID deviceId;
 
-    @Column(name = "name", nullable = false, length = 100)
+    @Column(name = "name", nullable = false, length = 100 , columnDefinition = "VARCHAR(100) DEFAULT 'My Playlist'")
     private String name;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
     private PlaylistType type;
+
+
+
 
     // Encrypted Fields
     @Column(name = "server_url", columnDefinition = "TEXT")
