@@ -1,7 +1,7 @@
 package com.iptv.wiseplayer.security;
 
+import com.iptv.wiseplayer.config.SecurityProperties;
 import com.iptv.wiseplayer.exception.DeviceAuthenticationException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
@@ -9,22 +9,20 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.StringJoiner;
+import java.security.SecureRandom;
+import java.util.*;
 
 @Component
 public class DeviceTokenUtil {
 
-    private final String secret;
-    private final long ttlMinutes;
+    private final SecurityProperties securityProperties;
 
-    public DeviceTokenUtil(
-            @Value("${app.security.token-secret}") String secret,
-            @Value("${app.security.token-ttl-minutes}") long ttlMinutes) {
-        this.secret = secret;
-        this.ttlMinutes = ttlMinutes;
+    public DeviceTokenUtil(SecurityProperties securityProperties) {
+        this.securityProperties = securityProperties;
+        if (securityProperties.getTokenSecrets() == null || securityProperties.getTokenSecrets().isEmpty()) {
+            throw new IllegalStateException(
+                    "At least one security secret must be configured in app.security.token-secrets");
+        }
     }
 
     /**
@@ -32,7 +30,7 @@ public class DeviceTokenUtil {
      * Payload contains deviceId, fingerprintHash, and expiry.
      */
     public String generateToken(String deviceId, String fingerprintHash) {
-        long expiry = System.currentTimeMillis() + (ttlMinutes * 60 * 1000);
+        long expiry = System.currentTimeMillis() + (securityProperties.getTokenTtlMinutes() * 60 * 1000);
 
         String payload = new StringJoiner("|")
                 .add(deviceId)
@@ -42,9 +40,20 @@ public class DeviceTokenUtil {
 
         String encodedPayload = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
-        String signature = sign(encodedPayload);
+
+        // Always sign with the first (primary) secret
+        String signature = sign(encodedPayload, securityProperties.getTokenSecrets().get(0));
 
         return encodedPayload + "." + signature;
+    }
+
+    /**
+     * Generates a random secure refresh token.
+     */
+    public String generateRefreshToken() {
+        byte[] randomBytes = new byte[32];
+        new SecureRandom().nextBytes(randomBytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
 
     public Map<String, String> verifyAndExtract(String token, String requestFingerprint) {
@@ -57,9 +66,16 @@ public class DeviceTokenUtil {
             String encodedPayload = parts[0];
             String providedSignature = parts[1];
 
-            // 1. Verify signature
-            String expectedSignature = sign(encodedPayload);
-            if (!expectedSignature.equals(providedSignature)) {
+            // 1. Verify signature against all active secrets (Rotation support)
+            boolean validSignature = false;
+            for (String secret : securityProperties.getTokenSecrets()) {
+                if (sign(encodedPayload, secret).equals(providedSignature)) {
+                    validSignature = true;
+                    break;
+                }
+            }
+
+            if (!validSignature) {
                 throw new DeviceAuthenticationException("Invalid token signature");
             }
 
@@ -97,7 +113,7 @@ public class DeviceTokenUtil {
         }
     }
 
-    private String sign(String data) {
+    private String sign(String data, String secret) {
         try {
             Mac sha256HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -119,6 +135,29 @@ public class DeviceTokenUtil {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(fingerprint.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1)
+                    hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 algorithm not available", e);
+        }
+    }
+
+    /**
+     * Hash device secret using SHA-256 (Case Sensitive).
+     */
+    public String hashSecret(String secret) {
+        if (secret == null)
+            return null;
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(secret.trim().getBytes(StandardCharsets.UTF_8));
 
             StringBuilder hexString = new StringBuilder();
             for (byte b : hashBytes) {

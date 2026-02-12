@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.dto.response;
 
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
+import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,6 +14,7 @@ public class DeviceValidationResponse {
 
     private UUID deviceId;
     private DeviceStatus status;
+    private SubscriptionType subscriptionType;
     private String token;
     private boolean allowed;
     private String message;
@@ -22,10 +24,11 @@ public class DeviceValidationResponse {
     public DeviceValidationResponse() {
     }
 
-    public DeviceValidationResponse(UUID deviceId, DeviceStatus status, String token, boolean allowed,
-            String message, LocalDateTime lastSeenAt) {
+    public DeviceValidationResponse(UUID deviceId, DeviceStatus status, SubscriptionType subscriptionType, String token,
+            boolean allowed, String message, LocalDateTime lastSeenAt) {
         this.deviceId = deviceId;
         this.status = status;
+        this.subscriptionType = subscriptionType;
         this.token = token;
         this.allowed = allowed;
         this.message = message;
@@ -55,6 +58,14 @@ public class DeviceValidationResponse {
 
     public void setStatus(DeviceStatus status) {
         this.status = status;
+    }
+
+    public SubscriptionType getSubscriptionType() {
+        return subscriptionType;
+    }
+
+    public void setSubscriptionType(SubscriptionType subscriptionType) {
+        this.subscriptionType = subscriptionType;
     }
 
     public boolean isAllowed() {

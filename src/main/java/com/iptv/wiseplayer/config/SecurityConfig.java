@@ -35,6 +35,7 @@ public class SecurityConfig {
                         // Public Endpoints
                         .requestMatchers("/api/device/register").permitAll()
                         .requestMatchers("/api/device/validate").permitAll()
+                        .requestMatchers("/api/device/refresh").permitAll()
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
                         .requestMatchers("/api/payment/webhook").permitAll()

@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.service.impl;
 
 import com.iptv.wiseplayer.domain.entity.Device;
+import com.iptv.wiseplayer.domain.entity.DeviceAuditLog;
 import com.iptv.wiseplayer.domain.entity.DeviceKey;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.dto.request.DeviceActivationRequest;
@@ -9,6 +10,7 @@ import com.iptv.wiseplayer.dto.response.DeviceActivationResponse;
 import com.iptv.wiseplayer.dto.response.DeviceKeyResponse;
 import com.iptv.wiseplayer.dto.response.DeviceKeyStatusResponse;
 import com.iptv.wiseplayer.exception.DeviceNotFoundException;
+import com.iptv.wiseplayer.repository.DeviceAuditRepository;
 import com.iptv.wiseplayer.repository.DeviceKeyRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.service.DeviceKeyService;
@@ -34,13 +36,16 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
     private final DeviceRepository deviceRepository;
     private final DeviceKeyRepository deviceKeyRepository;
     private final DeviceService deviceService;
+    private final DeviceAuditRepository auditRepository;
 
     public DeviceKeyServiceImpl(DeviceRepository deviceRepository,
             DeviceKeyRepository deviceKeyRepository,
-            DeviceService deviceService) {
+            DeviceService deviceService,
+            DeviceAuditRepository auditRepository) {
         this.deviceRepository = deviceRepository;
         this.deviceKeyRepository = deviceKeyRepository;
         this.deviceService = deviceService;
+        this.auditRepository = auditRepository;
     }
 
     @Override
@@ -120,9 +125,15 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
         }
 
         // 5. Activate Device
+        DeviceStatus oldStatus = device.getDeviceStatus();
         device.setDeviceStatus(DeviceStatus.ACTIVE);
         device.setActivatedAt(LocalDateTime.now());
         deviceRepository.save(device);
+
+        // Audit Logging
+        DeviceAuditLog auditLog = new DeviceAuditLog(device.getDeviceId(), oldStatus, DeviceStatus.ACTIVE,
+                "ACTIVATION", "Device activated via 6-digit code");
+        auditRepository.save(auditLog);
 
         // 6. Delete used key
         deviceKeyRepository.delete(deviceKey);

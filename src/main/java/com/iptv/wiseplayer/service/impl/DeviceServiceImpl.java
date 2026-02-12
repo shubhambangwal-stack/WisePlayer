@@ -1,12 +1,16 @@
 package com.iptv.wiseplayer.service.impl;
 
 import com.iptv.wiseplayer.domain.entity.Device;
+import com.iptv.wiseplayer.domain.entity.DeviceAuditLog;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
+import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
 import com.iptv.wiseplayer.dto.request.DeviceValidationRequest;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.DeviceValidationResponse;
+import com.iptv.wiseplayer.exception.DeviceAuthenticationException;
 import com.iptv.wiseplayer.exception.DeviceNotFoundException;
+import com.iptv.wiseplayer.repository.DeviceAuditRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.DeviceService;
@@ -25,10 +29,14 @@ public class DeviceServiceImpl implements DeviceService {
 
     private final DeviceRepository deviceRepository;
     private final DeviceTokenUtil tokenUtil;
+    private final DeviceAuditRepository auditRepository;
 
-    public DeviceServiceImpl(DeviceRepository deviceRepository, DeviceTokenUtil tokenUtil) {
+    public DeviceServiceImpl(DeviceRepository deviceRepository,
+            DeviceTokenUtil tokenUtil,
+            DeviceAuditRepository auditRepository) {
         this.deviceRepository = deviceRepository;
         this.tokenUtil = tokenUtil;
+        this.auditRepository = auditRepository;
     }
 
     @Override
@@ -47,7 +55,6 @@ public class DeviceServiceImpl implements DeviceService {
 
         if (existingDevice.isPresent()) {
             Device device = existingDevice.get();
-            // Update device metadata if changed (optional, but good for tracking updates)
             if (request.getPlatform() != null && !request.getPlatform().equals(device.getPlatform())) {
                 device.setPlatform(request.getPlatform());
                 device.setDeviceModel(request.getDeviceModel());
@@ -55,10 +62,17 @@ public class DeviceServiceImpl implements DeviceService {
                 deviceRepository.save(device);
             }
 
+            // Always rotate secret on re-registration (Assumes app reinstall/cleared data)
+            String rawSecret = tokenUtil.generateRefreshToken();
+            device.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
+            deviceRepository.save(device);
+
             return new DeviceRegistrationResponse(
                     device.getDeviceId(),
                     device.getDeviceStatus(),
-                    tokenUtil.generateToken(device.getDeviceId().toString(), hashFingerprint(request.getDeviceId())),
+                    device.getSubscriptionType(),
+                    tokenUtil.generateToken(device.getDeviceId().toString(), fingerprintHash),
+                    rawSecret,
                     device.getRegisteredAt());
         }
 
@@ -69,13 +83,19 @@ public class DeviceServiceImpl implements DeviceService {
         newDevice.setPlatform(request.getPlatform());
         newDevice.setExpiresAt(LocalDateTime.now().plusDays(7));
 
+        // Generate permanent Hardware-Linked Secret (HLS)
+        String rawSecret = tokenUtil.generateRefreshToken();
+        newDevice.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
+
         // Save to database
         Device savedDevice = deviceRepository.save(newDevice);
 
         return new DeviceRegistrationResponse(
                 savedDevice.getDeviceId(),
                 savedDevice.getDeviceStatus(),
+                savedDevice.getSubscriptionType(),
                 tokenUtil.generateToken(savedDevice.getDeviceId().toString(), fingerprintHash),
+                rawSecret,
                 savedDevice.getRegisteredAt());
     }
 
@@ -93,20 +113,30 @@ public class DeviceServiceImpl implements DeviceService {
         // Find device by fingerprint hash
         Device device = deviceRepository.findByFingerprintHash(providedFingerprintHash)
                 .orElseThrow(() -> new DeviceNotFoundException(
-                        "Device not found with fingerprint user provided. Please register device first."));
+                        "Device not found. Please register device first."));
+
+        // VERIFY HARDWARE-LINKED SECRET
+        String providedSecretHash = tokenUtil.hashSecret(request.getDeviceSecret());
+        if (device.getDeviceSecretHash() == null || !device.getDeviceSecretHash().equals(providedSecretHash)) {
+            throw new DeviceAuthenticationException("Invalid device secret. Access denied.");
+        }
 
         // Update last seen timestamp
         device.setLastSeenAt(LocalDateTime.now());
         deviceRepository.save(device);
 
         // Determine access permission based on device status
-        boolean allowed = (device.getDeviceStatus() == DeviceStatus.ACTIVE || device.getDeviceStatus() == DeviceStatus.TRIAL);
+        boolean allowed = (device.getDeviceStatus() == DeviceStatus.ACTIVE
+                || device.getDeviceStatus() == DeviceStatus.TRIAL);
         String message = determineValidationMessage(device.getDeviceStatus());
+
+        String newAccessToken = tokenUtil.generateToken(device.getDeviceId().toString(), providedFingerprintHash);
 
         return new DeviceValidationResponse(
                 device.getDeviceId(),
                 device.getDeviceStatus(),
-                tokenUtil.generateToken(device.getDeviceId().toString(), providedFingerprintHash),
+                device.getSubscriptionType(),
+                newAccessToken,
                 allowed,
                 message,
                 device.getLastSeenAt());
@@ -146,9 +176,50 @@ public class DeviceServiceImpl implements DeviceService {
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found with ID: " + deviceId));
 
+        DeviceStatus oldStatus = device.getDeviceStatus();
         device.setDeviceStatus(status);
         device.setExpiresAt(expiresAt);
         deviceRepository.save(device);
+
+        logAudit(deviceId, oldStatus, status, "SUBSCRIPTION_UPDATE", "Status updated to " + status);
+    }
+
+    @Override
+    @Transactional
+    public DeviceValidationResponse refreshDeviceToken(String deviceSecret, String fingerprint) {
+        String providedFingerprintHash = hashFingerprint(fingerprint);
+        Device device = deviceRepository.findByFingerprintHash(providedFingerprintHash)
+                .orElseThrow(() -> new DeviceAuthenticationException("Device not found for provided fingerprint"));
+
+        // Verify Hardware-Linked Secret
+        String providedSecretHash = tokenUtil.hashSecret(deviceSecret);
+        if (device.getDeviceSecretHash() == null || !device.getDeviceSecretHash().equals(providedSecretHash)) {
+            throw new DeviceAuthenticationException("Invalid device secret during refresh");
+        }
+
+        // Generate new session token
+        String newAccessToken = tokenUtil.generateToken(device.getDeviceId().toString(), providedFingerprintHash);
+
+        device.setLastSeenAt(LocalDateTime.now());
+        deviceRepository.save(device);
+
+        boolean allowed = (device.getDeviceStatus() == DeviceStatus.ACTIVE
+                || device.getDeviceStatus() == DeviceStatus.TRIAL);
+        String message = determineValidationMessage(device.getDeviceStatus());
+
+        return new DeviceValidationResponse(
+                device.getDeviceId(),
+                device.getDeviceStatus(),
+                device.getSubscriptionType(),
+                newAccessToken,
+                allowed,
+                message,
+                device.getLastSeenAt());
+    }
+
+    private void logAudit(UUID deviceId, DeviceStatus oldStatus, DeviceStatus newStatus, String action, String reason) {
+        DeviceAuditLog auditLog = new DeviceAuditLog(deviceId, oldStatus, newStatus, action, reason);
+        auditRepository.save(auditLog);
     }
 
     @Override
