@@ -21,9 +21,7 @@ server:
 
 app:
   security:
-    token-secrets:
-      - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXYy
-      - device-security-secret-key-2024
-      - fallback-legacy-secret-2023
-    token-ttl-minutes: 300
-    # Refresh tokens are managed internally (not exposed in API)
+    # 256-bit secret for HMAC-SHA256 (Base64 encoded)
+    # Using a fixed key for dev; in production this should be in an env var.
+    token-secret: d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0
+    token-ttl-minutes: 3000
