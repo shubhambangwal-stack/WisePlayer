@@ -7,13 +7,15 @@ package com.iptv.wiseplayer.dto.request;
 public class DeviceValidationRequest {
 
     private String fingerprint;
+    private String deviceSecret;
 
     // Constructors
     public DeviceValidationRequest() {
     }
 
-    public DeviceValidationRequest(String fingerprint) {
+    public DeviceValidationRequest(String fingerprint, String deviceSecret) {
         this.fingerprint = fingerprint;
+        this.deviceSecret = deviceSecret;
     }
 
     // Getters and Setters
@@ -23,5 +25,13 @@ public class DeviceValidationRequest {
 
     public void setFingerprint(String fingerprint) {
         this.fingerprint = fingerprint;
+    }
+
+    public String getDeviceSecret() {
+        return deviceSecret;
+    }
+
+    public void setDeviceSecret(String deviceSecret) {
+        this.deviceSecret = deviceSecret;
     }
 }

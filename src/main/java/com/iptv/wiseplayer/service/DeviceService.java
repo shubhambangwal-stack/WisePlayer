@@ -57,4 +57,13 @@ public interface DeviceService {
      * @throws com.iptv.wiseplayer.exception.DeviceNotFoundException if not found
      */
     java.util.UUID resolveDeviceId(String identity);
+
+    /**
+     * Refresh access token using a valid (permanent) refresh token.
+     *
+     * @param refreshToken Raw refresh token
+     * @param fingerprint  Raw device fingerprint for binding check
+     * @return New validation response with new tokens
+     */
+    DeviceValidationResponse refreshDeviceToken(String deviceSecret, String fingerprint);
 }

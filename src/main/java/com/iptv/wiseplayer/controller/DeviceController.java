@@ -87,4 +87,13 @@ public class DeviceController {
         DeviceKeyStatusResponse response = deviceKeyService.getKeyStatus(deviceContext.getCurrentDeviceId());
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "Refresh Token", description = "Refreshes the device access token using the hardware-linked secret.")
+    @PostMapping("/refresh")
+    public ResponseEntity<DeviceValidationResponse> refreshToken(
+            @RequestHeader("X-Device-Secret") String deviceSecret,
+            @RequestHeader("X-Device-Fingerprint") String fingerprint) {
+        DeviceValidationResponse response = deviceService.refreshDeviceToken(deviceSecret, fingerprint);
+        return ResponseEntity.ok(response);
+    }
 }

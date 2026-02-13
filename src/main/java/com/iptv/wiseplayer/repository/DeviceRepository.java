@@ -26,13 +26,19 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
     /**
      * Find devices by status and expiration date.
      */
-    java.util.List<Device> findByDeviceStatusAndExpiresAtBefore(com.iptv.wiseplayer.domain.enums.DeviceStatus status, java.time.LocalDateTime now);
+    java.util.List<Device> findByDeviceStatusAndExpiresAtBefore(com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            java.time.LocalDateTime now);
 
     /**
-     * Find device by device ID.
-     *
      * @param deviceId UUID of the device
      * @return Optional containing device if found
      */
     Optional<Device> findByDeviceId(UUID deviceId);
+
+    /**
+     * Find device by refresh token.
+     *
+     * @param refreshToken Refresh token string
+     * @return Optional containing device if found
+     */
 }

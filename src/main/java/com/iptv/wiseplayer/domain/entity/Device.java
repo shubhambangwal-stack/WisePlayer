@@ -30,9 +30,16 @@ public class Device {
     @Column(name = "fingerprint_hash", nullable = false, unique = true, length = 64)
     private String fingerprintHash;
 
+    @Column(name = "device_secret_hash", nullable = false, length = 64)
+    private String deviceSecretHash;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "device_status", nullable = false, length = 20)
     private DeviceStatus deviceStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subscription_type", nullable = false, length = 20)
+    private com.iptv.wiseplayer.domain.enums.SubscriptionType subscriptionType = com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL;
 
     @Column(name = "device_model", length = 100)
     private String deviceModel;
@@ -63,6 +70,9 @@ public class Device {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "refresh_token", length = 100)
+    private String refreshToken;
+
     // Constructors
     public Device() {
     }
@@ -91,12 +101,28 @@ public class Device {
         this.fingerprintHash = fingerprintHash;
     }
 
+    public String getDeviceSecretHash() {
+        return deviceSecretHash;
+    }
+
+    public void setDeviceSecretHash(String deviceSecretHash) {
+        this.deviceSecretHash = deviceSecretHash;
+    }
+
     public DeviceStatus getDeviceStatus() {
         return deviceStatus;
     }
 
     public void setDeviceStatus(DeviceStatus deviceStatus) {
         this.deviceStatus = deviceStatus;
+    }
+
+    public com.iptv.wiseplayer.domain.enums.SubscriptionType getSubscriptionType() {
+        return subscriptionType;
+    }
+
+    public void setSubscriptionType(com.iptv.wiseplayer.domain.enums.SubscriptionType subscriptionType) {
+        this.subscriptionType = subscriptionType;
     }
 
     public String getDeviceModel() {
