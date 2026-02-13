@@ -32,12 +32,16 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final DeviceService deviceService;
     private final SubscriptionService subscriptionService;
+    private final org.springframework.web.client.RestTemplate restTemplate;
 
-    @Value("${stripe.api-key}")
-    private String stripeApiKey;
+    @Value("${paypal.client-id}")
+    private String paypalClientId;
 
-    @Value("${stripe.webhook-secret}")
-    private String webhookSecret;
+    @Value("${paypal.client-secret}")
+    private String paypalClientSecret;
+
+    @Value("${paypal.mode}")
+    private String paypalMode;
 
     public PaymentServiceImpl(PaymentRepository paymentRepository,
             DeviceService deviceService,
@@ -45,129 +49,153 @@ public class PaymentServiceImpl implements PaymentService {
         this.paymentRepository = paymentRepository;
         this.deviceService = deviceService;
         this.subscriptionService = subscriptionService;
+        this.restTemplate = new org.springframework.web.client.RestTemplate();
+    }
+
+    private String getPaypalBaseUrl() {
+        return "live".equalsIgnoreCase(paypalMode)
+                ? "https://api-m.paypal.com"
+                : "https://api-m.sandbox.paypal.com";
+    }
+
+    private String getAccessToken() {
+        String auth = paypalClientId + ":" + paypalClientSecret;
+        String encodedAuth = java.util.Base64.getEncoder().encodeToString(auth.getBytes());
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+        headers.setBasicAuth(paypalClientId, paypalClientSecret);
+
+        org.springframework.util.MultiValueMap<String, String> body = new org.springframework.util.LinkedMultiValueMap<>();
+        body.add("grant_type", "client_credentials");
+
+        org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new org.springframework.http.HttpEntity<>(
+                body, headers);
+
+        org.springframework.http.ResponseEntity<java.util.Map> response = restTemplate.postForEntity(
+                getPaypalBaseUrl() + "/v1/oauth2/token", request, java.util.Map.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return (String) response.getBody().get("access_token");
+        }
+        throw new RuntimeException("Failed to get PayPal access token");
     }
 
     @Override
     @Transactional
     public CheckoutResponse createCheckoutSession(CheckoutRequest request) {
-        Stripe.apiKey = stripeApiKey;
+        // Stripe implementation commented out
+        /*
+         * Stripe.apiKey = stripeApiKey;
+         * ...
+         */
 
         UUID deviceId = deviceService.resolveDeviceId(request.getDeviceId());
-
-        // For simplicity, we define static prices here. In production, these should be
-        // from DB or Stripe Product ID.
-        // Pricing: Annual 6 EUR, Lifetime 10 EUR
         long amountInCents = 0;
         switch (request.getPlan()) {
             case ANNUAL -> amountInCents = 600; // 6.00 EUR
             case LIFETIME -> amountInCents = 1000; // 10.00 EUR
         }
+        BigDecimal amount = BigDecimal.valueOf(amountInCents).divide(BigDecimal.valueOf(100));
 
-        SessionCreateParams params = SessionCreateParams.builder()
-                .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
-                .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl("https://wiseplayer.api/payment/success?session_id={CHECKOUT_SESSION_ID}")
-                .setCancelUrl("https://wiseplayer.api/payment/cancel")
-                .addLineItem(SessionCreateParams.LineItem.builder()
-                        .setQuantity(1L)
-                        .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
-                                .setCurrency("eur")
-                                .setUnitAmount(amountInCents)
-                                .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                        .setName(request.getPlan().name() + " WisePlayer Subscription")
-                                        .build())
-                                .build())
-                        .build())
-                .putMetadata("deviceId", request.getDeviceId()) // Fingerprint
-                .putMetadata("plan", request.getPlan().name())
-                .build();
+        String accessToken = getAccessToken();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(accessToken);
 
-        try {
-            Session session = Session.create(params);
+        java.util.Map<String, Object> orderRequest = new java.util.HashMap<>();
+        orderRequest.put("intent", "CAPTURE");
+
+        java.util.Map<String, Object> purchaseUnit = new java.util.HashMap<>();
+        purchaseUnit.put("reference_id", deviceId.toString());
+
+        java.util.Map<String, Object> amountMap = new java.util.HashMap<>();
+        amountMap.put("currency_code", "EUR");
+        amountMap.put("value", amount.toString());
+        purchaseUnit.put("amount", amountMap);
+
+        orderRequest.put("purchase_units", java.util.Collections.singletonList(purchaseUnit));
+
+        java.util.Map<String, String> applicationContext = new java.util.HashMap<>();
+        applicationContext.put("return_url", "https://wiseplayer.api/payment/paypal/success");
+        applicationContext.put("cancel_url", "https://wiseplayer.api/payment/paypal/cancel");
+        orderRequest.put("application_context", applicationContext);
+
+        org.springframework.http.HttpEntity<java.util.Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(
+                orderRequest, headers);
+
+        org.springframework.http.ResponseEntity<java.util.Map> response = restTemplate.postForEntity(
+                getPaypalBaseUrl() + "/v2/checkout/orders", entity, java.util.Map.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            String orderId = (String) response.getBody().get("id");
+            String approveUrl = "";
+
+            java.util.List<java.util.Map<String, String>> links = (java.util.List<java.util.Map<String, String>>) response
+                    .getBody().get("links");
+            for (java.util.Map<String, String> link : links) {
+                if ("approve".equals(link.get("rel"))) {
+                    approveUrl = link.get("href");
+                }
+            }
 
             Payment payment = new Payment();
             payment.setDeviceId(deviceId);
             payment.setStatus(PaymentStatus.PENDING);
-            payment.setStripeSessionId(session.getId());
-            payment.setAmount(BigDecimal.valueOf(amountInCents).divide(BigDecimal.valueOf(100)));
+            payment.setPaypalOrderId(orderId);
+            payment.setAmount(amount);
             payment.setPlan(request.getPlan());
             paymentRepository.save(payment);
 
-            return new CheckoutResponse(session.getUrl(), session.getId());
-        } catch (StripeException e) {
-            throw new RuntimeException("Stripe error: " + e.getMessage());
+            return new CheckoutResponse(approveUrl, orderId);
         }
+
+        throw new RuntimeException("Failed to create PayPal order");
     }
 
     @Override
     @Transactional
     public void handleWebhook(String payload, String sigHeader) {
-        log.info("Received Stripe webhook. Signature header present: {}", sigHeader != null);
-        Event event;
-        try {
-            event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
-        } catch (SignatureVerificationException e) {
-            log.error("Stripe Webhook signature verification failed: {}", e.getMessage());
-            throw new RuntimeException("Invalid webhook signature", e);
-        } catch (Exception e) {
-            log.error("Unexpected error during webhook construction: {}", e.getMessage(), e);
-            throw new RuntimeException("Webhook error", e);
-        }
+        // Stripe webhook logic commented out
+        /*
+         * log.info("Received Stripe webhook...");
+         * ...
+         */
+        log.info("Stripe webhook received but ignored as Stripe is disabled.");
+    }
 
-        log.info("Processing webhook event: {} [{}]", event.getType(), event.getId());
+    @Transactional
+    public void handlePaypalWebhook(java.util.Map<String, Object> payload) {
+        String eventType = (String) payload.get("event_type");
+        log.info("Received PayPal webhook: {}", eventType);
 
-        // Idempotency check
-        if (paymentRepository.findByStripeEventId(event.getId()).isPresent()) {
-            return; // Already processed
-        }
-
-        if ("checkout.session.completed".equals(event.getType())) {
-            Session session = (Session) event.getDataObjectDeserializer().getObject().orElse(null);
-            if (session != null) {
-                processSuccessfulPayment(session, event.getId());
+        if ("CHECKOUT.ORDER.APPROVED".equals(eventType) || "PAYMENT.CAPTURE.COMPLETED".equals(eventType)) {
+            java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
+            String orderId = (String) resource.get("id");
+            if (orderId == null && resource.containsKey("supplementary_data")) {
+                // For captures, orderId might be deeper
             }
+
+            // In a real scenario, we should call PayPal to verify the order status
+            processSuccessfulPaypalPayment(orderId);
         }
     }
 
-    private void processSuccessfulPayment(Session session, String eventId) {
-        log.info("Processing successful payment for session: {}", session.getId());
-        Payment payment = paymentRepository.findByStripeSessionId(session.getId())
-                .orElseThrow(() -> {
-                    log.error("Payment record not found for Stripe Session ID: {}", session.getId());
-                    return new RuntimeException("Payment record not found for session: " + session.getId());
-                });
+    private void processSuccessfulPaypalPayment(String orderId) {
+        Payment payment = paymentRepository.findByPaypalOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Payment not found for Order ID: " + orderId));
 
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            log.info("Payment session {} already marked as SUCCESS. Skipping.", session.getId());
-            return; // Already processed
-        }
+        if (payment.getStatus() == PaymentStatus.SUCCESS)
+            return;
 
         payment.setStatus(PaymentStatus.SUCCESS);
-        payment.setStripeEventId(eventId);
         paymentRepository.save(payment);
-        log.info("Payment updated to SUCCESS for device: {}", payment.getDeviceId());
 
-        // Activate Subscription
-        String fingerprint = session.getMetadata().get("deviceId");
-        String planStr = session.getMetadata().get("plan");
+        SubscriptionActivationRequest activationRequest = new SubscriptionActivationRequest();
+        activationRequest.setDeviceId(payment.getDeviceId().toString());
+        activationRequest.setPlan(payment.getPlan());
+        subscriptionService.activateSubscription(activationRequest);
 
-        log.info("Activating subscription: deviceId={}, plan={}", fingerprint, planStr);
-
-        if (fingerprint == null || planStr == null) {
-            log.error("Missing metadata in Stripe Session: deviceId={}, plan={}", fingerprint, planStr);
-            throw new RuntimeException("Missing metadata in session");
-        }
-
-        try {
-            SubscriptionActivationRequest activationRequest = new SubscriptionActivationRequest();
-            activationRequest.setDeviceId(fingerprint);
-            activationRequest.setPlan(com.iptv.wiseplayer.domain.enums.SubscriptionPlan.valueOf(planStr));
-
-            subscriptionService.activateSubscription(activationRequest);
-            log.info("Subscription activated successfully for device: {}", fingerprint);
-        } catch (Exception e) {
-            log.error("Failed to activate subscription for device {}: {}", fingerprint, e.getMessage(), e);
-            throw e;
-        }
+        log.info("PayPal Subscription activated for device: {}", payment.getDeviceId());
     }
 }

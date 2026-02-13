@@ -26,11 +26,21 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Stripe Webhook", description = "Endpoint to handle asynchronous payment events from Stripe.", hidden = true)
+    @Operation(summary = "Stripe Webhook (Disabled)", description = "Endpoint to handle Stripe events (currently disabled).", hidden = true)
     @PostMapping("/webhook")
-    public ResponseEntity<String> handleWebhook(@RequestBody String payload,
-            @RequestHeader("Stripe-Signature") String sigHeader) {
-        paymentService.handleWebhook(payload, sigHeader);
+    public ResponseEntity<String> handleStripeWebhook(@RequestBody String payload,
+            @RequestHeader(value = "Stripe-Signature", required = false) String sigHeader) {
+        // Stripe disabled
+        return ResponseEntity.ok("Disabled");
+    }
+
+    @Operation(summary = "PayPal Webhook", description = "Endpoint to handle asynchronous payment events from PayPal.")
+    @PostMapping("/paypal/webhook")
+    public ResponseEntity<String> handlePaypalWebhook(@RequestBody java.util.Map<String, Object> payload) {
+        // Implementation check: we need to cast or update service interface
+        if (paymentService instanceof com.iptv.wiseplayer.service.impl.PaymentServiceImpl) {
+            ((com.iptv.wiseplayer.service.impl.PaymentServiceImpl) paymentService).handlePaypalWebhook(payload);
+        }
         return ResponseEntity.ok("OK");
     }
 }

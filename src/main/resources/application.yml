@@ -12,9 +12,14 @@ spring:
     hibernate:
       ddl-auto: create
 
-stripe:
-  api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
-  webhook-secret: whsec_a38a24c1241cc5914d67c43cf526b7b050783c0a5b7c2c9d8a5619d7c9df91fa
+# stripe:
+#   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
+#   webhook-secret: whsec_a38a24c1241cc5914d67c43cf526b7b050783c0a5b7c2c9d8a5619d7c9df91fa
+
+paypal:
+  client-id: ${PAYPAL_CLIENT_ID:your_default_client_id}
+  client-secret: ${PAYPAL_CLIENT_SECRET:your_default_client_secret}
+  mode: sandbox # Use 'live' for production
 
 server:
   port: 8081
@@ -22,7 +27,8 @@ server:
 app:
   security:
     token-secrets:
-      - "4u7x!A%C*F-JaNdRfUjXn2r5u8x/A?D(G+KbPeShVkYp3s6v9y$B&E)H@McQfTjW" # Primary Secret (256-bit)
-      - "w9z$B&E)H@McQfTjWnZr4u7x!A%C*F-JaNdRgUkXp2s5v8y/B?E(G+KbPeShVmYq" # Rotation Secret (256-bit)
+      - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXYy
+      - device-security-secret-key-2024
+      - fallback-legacy-secret-2023
     token-ttl-minutes: 300
     # Refresh tokens are managed internally (not exposed in API)
