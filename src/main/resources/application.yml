@@ -12,9 +12,14 @@ spring:
     hibernate:
       ddl-auto: create
 
-stripe:
-  api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
-  webhook-secret: whsec_a38a24c1241cc5914d67c43cf526b7b050783c0a5b7c2c9d8a5619d7c9df91fa
+# stripe:
+#   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
+#   webhook-secret: whsec_a38a24c1241cc5914d67c43cf526b7b050783c0a5b7c2c9d8a5619d7c9df91fa
+
+paypal:
+  client-id: ${PAYPAL_CLIENT_ID:your_default_client_id}
+  client-secret: ${PAYPAL_CLIENT_SECRET:your_default_client_secret}
+  mode: sandbox # Use 'live' for production
 
 server:
   port: 8081

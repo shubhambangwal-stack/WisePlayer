@@ -16,7 +16,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "payments", indexes = {
         @Index(name = "idx_payment_session_id", columnList = "stripe_session_id"),
-        @Index(name = "idx_payment_event_id", columnList = "stripe_event_id", unique = true)
+        @Index(name = "idx_payment_event_id", columnList = "stripe_event_id", unique = true),
+        @Index(name = "idx_paypal_order_id", columnList = "paypal_order_id")
 })
 public class Payment {
 
@@ -37,6 +38,12 @@ public class Payment {
 
     @Column(name = "stripe_event_id", length = 255, unique = true)
     private String stripeEventId;
+
+    @Column(name = "paypal_order_id", length = 255)
+    private String paypalOrderId;
+
+    @Column(name = "paypal_capture_id", length = 255)
+    private String paypalCaptureId;
 
     @Column(name = "amount", precision = 10, scale = 2)
     private BigDecimal amount;
@@ -126,5 +133,21 @@ public class Payment {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getPaypalOrderId() {
+        return paypalOrderId;
+    }
+
+    public void setPaypalOrderId(String paypalOrderId) {
+        this.paypalOrderId = paypalOrderId;
+    }
+
+    public String getPaypalCaptureId() {
+        return paypalCaptureId;
+    }
+
+    public void setPaypalCaptureId(String paypalCaptureId) {
+        this.paypalCaptureId = paypalCaptureId;
     }
 }
