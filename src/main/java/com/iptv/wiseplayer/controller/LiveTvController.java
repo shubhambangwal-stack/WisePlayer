@@ -14,29 +14,43 @@ import io.swagger.v3.oas.annotations.tags.Tag;
  */
 @RestController
 @RequestMapping("/api/live")
-@Tag(name = "Live TV", description = "Endpoints for browsing Live TV categories and channels")
+@Tag(name = "Live TV", description = "Endpoints for browsing Live TV categories, channels, and streams")
 public class LiveTvController {
 
     private final LiveTvService liveTvService;
+    private final com.iptv.wiseplayer.service.iptv.XtreamStreamResolver streamResolver;
     private final DeviceContext deviceContext;
 
-    public LiveTvController(LiveTvService liveTvService, DeviceContext deviceContext) {
+    public LiveTvController(LiveTvService liveTvService,
+            com.iptv.wiseplayer.service.iptv.XtreamStreamResolver streamResolver,
+            DeviceContext deviceContext) {
         this.liveTvService = liveTvService;
+        this.streamResolver = streamResolver;
         this.deviceContext = deviceContext;
     }
 
-    @Operation(summary = "Get Live TV Categories", description = "Retrieves all categories for the specified playlist.")
-    @GetMapping("/categories")
-    public ResponseEntity<JsonNode> getCategories(@RequestParam UUID playlistId) {
+    @Operation(summary = "Handle Live TV Request", description = "Dispatches request based on parameters: categories, streams, or play url.")
+    @GetMapping
+    public ResponseEntity<?> handleRequest(
+            @RequestParam UUID playlistId,
+            @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) Integer streamId) {
+
+        // 1. Play Stream (if streamId is present)
+        if (streamId != null) {
+            String url = streamResolver.resolveStreamUrl(playlistId, streamId,
+                    com.iptv.wiseplayer.service.iptv.XtreamStreamResolver.StreamType.LIVE);
+            return ResponseEntity.ok(java.util.Map.of("url", url));
+        }
+
+        // 2. Get Channels/Streams (if categoryId is present)
+        if (categoryId != null) {
+            JsonNode channels = liveTvService.getChannels(deviceContext.getCurrentDeviceId(), playlistId, categoryId);
+            return ResponseEntity.ok(channels);
+        }
+
+        // 3. Default: Get Categories
         JsonNode categories = liveTvService.getCategories(deviceContext.getCurrentDeviceId(), playlistId);
         return ResponseEntity.ok(categories);
-    }
-
-    @Operation(summary = "Get Live TV Channels", description = "Retrieves all channels within a specific category.")
-    @GetMapping("/channels")
-    public ResponseEntity<JsonNode> getChannels(@RequestParam UUID playlistId,
-            @RequestParam String categoryId) {
-        JsonNode channels = liveTvService.getChannels(deviceContext.getCurrentDeviceId(), playlistId, categoryId);
-        return ResponseEntity.ok(channels);
     }
 }
