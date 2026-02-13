@@ -73,8 +73,8 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
             Device device = deviceRepository.findByDeviceId(deviceId)
                     .orElseThrow(() -> new DeviceAuthenticationException("Device not found"));
 
-            if (device.getDeviceStatus() == DeviceStatus.BLOCKED) {
-                throw new DeviceAuthenticationException("Device is blocked");
+            if (device.getDeviceStatus() == DeviceStatus.INACTIVE) {
+                throw new DeviceAuthenticationException("Device is inactive or subscription expired");
             }
 
             // 3. Set authentication context with status-based roles

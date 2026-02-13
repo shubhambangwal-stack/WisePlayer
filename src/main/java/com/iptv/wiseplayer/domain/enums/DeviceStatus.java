@@ -6,30 +6,12 @@ package com.iptv.wiseplayer.domain.enums;
  */
 public enum DeviceStatus {
     /**
-     * Device registered but not yet activated.
-     * Initial state after registration.
+     * Device registered but not yet activated or subscription expired.
      */
     INACTIVE,
 
     /**
-     * Device has a valid subscription and is allowed to access content.
+     * Device has a valid active subscription.
      */
-    ACTIVE,
-
-    /**
-     * Device has been manually blocked or blocked due to security concerns.
-     * Access is denied regardless of subscription status.
-     */
-    BLOCKED,
-
-    /**
-     * Device is in the 7-day free trial period.
-     */
-    TRIAL,
-
-    /**
-     * Device subscription has expired.
-     * Access is denied until subscription is renewed.
-     */
-    EXPIRED
+    ACTIVE
 }

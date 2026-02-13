@@ -77,11 +77,12 @@ public class DeviceServiceImpl implements DeviceService {
         }
 
         // Create new device with 7-day free trial
-        Device newDevice = new Device(fingerprintHash, DeviceStatus.TRIAL);
+        Device newDevice = new Device(fingerprintHash, DeviceStatus.ACTIVE);
+        newDevice.setSubscriptionType(SubscriptionType.TRIAL);
+        newDevice.setExpiresAt(LocalDateTime.now().plusDays(7));
         newDevice.setDeviceModel(request.getDeviceModel());
         newDevice.setOsVersion(request.getOsVersion());
         newDevice.setPlatform(request.getPlatform());
-        newDevice.setExpiresAt(LocalDateTime.now().plusDays(7));
 
         // Generate permanent Hardware-Linked Secret (HLS)
         String rawSecret = tokenUtil.generateRefreshToken();
@@ -125,10 +126,21 @@ public class DeviceServiceImpl implements DeviceService {
         device.setLastSeenAt(LocalDateTime.now());
         deviceRepository.save(device);
 
-        // Determine access permission based on device status
-        boolean allowed = (device.getDeviceStatus() == DeviceStatus.ACTIVE
-                || device.getDeviceStatus() == DeviceStatus.TRIAL);
-        String message = determineValidationMessage(device.getDeviceStatus());
+        // Determine access permission based on device status and expiry
+        boolean allowed = false;
+        if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
+            if (device.getExpiresAt() != null && LocalDateTime.now().isBefore(device.getExpiresAt())) {
+                allowed = true;
+            } else {
+                // Auto-transition to INACTIVE if expired
+                device.setDeviceStatus(DeviceStatus.INACTIVE);
+                deviceRepository.save(device);
+                logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.INACTIVE, "AUTO_EXPIRY",
+                        "Subscription expired during validation");
+            }
+        }
+
+        String message = determineValidationMessage(device);
 
         String newAccessToken = tokenUtil.generateToken(device.getDeviceId().toString(), providedFingerprintHash);
 
@@ -160,15 +172,22 @@ public class DeviceServiceImpl implements DeviceService {
      * @param status Device status
      * @return Human-readable message
      */
-    private String determineValidationMessage(DeviceStatus status) {
-        return switch (status) {
-            case ACTIVE -> "Device is active and authorized";
-            case TRIAL -> "Device is in free trial period. Please subscribe to continue access later.";
-            case INACTIVE -> "Device is registered but not activated. Please activate your subscription.";
-            case BLOCKED -> "Device has been blocked. Please contact support.";
-            case EXPIRED -> "Device subscription has expired. Please renew your subscription to continue.";
-        };
+    private String determineValidationMessage(Device device) {
+        if (device.getDeviceStatus() == DeviceStatus.INACTIVE) {
+            if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
+                return "Device subscription has expired. Please renew your subscription to continue.";
+            }
+            return "Device is registered but not activated. Please activate your subscription.";
+        }
 
+        if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
+            if (device.getSubscriptionType() == SubscriptionType.TRIAL) {
+                return "Device is in free trial period. Please subscribe to continue access later.";
+            }
+            return "Device is active and authorized";
+        }
+
+        return "Device status unknown or unauthorized.";
     }
 
     @Override
@@ -180,9 +199,14 @@ public class DeviceServiceImpl implements DeviceService {
         DeviceStatus oldStatus = device.getDeviceStatus();
         device.setDeviceStatus(status);
         device.setExpiresAt(expiresAt);
+        // Force status to ACTIVE if a valid future expiration is provided
+        if (expiresAt != null && expiresAt.isAfter(LocalDateTime.now())) {
+            device.setDeviceStatus(DeviceStatus.ACTIVE);
+        }
         deviceRepository.save(device);
 
-        logAudit(deviceId, oldStatus, status, "SUBSCRIPTION_UPDATE", "Status updated to " + status);
+        logAudit(deviceId, oldStatus, device.getDeviceStatus(), "SUBSCRIPTION_UPDATE",
+                "Status set to " + device.getDeviceStatus());
     }
 
     @Override
@@ -204,9 +228,16 @@ public class DeviceServiceImpl implements DeviceService {
         device.setLastSeenAt(LocalDateTime.now());
         deviceRepository.save(device);
 
-        boolean allowed = (device.getDeviceStatus() == DeviceStatus.ACTIVE
-                || device.getDeviceStatus() == DeviceStatus.TRIAL);
-        String message = determineValidationMessage(device.getDeviceStatus());
+        boolean allowed = false;
+        if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
+            if (device.getExpiresAt() != null && LocalDateTime.now().isBefore(device.getExpiresAt())) {
+                allowed = true;
+            } else {
+                device.setDeviceStatus(DeviceStatus.INACTIVE);
+                deviceRepository.save(device);
+            }
+        }
+        String message = determineValidationMessage(device);
 
         return new DeviceValidationResponse(
                 device.getDeviceId(),

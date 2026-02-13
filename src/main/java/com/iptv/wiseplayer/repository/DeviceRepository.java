@@ -14,31 +14,32 @@ import java.util.UUID;
 @Repository
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
-    /**
-     * Find device by fingerprint hash.
-     * Used for idempotent registration and validation.
-     *
-     * @param fingerprintHash SHA-256 hash of device fingerprint
-     * @return Optional containing device if found
-     */
-    Optional<Device> findByFingerprintHash(String fingerprintHash);
+        /**
+         * Find device by fingerprint hash.
+         * Used for idempotent registration and validation.
+         *
+         * @param fingerprintHash SHA-256 hash of device fingerprint
+         * @return Optional containing device if found
+         */
+        Optional<Device> findByFingerprintHash(String fingerprintHash);
 
-    /**
-     * Find devices by status and expiration date.
-     */
-    java.util.List<Device> findByDeviceStatusAndExpiresAtBefore(com.iptv.wiseplayer.domain.enums.DeviceStatus status,
-            java.time.LocalDateTime now);
+        /**
+         * Find devices by status and expiration date.
+         */
+        java.util.List<Device> findByDeviceStatusAndExpiresAtBefore(
+                        com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+                        java.time.LocalDateTime now);
 
-    /**
-     * @param deviceId UUID of the device
-     * @return Optional containing device if found
-     */
-    Optional<Device> findByDeviceId(UUID deviceId);
+        /**
+         * @param deviceId UUID of the device
+         * @return Optional containing device if found
+         */
+        Optional<Device> findByDeviceId(UUID deviceId);
 
-    /**
-     * Find device by refresh token.
-     *
-     * @param refreshToken Refresh token string
-     * @return Optional containing device if found
-     */
+        /**
+         * Find device by refresh token.
+         *
+         * @param refreshToken Refresh token string
+         * @return Optional containing device if found
+         */
 }

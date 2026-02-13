@@ -22,8 +22,7 @@ server:
 app:
   security:
     token-secrets:
-      - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXYy
-      - device-security-secret-key-2024
-      - fallback-legacy-secret-2023
+      - "4u7x!A%C*F-JaNdRfUjXn2r5u8x/A?D(G+KbPeShVkYp3s6v9y$B&E)H@McQfTjW" # Primary Secret (256-bit)
+      - "w9z$B&E)H@McQfTjWnZr4u7x!A%C*F-JaNdRgUkXp2s5v8y/B?E(G+KbPeShVmYq" # Rotation Secret (256-bit)
     token-ttl-minutes: 300
     # Refresh tokens are managed internally (not exposed in API)
