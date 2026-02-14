@@ -36,11 +36,23 @@ public class PaymentController {
 
     @Operation(summary = "PayPal Webhook", description = "Endpoint to handle asynchronous payment events from PayPal.")
     @PostMapping("/paypal/webhook")
-    public ResponseEntity<String> handlePaypalWebhook(@RequestBody java.util.Map<String, Object> payload) {
-        // Implementation check: we need to cast or update service interface
-        if (paymentService instanceof com.iptv.wiseplayer.service.impl.PaymentServiceImpl) {
-            ((com.iptv.wiseplayer.service.impl.PaymentServiceImpl) paymentService).handlePaypalWebhook(payload);
-        }
+    public ResponseEntity<String> handlePaypalWebhook(@RequestBody java.util.Map<String, Object> payload,
+            @RequestHeader java.util.Map<String, String> headers) {
+        paymentService.handlePaypalWebhook(payload, headers);
         return ResponseEntity.ok("OK");
+    }
+
+    @Operation(summary = "PayPal Success Redirect", description = "Handles redirection from PayPal after successful approval.")
+    @GetMapping("/paypal/success")
+    public ResponseEntity<String> paypalSuccess(@RequestParam("token") String orderId,
+            @RequestParam("PayerID") String payerId) {
+        paymentService.captureOrder(orderId);
+        return ResponseEntity.ok("Payment successful and captured. You can close this window and return to the app.");
+    }
+
+    @Operation(summary = "PayPal Cancel Redirect", description = "Handles redirection from PayPal if the user cancels.")
+    @GetMapping("/paypal/cancel")
+    public ResponseEntity<String> paypalCancel() {
+        return ResponseEntity.ok("Payment cancelled. You can close this window.");
     }
 }
