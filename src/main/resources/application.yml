@@ -10,16 +10,21 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
 
 # stripe:
 #   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
 #   webhook-secret: whsec_a38a24c1241cc5914d67c43cf526b7b050783c0a5b7c2c9d8a5619d7c9df91fa
 
 paypal:
-  client-id: ${PAYPAL_CLIENT_ID:your_default_client_id}
-  client-secret: ${PAYPAL_CLIENT_SECRET:your_default_client_secret}
-  mode: sandbox # Use 'live' for production
+  client-id: AY9l6yf2rSFI9Bry73axYx5J5LPPI46WmwbOJuge29clm3eiBcI-ciS3tceOc5iUZNkL9lexoyGEIMWB
+  client-secret: EAp7ehGeQnxFqLavMTOFcQNDQrBYx06AHvAk0GweKLOADV_2EMR7Bhw2AgEhpGIUTqjOZOnPXJxevzTO
+  mode: sandbox
+  # Updated with your ngrok domain
+  return-url: https://pulverulently-balletic-lashon.ngrok-free.dev/api/payment/paypal/success
+  cancel-url: https://pulverulently-balletic-lashon.ngrok-free.dev/api/payment/paypal/cancel
+  webhook-url: https://pulverulently-balletic-lashon.ngrok-free.dev/api/payment/paypal/webhook
+  webhook-id: 4ET3670297788543D
 
 server:
   port: 8081

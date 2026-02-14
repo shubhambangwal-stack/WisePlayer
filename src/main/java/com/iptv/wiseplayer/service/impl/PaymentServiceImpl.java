@@ -43,6 +43,15 @@ public class PaymentServiceImpl implements PaymentService {
     @Value("${paypal.mode}")
     private String paypalMode;
 
+    @Value("${paypal.return-url:http://localhost:8081/api/payment/paypal/success}")
+    private String paypalReturnUrl;
+
+    @Value("${paypal.cancel-url:http://localhost:8081/api/payment/paypal/cancel}")
+    private String paypalCancelUrl;
+
+    @Value("${paypal.webhook-id}")
+    private String paypalWebhookId;
+
     public PaymentServiceImpl(PaymentRepository paymentRepository,
             DeviceService deviceService,
             SubscriptionService subscriptionService) {
@@ -117,8 +126,11 @@ public class PaymentServiceImpl implements PaymentService {
         orderRequest.put("purchase_units", java.util.Collections.singletonList(purchaseUnit));
 
         java.util.Map<String, String> applicationContext = new java.util.HashMap<>();
-        applicationContext.put("return_url", "https://wiseplayer.api/payment/paypal/success");
-        applicationContext.put("cancel_url", "https://wiseplayer.api/payment/paypal/cancel");
+        applicationContext.put("return_url", paypalReturnUrl);
+        applicationContext.put("cancel_url", paypalCancelUrl);
+        applicationContext.put("landing_page", "BILLING");
+        applicationContext.put("user_action", "PAY_NOW");
+        applicationContext.put("shipping_preference", "NO_SHIPPING");
         orderRequest.put("application_context", applicationContext);
 
         org.springframework.http.HttpEntity<java.util.Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(
@@ -164,8 +176,14 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("Stripe webhook received but ignored as Stripe is disabled.");
     }
 
+    @Override
     @Transactional
-    public void handlePaypalWebhook(java.util.Map<String, Object> payload) {
+    public void handlePaypalWebhook(java.util.Map<String, Object> payload, java.util.Map<String, String> headers) {
+        if (!verifyWebhookSignature(payload, headers)) {
+            log.error("Invalid PayPal Webhook signature detected!");
+            throw new RuntimeException("Invalid PayPal Webhook signature");
+        }
+
         String eventType = (String) payload.get("event_type");
         log.info("Received PayPal webhook: {}", eventType);
 
@@ -197,5 +215,64 @@ public class PaymentServiceImpl implements PaymentService {
         subscriptionService.activateSubscription(activationRequest);
 
         log.info("PayPal Subscription activated for device: {}", payment.getDeviceId());
+    }
+
+    @Override
+    @Transactional
+    public void captureOrder(String orderId) {
+        String accessToken = getAccessToken();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(accessToken);
+
+        org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>("{}", headers);
+
+        try {
+            org.springframework.http.ResponseEntity<java.util.Map> response = restTemplate.postForEntity(
+                    getPaypalBaseUrl() + "/v2/checkout/orders/" + orderId + "/capture", entity, java.util.Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("PayPal Order captured successfully: {}", orderId);
+                processSuccessfulPaypalPayment(orderId);
+            } else {
+                log.error("Failed to capture PayPal order: {}. Status: {}", orderId, response.getStatusCode());
+            }
+        } catch (Exception e) {
+            log.error("Error capturing PayPal order: {}", orderId, e);
+            throw new RuntimeException("Error capturing PayPal order", e);
+        }
+    }
+
+    private boolean verifyWebhookSignature(java.util.Map<String, Object> payload,
+            java.util.Map<String, String> headers) {
+        try {
+            String accessToken = getAccessToken();
+            org.springframework.http.HttpHeaders authHeaders = new org.springframework.http.HttpHeaders();
+            authHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            authHeaders.setBearerAuth(accessToken);
+
+            java.util.Map<String, Object> verificationRequest = new java.util.HashMap<>();
+            verificationRequest.put("auth_algo", headers.get("paypal-auth-algo"));
+            verificationRequest.put("cert_url", headers.get("paypal-cert-url"));
+            verificationRequest.put("transmission_id", headers.get("paypal-transmission-id"));
+            verificationRequest.put("transmission_sig", headers.get("paypal-transmission-sig"));
+            verificationRequest.put("transmission_time", headers.get("paypal-transmission-time"));
+            verificationRequest.put("webhook_id", paypalWebhookId);
+            verificationRequest.put("webhook_event", payload);
+
+            org.springframework.http.HttpEntity<java.util.Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(
+                    verificationRequest, authHeaders);
+
+            org.springframework.http.ResponseEntity<java.util.Map> response = restTemplate.postForEntity(
+                    getPaypalBaseUrl() + "/v1/notifications/verify-webhook-signature", entity, java.util.Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                String verificationStatus = (String) response.getBody().get("verification_status");
+                return "SUCCESS".equalsIgnoreCase(verificationStatus);
+            }
+        } catch (Exception e) {
+            log.error("Webhook signature verification failed due to error", e);
+        }
+        return false;
     }
 }

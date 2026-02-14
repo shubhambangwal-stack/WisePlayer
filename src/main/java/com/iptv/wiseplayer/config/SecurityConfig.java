@@ -38,7 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/device/refresh").permitAll()
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
-                        .requestMatchers("/api/payment/webhook").permitAll()
+                        .requestMatchers("/api/payment/paypal/**").permitAll()
                         // Swagger UI
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 

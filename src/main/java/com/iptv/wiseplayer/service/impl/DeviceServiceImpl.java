@@ -77,7 +77,7 @@ public class DeviceServiceImpl implements DeviceService {
         }
 
         // Create new device with 7-day free trial
-        Device newDevice = new Device(fingerprintHash, DeviceStatus.ACTIVE);
+        Device newDevice = new Device(fingerprintHash, DeviceStatus.INACTIVE);
         newDevice.setSubscriptionType(SubscriptionType.TRIAL);
         newDevice.setExpiresAt(LocalDateTime.now().plusDays(7));
         newDevice.setDeviceModel(request.getDeviceModel());
