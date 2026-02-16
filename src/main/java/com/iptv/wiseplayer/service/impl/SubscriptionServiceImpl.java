@@ -3,6 +3,7 @@ package com.iptv.wiseplayer.service.impl;
 import com.iptv.wiseplayer.domain.entity.Subscription;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
+import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
 import com.iptv.wiseplayer.dto.response.SubscriptionResponse;
 import com.iptv.wiseplayer.repository.SubscriptionRepository;
@@ -21,6 +22,8 @@ import java.util.UUID;
  */
 @Service
 public class SubscriptionServiceImpl implements SubscriptionService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SubscriptionServiceImpl.class);
 
     private final SubscriptionRepository subscriptionRepository;
     private final DeviceService deviceService;
@@ -43,31 +46,54 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         // 0. Resolve UUID from Fingerprint
         UUID resolvedDeviceId = deviceService.resolveDeviceId(request.getDeviceId());
 
-        // 1. Check for existing active subscription
-        Optional<Subscription> existingSub = subscriptionRepository.findByDeviceIdAndStatus(
-                resolvedDeviceId, SubscriptionStatus.ACTIVE);
+        // 1. Check for existing subscription record (TRIAL, ACTIVE, or EXPIRED)
+        Optional<Subscription> existingSub = subscriptionRepository.findByDeviceId(resolvedDeviceId);
+
+        LocalDateTime startDate = LocalDateTime.now();
+        Subscription subscriptionToUpdate = null;
 
         if (existingSub.isPresent()) {
-            throw new IllegalStateException("Device already has an active subscription");
+            subscriptionToUpdate = existingSub.get();
+            log.info("Device {} has an existing subscription record (Status: {}). Updating/Extending...",
+                    resolvedDeviceId, subscriptionToUpdate.getStatus());
+
+            // If the existing one is ACTIVE and hasn't expired, start the extension from
+            // the current end date
+            if (subscriptionToUpdate.getStatus() == SubscriptionStatus.ACTIVE
+                    && subscriptionToUpdate.getEndDate().isAfter(LocalDateTime.now())) {
+                startDate = subscriptionToUpdate.getEndDate();
+            }
         }
 
-        // 2. Create new subscription
-        LocalDateTime startDate = LocalDateTime.now();
+        // 2. Create or Update subscription
         LocalDateTime endDate = startDate.plusDays(request.getPlan().getDays());
 
-        Subscription subscription = new Subscription(
-                resolvedDeviceId,
-                request.getPlan(),
-                startDate,
-                endDate,
-                SubscriptionStatus.ACTIVE);
+        if (subscriptionToUpdate != null) {
+            subscriptionToUpdate.setPlan(request.getPlan());
+            subscriptionToUpdate.setStartDate(startDate);
+            subscriptionToUpdate.setEndDate(endDate);
+            subscriptionToUpdate.setStatus(SubscriptionStatus.ACTIVE);
+        } else {
+            subscriptionToUpdate = new Subscription(
+                    resolvedDeviceId,
+                    request.getPlan(),
+                    startDate,
+                    endDate,
+                    SubscriptionStatus.ACTIVE);
+        }
 
-        Subscription savedSubscription = subscriptionRepository.save(subscription);
+        Subscription savedSubscription = subscriptionRepository.save(subscriptionToUpdate);
 
         // 3. Update Device status via DeviceService
+        com.iptv.wiseplayer.domain.enums.SubscriptionType type = request
+                .getPlan() == com.iptv.wiseplayer.domain.enums.SubscriptionPlan.LIFETIME
+                        ? com.iptv.wiseplayer.domain.enums.SubscriptionType.PAID_LIFETIME
+                        : com.iptv.wiseplayer.domain.enums.SubscriptionType.PAID_ANNUAL;
+
         deviceService.updateDeviceSubscription(
                 resolvedDeviceId,
-                DeviceStatus.ACTIVE,
+                com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
+                type,
                 endDate);
 
         return mapToResponse(savedSubscription);
@@ -84,65 +110,95 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             throw e;
         }
 
-        Optional<Subscription> subOpt = subscriptionRepository.findByDeviceIdAndStatus(resolvedDeviceId,
-                SubscriptionStatus.ACTIVE);
+        // Check subscriptions table first
+        Optional<Subscription> subOpt = subscriptionRepository.findByDeviceId(resolvedDeviceId);
 
         if (subOpt.isPresent()) {
-            return mapToResponse(subOpt.get());
+            Subscription sub = subOpt.get();
+            // If the record exists and is ACTIVE but endDate has passed, it should be
+            // EXPIRED
+            if (sub.getStatus() == SubscriptionStatus.ACTIVE && sub.getEndDate().isBefore(LocalDateTime.now())) {
+                sub.setStatus(SubscriptionStatus.EXPIRED);
+                subscriptionRepository.save(sub);
+            }
+            return mapToResponse(sub);
         }
 
-        // Check if device is in TRIAL
+        // Fallback for devices without a subscription record (old devices)
         com.iptv.wiseplayer.domain.entity.Device device = deviceRepository.findByDeviceId(resolvedDeviceId)
                 .orElseThrow(() -> new com.iptv.wiseplayer.exception.DeviceNotFoundException("Device not found"));
 
-        if (device.getSubscriptionType() == com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL) {
-            SubscriptionResponse resp = new SubscriptionResponse();
-            resp.setDeviceId(resolvedDeviceId);
-            resp.setStatus(SubscriptionStatus.TRIAL);
-            resp.setEndDate(device.getExpiresAt());
-            return resp;
-        }
-
         SubscriptionResponse resp = new SubscriptionResponse();
         resp.setDeviceId(resolvedDeviceId);
-        resp.setStatus(SubscriptionStatus.EXPIRED);
+        resp.setStatus(device.getSubscriptionType() == com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL
+                ? SubscriptionStatus.TRIAL
+                : SubscriptionStatus.EXPIRED);
+        resp.setType(device.getSubscriptionType());
+        resp.setEndDate(device.getExpiresAt());
         return resp;
     }
 
     @Override
     @Transactional
     public void expireOverdueSubscriptions(LocalDateTime now) {
-        // 1. Expire normal subscriptions
-        List<Subscription> expiredSubs = subscriptionRepository.findExpiredActiveSubscriptions(now);
+        // 1. Expire normal/trial subscriptions
+        List<Subscription> expiredSubs = subscriptionRepository.findExpiredSubscriptions(now);
+        log.info("Found {} overdue subscriptions to expire", expiredSubs.size());
 
         for (Subscription sub : expiredSubs) {
             sub.setStatus(SubscriptionStatus.EXPIRED);
             subscriptionRepository.save(sub);
 
             // Update Device status
+            com.iptv.wiseplayer.domain.enums.SubscriptionType type;
+            if (sub.getPlan() == com.iptv.wiseplayer.domain.enums.SubscriptionPlan.LIFETIME) {
+                type = com.iptv.wiseplayer.domain.enums.SubscriptionType.PAID_LIFETIME;
+            } else if (sub.getPlan() == com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL) {
+                type = com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL;
+            } else {
+                type = com.iptv.wiseplayer.domain.enums.SubscriptionType.PAID_ANNUAL;
+            }
+
             deviceService.updateDeviceSubscription(
                     sub.getDeviceId(),
-                    com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE,
+                    com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE, // Keep ACTIVE
+                    type,
                     sub.getEndDate());
         }
 
         // 2. Expire active devices that passed their expiry date
-        List<com.iptv.wiseplayer.domain.entity.Device> expiredActiveDevices = deviceRepository
-                .findByDeviceStatusAndExpiresAtBefore(
-                        com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE, now);
-
-        for (com.iptv.wiseplayer.domain.entity.Device device : expiredActiveDevices) {
-            device.setDeviceStatus(com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE);
-            deviceRepository.save(device);
-        }
+        // No longer auto-inactivating devices here to keep them "activated"
+        /*
+         * List<com.iptv.wiseplayer.domain.entity.Device> expiredActiveDevices =
+         * deviceRepository
+         * .findByDeviceStatusAndExpiresAtBefore(
+         * com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE, now);
+         * 
+         * for (com.iptv.wiseplayer.domain.entity.Device device : expiredActiveDevices)
+         * {
+         * device.setDeviceStatus(com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE
+         * );
+         * deviceRepository.save(device);
+         * }
+         */
     }
 
     private SubscriptionResponse mapToResponse(Subscription sub) {
+        com.iptv.wiseplayer.domain.enums.SubscriptionType type;
+        if (sub.getPlan() == com.iptv.wiseplayer.domain.enums.SubscriptionPlan.LIFETIME) {
+            type = com.iptv.wiseplayer.domain.enums.SubscriptionType.PAID_LIFETIME;
+        } else if (sub.getPlan() == com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL) {
+            type = com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL;
+        } else {
+            type = com.iptv.wiseplayer.domain.enums.SubscriptionType.PAID_ANNUAL;
+        }
+
         return new SubscriptionResponse(
                 sub.getId(),
                 sub.getDeviceId(),
                 sub.getPlan(),
                 sub.getStatus(),
+                type,
                 sub.getStartDate(),
                 sub.getEndDate());
     }

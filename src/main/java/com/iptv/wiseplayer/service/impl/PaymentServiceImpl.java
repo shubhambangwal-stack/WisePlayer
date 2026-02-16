@@ -2,6 +2,7 @@ package com.iptv.wiseplayer.service.impl;
 
 import com.iptv.wiseplayer.domain.entity.Payment;
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
+import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.dto.request.CheckoutRequest;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
 import com.iptv.wiseplayer.dto.response.CheckoutResponse;
@@ -9,6 +10,8 @@ import com.iptv.wiseplayer.repository.PaymentRepository;
 import com.iptv.wiseplayer.service.DeviceService;
 import com.iptv.wiseplayer.service.PaymentService;
 import com.iptv.wiseplayer.service.SubscriptionService;
+import com.iptv.wiseplayer.dto.response.SubscriptionResponse;
+import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
@@ -93,11 +96,19 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public CheckoutResponse createCheckoutSession(CheckoutRequest request) {
-        // Stripe implementation commented out
-        /*
-         * Stripe.apiKey = stripeApiKey;
-         * ...
-         */
+        // 1. Check if device already has an active subscription
+        SubscriptionResponse subStatus = subscriptionService.getSubscriptionStatus(request.getDeviceId());
+        if (subStatus.getType() == SubscriptionType.PAID_LIFETIME) {
+            log.warn("Checkout blocked for device {}: Already has a LIFETIME subscription", request.getDeviceId());
+            throw new IllegalStateException("You already have a Lifetime subscription. No further purchase is needed.");
+        }
+
+        if (subStatus.getStatus() == SubscriptionStatus.ACTIVE || subStatus.getStatus() == SubscriptionStatus.TRIAL) {
+            log.warn("Checkout blocked for device {}: Already has an active {} subscription expiring at {}",
+                    request.getDeviceId(), subStatus.getStatus(), subStatus.getEndDate());
+            throw new IllegalStateException(
+                    "You already have an active subscription. Please wait until it expires to renew.");
+        }
 
         UUID deviceId = deviceService.resolveDeviceId(request.getDeviceId());
         long amountInCents = 0;
@@ -190,21 +201,43 @@ public class PaymentServiceImpl implements PaymentService {
         if ("CHECKOUT.ORDER.APPROVED".equals(eventType) || "PAYMENT.CAPTURE.COMPLETED".equals(eventType)) {
             java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
             String orderId = (String) resource.get("id");
-            if (orderId == null && resource.containsKey("supplementary_data")) {
-                // For captures, orderId might be deeper
+
+            if ("PAYMENT.CAPTURE.COMPLETED".equals(eventType)) {
+                // For captures, the 'id' is the Capture ID. We need to find the Order ID.
+                // It's in supplementary_data.related_ids.order_id for v2
+                java.util.Map<String, Object> supplementaryData = (java.util.Map<String, Object>) resource
+                        .get("supplementary_data");
+                if (supplementaryData != null) {
+                    java.util.Map<String, Object> relatedIds = (java.util.Map<String, Object>) supplementaryData
+                            .get("related_ids");
+                    if (relatedIds != null && relatedIds.containsKey("order_id")) {
+                        orderId = (String) relatedIds.get("order_id");
+                        log.info("Extracted Order ID {} from capture webhook supplementary_data", orderId);
+                    }
+                }
             }
 
-            // In a real scenario, we should call PayPal to verify the order status
+            if (orderId == null) {
+                log.error("Could not determine Order ID from PayPal Webhook: {}", payload);
+                return;
+            }
+
             processSuccessfulPaypalPayment(orderId);
         }
     }
 
     private void processSuccessfulPaypalPayment(String orderId) {
+        log.info("Processing successful PayPal payment for Order ID: {}", orderId);
         Payment payment = paymentRepository.findByPaypalOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Payment not found for Order ID: " + orderId));
+                .orElseThrow(() -> {
+                    log.error("CRITICAL: Payment record not found for PayPal Order ID: {}", orderId);
+                    return new RuntimeException("Payment record not found for Order ID: " + orderId);
+                });
 
-        if (payment.getStatus() == PaymentStatus.SUCCESS)
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            log.info("Payment for Order ID: {} is already marked as SUCCESS. Skipping activation.", orderId);
             return;
+        }
 
         payment.setStatus(PaymentStatus.SUCCESS);
         paymentRepository.save(payment);
@@ -214,12 +247,27 @@ public class PaymentServiceImpl implements PaymentService {
         activationRequest.setPlan(payment.getPlan());
         subscriptionService.activateSubscription(activationRequest);
 
-        log.info("PayPal Subscription activated for device: {}", payment.getDeviceId());
+        log.info("PayPal Subscription activated successfully for device: {}", payment.getDeviceId());
     }
 
     @Override
     @Transactional
     public void captureOrder(String orderId) {
+        log.info("Attempting to capture PayPal order: {}", orderId);
+
+        // 1. Check if payment exists first to avoid unnecessary API calls or cryptic
+        // errors
+        Payment payment = paymentRepository.findByPaypalOrderId(orderId)
+                .orElseThrow(() -> {
+                    log.error("Cannot capture order: Payment record not found for Order ID: {}", orderId);
+                    return new RuntimeException("Payment record not found for Order ID: " + orderId);
+                });
+
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            log.info("Order {} already captured and processed successfully.", orderId);
+            return;
+        }
+
         String accessToken = getAccessToken();
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
@@ -232,14 +280,20 @@ public class PaymentServiceImpl implements PaymentService {
                     getPaypalBaseUrl() + "/v2/checkout/orders/" + orderId + "/capture", entity, java.util.Map.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("PayPal Order captured successfully: {}", orderId);
+                log.info("PayPal Order captured successfully API call: {}", orderId);
                 processSuccessfulPaypalPayment(orderId);
             } else {
-                log.error("Failed to capture PayPal order: {}. Status: {}", orderId, response.getStatusCode());
+                log.error("PayPal capture API returned non-success status: {}. Body: {}",
+                        response.getStatusCode(), response.getBody());
+                throw new RuntimeException("PayPal capture failed with status: " + response.getStatusCode());
             }
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            log.error("PayPal API Error during capture! Status: {}, Body: {}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("PayPal API capture error: " + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
-            log.error("Error capturing PayPal order: {}", orderId, e);
-            throw new RuntimeException("Error capturing PayPal order", e);
+            log.error("Unexpected error capturing PayPal order: {}", orderId, e);
+            throw new RuntimeException("Unexpected error during PayPal capture", e);
         }
     }
 

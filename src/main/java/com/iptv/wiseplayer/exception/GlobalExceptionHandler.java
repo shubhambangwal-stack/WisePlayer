@@ -42,6 +42,12 @@ public class GlobalExceptionHandler {
                 return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
         }
 
+        @ExceptionHandler(IllegalStateException.class)
+        public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException ex) {
+                log.warn("State Conflict Error: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+        }
+
         @ExceptionHandler(MethodArgumentNotValidException.class)
         public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
                 String message = ex.getBindingResult().getFieldErrors().stream()

@@ -12,18 +12,16 @@ import java.time.LocalDateTime;
 @Component
 public class SubscriptionScheduler {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SubscriptionScheduler.class);
     private final SubscriptionService subscriptionService;
 
     public SubscriptionScheduler(SubscriptionService subscriptionService) {
         this.subscriptionService = subscriptionService;
     }
 
-    /**
-     * Run nightly at 00:01 to expire overdue subscriptions.
-     * Cron format: second minute hour day-of-month month day-of-week
-     */
-    @Scheduled(cron = "0 1 0 * * *")
+    @Scheduled(fixedDelay = 10000) // Run every 10 seconds for easier testing
     public void checkExpiredSubscriptions() {
+        log.info("Starting background subscription expiry check at {}", LocalDateTime.now());
         subscriptionService.expireOverdueSubscriptions(LocalDateTime.now());
     }
 }
