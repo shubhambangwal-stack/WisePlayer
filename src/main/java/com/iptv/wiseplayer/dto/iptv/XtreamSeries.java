@@ -10,7 +10,7 @@ public class XtreamSeries {
     private String name;
     @JsonProperty("series_id")
     private int seriesId;
-    @JsonProperty("cover")
+    @JsonProperty("stream_icon")
     private String cover;
     @JsonProperty("plot")
     private String plot;

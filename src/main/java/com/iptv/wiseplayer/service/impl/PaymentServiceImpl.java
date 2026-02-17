@@ -2,6 +2,7 @@ package com.iptv.wiseplayer.service.impl;
 
 import com.iptv.wiseplayer.domain.entity.Payment;
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
+import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
 import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.dto.request.CheckoutRequest;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
@@ -328,5 +329,44 @@ public class PaymentServiceImpl implements PaymentService {
             log.error("Webhook signature verification failed due to error", e);
         }
         return false;
+    }
+
+    @Override
+    public java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse> getAllInvoicesByDevice(String deviceId) {
+        log.info("Fetching all invoices for device: {}", deviceId);
+        UUID resolvedDeviceId = deviceService.resolveDeviceId(deviceId);
+
+        java.util.List<Payment> payments = paymentRepository.findAllByDeviceIdOrderByCreatedAtDesc(resolvedDeviceId);
+
+        return payments.stream()
+                .map(this::mapToInvoiceResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private com.iptv.wiseplayer.dto.response.InvoiceResponse mapToInvoiceResponse(Payment payment) {
+        com.iptv.wiseplayer.dto.response.InvoiceResponse response = new com.iptv.wiseplayer.dto.response.InvoiceResponse();
+        response.setInvoiceNumber("INV-" + payment.getId().toString().substring(0, 8).toUpperCase());
+        response.setPaymentId(payment.getId());
+        response.setDeviceId(payment.getDeviceId());
+        response.setTransactionDate(payment.getCreatedAt());
+        response.setStatus(payment.getStatus());
+        response.setPlan(payment.getPlan());
+        response.setPlanDisplayName(getPlanDisplayName(payment.getPlan()));
+        response.setAmount(payment.getAmount());
+        response.setCurrency("EUR");
+        response.setPaymentMethod("PayPal");
+        response.setPaypalOrderId(payment.getPaypalOrderId());
+        response.setPaypalCaptureId(payment.getPaypalCaptureId());
+        response.setCreatedAt(payment.getCreatedAt());
+        response.setUpdatedAt(payment.getUpdatedAt());
+        return response;
+    }
+
+    private String getPlanDisplayName(SubscriptionPlan plan) {
+        return switch (plan) {
+            case ANNUAL -> "Annual Subscription";
+            case LIFETIME -> "Lifetime Subscription";
+            default -> "Unknown Plan";
+        };
     }
 }
