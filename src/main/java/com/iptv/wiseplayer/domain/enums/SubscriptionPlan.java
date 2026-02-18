@@ -5,7 +5,8 @@ package com.iptv.wiseplayer.domain.enums;
  */
 public enum SubscriptionPlan {
     ANNUAL(365),
-    LIFETIME(36500);
+    LIFETIME(36500),
+    TRIAL(7);
 
     private final int days;
 

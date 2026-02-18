@@ -55,4 +55,14 @@ public class PaymentController {
     public ResponseEntity<String> paypalCancel() {
         return ResponseEntity.ok("Payment cancelled. You can close this window.");
     }
+
+    @Operation(summary = "Get All Invoices", description = "Retrieves all detailed invoices for a specific device.")
+    @GetMapping("/invoices")
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse>> getAllInvoices(
+            @RequestParam String deviceId) {
+        java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse> invoices = paymentService
+                .getAllInvoicesByDevice(deviceId);
+        return ResponseEntity.ok(invoices);
+    }
+
 }

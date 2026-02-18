@@ -46,7 +46,7 @@ public interface DeviceService {
      * @param expiresAt New expiration date (nullable)
      */
     void updateDeviceSubscription(java.util.UUID deviceId, com.iptv.wiseplayer.domain.enums.DeviceStatus status,
-            java.time.LocalDateTime expiresAt);
+            com.iptv.wiseplayer.domain.enums.SubscriptionType type, java.time.LocalDateTime expiresAt);
 
     /**
      * Resolve internal Device UUID from either a raw fingerprint (MAC) or a UUID

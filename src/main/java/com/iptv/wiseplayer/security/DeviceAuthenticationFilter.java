@@ -45,6 +45,19 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return  path.contains("/api/payment/paypal/webhook") ||
+                path.contains("/api/payment/paypal/success") ||
+                path.contains("/api/payment/paypal/cancel") ||
+                path.contains("/api/device/register") ||
+                path.contains("/api/device/validate") ||
+                path.contains("/api/device/key") ||
+                path.contains("/swagger-ui") ||
+                path.contains("/v3/api-docs");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 

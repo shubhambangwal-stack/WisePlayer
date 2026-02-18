@@ -2,6 +2,11 @@ package com.iptv.wiseplayer.service;
 
 import com.iptv.wiseplayer.dto.request.CheckoutRequest;
 import com.iptv.wiseplayer.dto.response.CheckoutResponse;
+import com.iptv.wiseplayer.dto.response.InvoiceResponse;
+import com.iptv.wiseplayer.dto.response.PaymentHistoryResponse;
+
+import java.util.List;
+import java.util.UUID;
 
 public interface PaymentService {
     CheckoutResponse createCheckoutSession(CheckoutRequest request);
@@ -11,4 +16,6 @@ public interface PaymentService {
     void handlePaypalWebhook(java.util.Map<String, Object> payload, java.util.Map<String, String> headers);
 
     void captureOrder(String orderId);
+
+    List<InvoiceResponse> getAllInvoicesByDevice(String deviceId);
 }

@@ -12,6 +12,7 @@ import com.iptv.wiseplayer.exception.DeviceAuthenticationException;
 import com.iptv.wiseplayer.exception.DeviceNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceAuditRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
+import com.iptv.wiseplayer.repository.SubscriptionRepository;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.DeviceService;
 import org.springframework.stereotype.Service;
@@ -30,13 +31,16 @@ public class DeviceServiceImpl implements DeviceService {
     private final DeviceRepository deviceRepository;
     private final DeviceTokenUtil tokenUtil;
     private final DeviceAuditRepository auditRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     public DeviceServiceImpl(DeviceRepository deviceRepository,
             DeviceTokenUtil tokenUtil,
-            DeviceAuditRepository auditRepository) {
+            DeviceAuditRepository auditRepository,
+            SubscriptionRepository subscriptionRepository) {
         this.deviceRepository = deviceRepository;
         this.tokenUtil = tokenUtil;
         this.auditRepository = auditRepository;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @Override
@@ -79,7 +83,7 @@ public class DeviceServiceImpl implements DeviceService {
         // Create new device with 7-day free trial
         Device newDevice = new Device(fingerprintHash, DeviceStatus.INACTIVE);
         newDevice.setSubscriptionType(SubscriptionType.TRIAL);
-        newDevice.setExpiresAt(LocalDateTime.now().plusDays(7));
+        newDevice.setExpiresAt(LocalDateTime.now().plusSeconds(30));
         newDevice.setDeviceModel(request.getDeviceModel());
         newDevice.setOsVersion(request.getOsVersion());
         newDevice.setPlatform(request.getPlatform());
@@ -88,8 +92,20 @@ public class DeviceServiceImpl implements DeviceService {
         String rawSecret = tokenUtil.generateRefreshToken();
         newDevice.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
 
-        // Save to database
+        // Save device to database
         Device savedDevice = deviceRepository.save(newDevice);
+
+        // REQUIREMENT: Create entry in subscription table for trial
+        com.iptv.wiseplayer.domain.entity.Subscription trialSub = new com.iptv.wiseplayer.domain.entity.Subscription(
+                savedDevice.getDeviceId(),
+                com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL,
+                LocalDateTime.now(),
+                newDevice.getExpiresAt(),
+                com.iptv.wiseplayer.domain.enums.SubscriptionStatus.TRIAL);
+        subscriptionRepository.save(trialSub);
+
+        logAudit(savedDevice.getDeviceId(), null, DeviceStatus.INACTIVE, "DEVICE_REGISTERED",
+                "New device registered with 30-second trial ending at " + newDevice.getExpiresAt());
 
         return new DeviceRegistrationResponse(
                 savedDevice.getDeviceId(),
@@ -132,10 +148,9 @@ public class DeviceServiceImpl implements DeviceService {
             if (device.getExpiresAt() != null && LocalDateTime.now().isBefore(device.getExpiresAt())) {
                 allowed = true;
             } else {
-                // Auto-transition to INACTIVE if expired
-                device.setDeviceStatus(DeviceStatus.INACTIVE);
-                deviceRepository.save(device);
-                logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.INACTIVE, "AUTO_EXPIRY",
+                // Access denied but status stays ACTIVE (Requirement: Only subscription
+                // expires)
+                logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.ACTIVE, "ACCESS_DENIED",
                         "Subscription expired during validation");
             }
         }
@@ -152,7 +167,6 @@ public class DeviceServiceImpl implements DeviceService {
                 allowed,
                 message,
                 device.getLastSeenAt());
-
     }
 
     /**
@@ -192,12 +206,14 @@ public class DeviceServiceImpl implements DeviceService {
 
     @Override
     @Transactional
-    public void updateDeviceSubscription(java.util.UUID deviceId, DeviceStatus status, LocalDateTime expiresAt) {
+    public void updateDeviceSubscription(java.util.UUID deviceId, DeviceStatus status, SubscriptionType type,
+            LocalDateTime expiresAt) {
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found with ID: " + deviceId));
 
         DeviceStatus oldStatus = device.getDeviceStatus();
         device.setDeviceStatus(status);
+        device.setSubscriptionType(type);
         device.setExpiresAt(expiresAt);
         // Force status to ACTIVE if a valid future expiration is provided
         if (expiresAt != null && expiresAt.isAfter(LocalDateTime.now())) {
