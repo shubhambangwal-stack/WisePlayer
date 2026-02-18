@@ -46,7 +46,7 @@ public class PaymentController {
     @GetMapping("/paypal/success")
     public ResponseEntity<String> paypalSuccess(@RequestParam("token") String orderId,
             @RequestParam("PayerID") String payerId) {
-        paymentService.captureOrder(orderId);
+        paymentService.captureOrder(orderId.trim());
         return ResponseEntity.ok("Payment successful and captured. You can close this window and return to the app.");
     }
 
@@ -63,6 +63,17 @@ public class PaymentController {
         java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse> invoices = paymentService
                 .getAllInvoicesByDevice(deviceId);
         return ResponseEntity.ok(invoices);
+    }
+
+    @Operation(summary = "Get Current Active Invoice", description = "Retrieves the latest successful payment invoice for a specific device, representing the current active subscription.")
+    @GetMapping("/invoice/current")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.InvoiceResponse> getCurrentInvoice(
+            @RequestParam String deviceId) {
+        com.iptv.wiseplayer.dto.response.InvoiceResponse invoice = paymentService.getCurrentInvoice(deviceId);
+        if (invoice == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(invoice);
     }
 
 }

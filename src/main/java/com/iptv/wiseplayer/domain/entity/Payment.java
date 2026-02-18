@@ -45,6 +45,9 @@ public class Payment {
     @Column(name = "paypal_capture_id", length = 255)
     private String paypalCaptureId;
 
+    @Column(name = "paypal_fee", precision = 10, scale = 2)
+    private BigDecimal paypalFee;
+
     @Column(name = "amount", precision = 10, scale = 2)
     private BigDecimal amount;
 
@@ -149,5 +152,13 @@ public class Payment {
 
     public void setPaypalCaptureId(String paypalCaptureId) {
         this.paypalCaptureId = paypalCaptureId;
+    }
+
+    public BigDecimal getPaypalFee() {
+        return paypalFee;
+    }
+
+    public void setPaypalFee(BigDecimal paypalFee) {
+        this.paypalFee = paypalFee;
     }
 }
