@@ -34,4 +34,12 @@ public interface SubscriptionService {
      * @param now Current timestamp
      */
     void expireOverdueSubscriptions(LocalDateTime now);
+
+    /**
+     * Revoke a subscription for a device.
+     * Use case: Refunds, Chargebacks, Disputes.
+     *
+     * @param deviceId Device fingerprint
+     */
+    void revokeSubscription(String deviceId);
 }

@@ -18,4 +18,6 @@ public interface PaymentService {
     void captureOrder(String orderId);
 
     List<InvoiceResponse> getAllInvoicesByDevice(String deviceId);
+
+    InvoiceResponse getCurrentInvoice(String deviceId);
 }

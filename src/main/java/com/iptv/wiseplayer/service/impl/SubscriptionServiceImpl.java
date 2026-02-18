@@ -202,4 +202,40 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 sub.getStartDate(),
                 sub.getEndDate());
     }
+
+    @Override
+    @Transactional
+    public void revokeSubscription(String deviceId) {
+        log.warn("Revoking subscription for device: {}", deviceId);
+
+        // Resolve UUID
+        UUID resolvedDeviceId;
+        try {
+            resolvedDeviceId = deviceService.resolveDeviceId(deviceId);
+        } catch (Exception e) {
+            log.error("Device not found for revocation: {}", deviceId);
+            return;
+        }
+
+        // 1. Mark subscription as EXPIRED
+        Optional<Subscription> subOpt = subscriptionRepository.findByDeviceId(resolvedDeviceId);
+        if (subOpt.isPresent()) {
+            Subscription sub = subOpt.get();
+            sub.setStatus(SubscriptionStatus.EXPIRED);
+            sub.setEndDate(LocalDateTime.now().minusSeconds(1)); // Ensure it's in the past
+            subscriptionRepository.save(sub);
+            log.info("Subscription record marked as EXPIRED for device: {}", resolvedDeviceId);
+        }
+
+        // 2. Downgrade device status
+        com.iptv.wiseplayer.domain.enums.SubscriptionType type = com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL;
+
+        deviceService.updateDeviceSubscription(
+                resolvedDeviceId,
+                com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
+                type,
+                LocalDateTime.now().minusSeconds(1)); // Expired trial
+
+        log.info("Device subscription status revoked/downgraded for device: {}", resolvedDeviceId);
+    }
 }

@@ -12,6 +12,7 @@ import com.iptv.wiseplayer.service.DeviceService;
 import com.iptv.wiseplayer.service.PaymentService;
 import com.iptv.wiseplayer.service.SubscriptionService;
 import com.iptv.wiseplayer.dto.response.SubscriptionResponse;
+import com.iptv.wiseplayer.dto.response.InvoiceResponse;
 import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
@@ -128,7 +129,17 @@ public class PaymentServiceImpl implements PaymentService {
         orderRequest.put("intent", "CAPTURE");
 
         java.util.Map<String, Object> purchaseUnit = new java.util.HashMap<>();
-        purchaseUnit.put("reference_id", deviceId.toString());
+        // Create the PENDING payment record BEFORE the API call
+        // This ensures the record exists even if the redirect/webhook happens extremely
+        // fast
+        Payment payment = new Payment();
+        payment.setDeviceId(deviceId);
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setAmount(amount);
+        payment.setPlan(request.getPlan());
+        payment = paymentRepository.save(payment);
+
+        purchaseUnit.put("reference_id", payment.getId().toString()); // Use our internal ID as reference
 
         java.util.Map<String, Object> amountMap = new java.util.HashMap<>();
         amountMap.put("currency_code", "EUR");
@@ -163,16 +174,18 @@ public class PaymentServiceImpl implements PaymentService {
                 }
             }
 
-            Payment payment = new Payment();
-            payment.setDeviceId(deviceId);
-            payment.setStatus(PaymentStatus.PENDING);
+            // Update the record with the PayPal Order ID
             payment.setPaypalOrderId(orderId);
-            payment.setAmount(amount);
-            payment.setPlan(request.getPlan());
             paymentRepository.save(payment);
+
+            log.info("PayPal Order {} created and linked to Payment ID {}", orderId, payment.getId());
 
             return new CheckoutResponse(approveUrl, orderId);
         }
+
+        // If it failed, we might want to delete or mark the payment as FAILED
+        payment.setStatus(PaymentStatus.FAILED);
+        paymentRepository.save(payment);
 
         throw new RuntimeException("Failed to create PayPal order");
     }
@@ -199,35 +212,18 @@ public class PaymentServiceImpl implements PaymentService {
         String eventType = (String) payload.get("event_type");
         log.info("Received PayPal webhook: {}", eventType);
 
-        if ("CHECKOUT.ORDER.APPROVED".equals(eventType) || "PAYMENT.CAPTURE.COMPLETED".equals(eventType)) {
-            java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
-            String orderId = (String) resource.get("id");
-
-            if ("PAYMENT.CAPTURE.COMPLETED".equals(eventType)) {
-                // For captures, the 'id' is the Capture ID. We need to find the Order ID.
-                // It's in supplementary_data.related_ids.order_id for v2
-                java.util.Map<String, Object> supplementaryData = (java.util.Map<String, Object>) resource
-                        .get("supplementary_data");
-                if (supplementaryData != null) {
-                    java.util.Map<String, Object> relatedIds = (java.util.Map<String, Object>) supplementaryData
-                            .get("related_ids");
-                    if (relatedIds != null && relatedIds.containsKey("order_id")) {
-                        orderId = (String) relatedIds.get("order_id");
-                        log.info("Extracted Order ID {} from capture webhook supplementary_data", orderId);
-                    }
-                }
-            }
-
-            if (orderId == null) {
-                log.error("Could not determine Order ID from PayPal Webhook: {}", payload);
-                return;
-            }
-
-            processSuccessfulPaypalPayment(orderId);
+        switch (eventType) {
+            case "PAYMENT.CAPTURE.COMPLETED" -> processCaptureCompleted(payload);
+            case "PAYMENT.CAPTURE.DENIED" -> processCaptureDenied(payload);
+            case "CHECKOUT.ORDER.APPROVED" -> processCheckoutOrderApproved(payload);
+            case "PAYMENT.CAPTURE.REFUNDED", "PAYMENT.CAPTURE.REVERSED" -> processRefundOrReversal(payload);
+            case "CUSTOMER.DISPUTE.CREATED" -> processDisputeCreated(payload);
+            case "PAYMENT.CAPTURE.PENDING" -> processPaymentPending(payload);
+            default -> log.info("Ignored PayPal event type: {}", eventType);
         }
     }
 
-    private void processSuccessfulPaypalPayment(String orderId) {
+    private void processSuccessfulPaypalPayment(String orderId, String captureId, BigDecimal fee) {
         log.info("Processing successful PayPal payment for Order ID: {}", orderId);
         Payment payment = paymentRepository.findByPaypalOrderId(orderId)
                 .orElseThrow(() -> {
@@ -235,9 +231,17 @@ public class PaymentServiceImpl implements PaymentService {
                     return new RuntimeException("Payment record not found for Order ID: " + orderId);
                 });
 
+        // Idempotency check
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             log.info("Payment for Order ID: {} is already marked as SUCCESS. Skipping activation.", orderId);
             return;
+        }
+
+        if (captureId != null) {
+            payment.setPaypalCaptureId(captureId);
+        }
+        if (fee != null) {
+            payment.setPaypalFee(fee);
         }
 
         payment.setStatus(PaymentStatus.SUCCESS);
@@ -251,18 +255,77 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("PayPal Subscription activated successfully for device: {}", payment.getDeviceId());
     }
 
+    private void processCaptureDenied(java.util.Map<String, Object> payload) {
+        String orderId = extractOrderId(payload);
+        if (orderId != null) {
+            log.warn("Payment capture DENIED for Order ID: {}", orderId);
+            paymentRepository.findByPaypalOrderId(orderId).ifPresent(payment -> {
+                if (payment.getStatus() != PaymentStatus.SUCCESS) {
+                    payment.setStatus(PaymentStatus.FAILED);
+                    paymentRepository.save(payment);
+                }
+            });
+        } else {
+            log.error("Received PAYMENT.CAPTURE.DENIED but could not extract Order ID.");
+        }
+    }
+
+    private void processCheckoutOrderApproved(java.util.Map<String, Object> payload) {
+        java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
+        String orderId = (String) resource.get("id");
+
+        if (orderId != null) {
+            paymentRepository.findByPaypalOrderId(orderId).ifPresent(payment -> {
+                if (payment.getStatus() == PaymentStatus.PENDING) {
+                    log.info("Auto-capturing pending order: {}", orderId);
+                    try {
+                        captureOrder(orderId);
+                    } catch (Exception e) {
+                        log.error("Failed to auto-capture order: {}", orderId, e);
+                    }
+                }
+            });
+        }
+
+    }
+
     @Override
     @Transactional
     public void captureOrder(String orderId) {
-        log.info("Attempting to capture PayPal order: {}", orderId);
+        if (orderId == null) {
+            log.error("Capture failed: Order ID is null");
+            throw new IllegalArgumentException("Order ID cannot be null");
+        }
+
+        final String finalOrderId = orderId.trim();
+        log.info("Attempting to capture PayPal order: {}", finalOrderId);
 
         // 1. Check if payment exists first to avoid unnecessary API calls or cryptic
         // errors
-        Payment payment = paymentRepository.findByPaypalOrderId(orderId)
-                .orElseThrow(() -> {
-                    log.error("Cannot capture order: Payment record not found for Order ID: {}", orderId);
-                    return new RuntimeException("Payment record not found for Order ID: " + orderId);
-                });
+        // Use a small retry loop to handle transaction commit lag from the creation
+        // step
+        Payment payment = null;
+        int maxRetries = 2;
+        for (int i = 0; i < maxRetries; i++) {
+            payment = paymentRepository.findByPaypalOrderId(finalOrderId).orElse(null);
+            if (payment != null)
+                break;
+
+            if (i < maxRetries - 1) {
+                log.warn("Payment record not found for Order ID: {} on attempt {}. Retrying in 500ms...", finalOrderId,
+                        i + 1);
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+
+        if (payment == null) {
+            log.error("Cannot capture order: Payment record not found for Order ID: {} after retries", finalOrderId);
+            throw new RuntimeException("Payment record not found for Order ID: " + finalOrderId);
+        }
 
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             log.info("Order {} already captured and processed successfully.", orderId);
@@ -282,7 +345,43 @@ public class PaymentServiceImpl implements PaymentService {
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("PayPal Order captured successfully API call: {}", orderId);
-                processSuccessfulPaypalPayment(orderId);
+
+                String captureId = null;
+                BigDecimal fee = null;
+
+                try {
+                    java.util.List<java.util.Map<String, Object>> purchaseUnits = (java.util.List<java.util.Map<String, Object>>) response
+                            .getBody().get("purchase_units");
+
+                    if (purchaseUnits != null && !purchaseUnits.isEmpty()) {
+                        java.util.Map<String, Object> payments = (java.util.Map<String, Object>) purchaseUnits.get(0)
+                                .get("payments");
+                        if (payments != null) {
+                            java.util.List<java.util.Map<String, Object>> captures = (java.util.List<java.util.Map<String, Object>>) payments
+                                    .get("captures");
+
+                            if (captures != null && !captures.isEmpty()) {
+                                java.util.Map<String, Object> capture = captures.get(0);
+                                captureId = (String) capture.get("id");
+
+                                java.util.Map<String, Object> sellerReceivableBreakdown = (java.util.Map<String, Object>) capture
+                                        .get("seller_receivable_breakdown");
+                                if (sellerReceivableBreakdown != null) {
+                                    java.util.Map<String, Object> paypalFeeMap = (java.util.Map<String, Object>) sellerReceivableBreakdown
+                                            .get("paypal_fee");
+                                    if (paypalFeeMap != null) {
+                                        String feeValue = (String) paypalFeeMap.get("value");
+                                        fee = new BigDecimal(feeValue);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to extract capture details from response for Order ID: {}", orderId, e);
+                }
+
+                processSuccessfulPaypalPayment(orderId, captureId, fee);
             } else {
                 log.error("PayPal capture API returned non-success status: {}. Body: {}",
                         response.getStatusCode(), response.getBody());
@@ -296,6 +395,122 @@ public class PaymentServiceImpl implements PaymentService {
             log.error("Unexpected error capturing PayPal order: {}", orderId, e);
             throw new RuntimeException("Unexpected error during PayPal capture", e);
         }
+    }
+
+    private void processRefundOrReversal(java.util.Map<String, Object> payload) {
+        String eventType = (String) payload.get("event_type");
+        log.warn("Processing {} ...", eventType);
+
+        String orderId = extractOrderId(payload);
+        if (orderId == null) {
+            log.error("Could not link {} to an Order ID.", eventType);
+            return;
+        }
+
+        paymentRepository.findByPaypalOrderId(orderId).ifPresent(payment -> {
+            PaymentStatus newStatus = eventType.contains("REFUNDED")
+                    ? PaymentStatus.REFUNDED
+                    : PaymentStatus.REVERSED;
+
+            log.warn("Marking Order ID: {} as {}. Revoking subscription...", orderId, newStatus);
+
+            payment.setStatus(newStatus);
+            paymentRepository.save(payment);
+
+            subscriptionService.revokeSubscription(payment.getDeviceId().toString());
+        });
+    }
+
+    private void processDisputeCreated(java.util.Map<String, Object> payload) {
+        log.warn("Processing CUSTOMER.DISPUTE.CREATED ...");
+        // Disputes are tricky to link back to Order ID directly via standard
+        // supplementary_data sometimes.
+        // But let's try the standard extraction first.
+        String orderId = extractOrderId(payload);
+
+        if (orderId == null) {
+            // Fallback: Try to find by Capture ID if available in disputed_transactions
+            java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
+            java.util.List<java.util.Map<String, Object>> disputedTransactions = (java.util.List<java.util.Map<String, Object>>) resource
+                    .get("disputed_transactions");
+
+            if (disputedTransactions != null && !disputedTransactions.isEmpty()) {
+                String captureId = (String) disputedTransactions.get(0).get("buyer_transaction_id"); // often maps to
+                                                                                                     // capture id // or
+                                                                                                     // seller_transaction_id
+                if (captureId == null)
+                    captureId = (String) disputedTransactions.get(0).get("seller_transaction_id");
+
+                if (captureId != null) {
+                    log.info("Found Capture ID {} in dispute. Searching payment...", captureId);
+                    // We don't have findByCaptureId yet, but we can assume we might need it.
+                    // For now, if we can't find it, we log error.
+                    // TO DO: Add findByPaypalCaptureId to repo if needed.
+                }
+            }
+            log.error("Could not link DISPUTE to an Order ID. Manual intervention required.");
+            return;
+        }
+
+        paymentRepository.findByPaypalOrderId(orderId).ifPresent(payment -> {
+            log.warn("Dispute created for Order ID: {}. Revoking subscription and marking DISPUTED.", orderId);
+            payment.setStatus(PaymentStatus.DISPUTED);
+            paymentRepository.save(payment);
+            subscriptionService.revokeSubscription(payment.getDeviceId().toString());
+        });
+    }
+
+    private void processPaymentPending(java.util.Map<String, Object> payload) {
+        String orderId = extractOrderId(payload);
+        if (orderId != null) {
+            log.info("Payment for Order ID: {} is PENDING. Waiting for completion...", orderId);
+        } else {
+            log.info("Received PAYMENT.CAPTURE.PENDING but could not extract Order ID.");
+        }
+    }
+
+    private String extractOrderId(java.util.Map<String, Object> payload) {
+        java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
+        if (resource == null)
+            return null;
+
+        java.util.Map<String, Object> supplementaryData = (java.util.Map<String, Object>) resource
+                .get("supplementary_data");
+        if (supplementaryData != null) {
+            java.util.Map<String, Object> relatedIds = (java.util.Map<String, Object>) supplementaryData
+                    .get("related_ids");
+            if (relatedIds != null) {
+                return (String) relatedIds.get("order_id");
+            }
+        }
+        return null; // Could not extract
+    }
+
+    private void processCaptureCompleted(java.util.Map<String, Object> payload) {
+        String orderId = extractOrderId(payload);
+        if (orderId == null) {
+            log.error("Could not determine Order ID from PayPal Webhook for PAYMENT.CAPTURE.COMPLETED: {}", payload);
+            return;
+        }
+
+        java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
+        String captureId = (String) resource.get("id");
+
+        // Extract Fee
+        BigDecimal fee = BigDecimal.ZERO;
+        java.util.Map<String, Object> sellerReceivableBreakdown = (java.util.Map<String, Object>) resource
+                .get("seller_receivable_breakdown");
+        if (sellerReceivableBreakdown != null) {
+            java.util.Map<String, Object> paypalFeeMap = (java.util.Map<String, Object>) sellerReceivableBreakdown
+                    .get("paypal_fee");
+            if (paypalFeeMap != null) {
+                String feeValue = (String) paypalFeeMap.get("value");
+                fee = new BigDecimal(feeValue);
+            }
+        }
+
+        log.info("Extracted Order ID {}, Capture ID {}, Fee {} from capture webhook", orderId, captureId, fee);
+        processSuccessfulPaypalPayment(orderId, captureId, fee);
     }
 
     private boolean verifyWebhookSignature(java.util.Map<String, Object> payload,
@@ -341,6 +556,17 @@ public class PaymentServiceImpl implements PaymentService {
         return payments.stream()
                 .map(this::mapToInvoiceResponse)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public InvoiceResponse getCurrentInvoice(String deviceId) {
+        log.info("Fetching current invoice for device: {}", deviceId);
+        UUID resolvedDeviceId = deviceService.resolveDeviceId(deviceId);
+
+        return paymentRepository
+                .findTopByDeviceIdAndStatusOrderByCreatedAtDesc(resolvedDeviceId, PaymentStatus.SUCCESS)
+                .map(this::mapToInvoiceResponse)
+                .orElse(null);
     }
 
     private com.iptv.wiseplayer.dto.response.InvoiceResponse mapToInvoiceResponse(Payment payment) {
