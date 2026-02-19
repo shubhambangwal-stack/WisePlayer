@@ -10,7 +10,7 @@ public class XtreamSeries {
     private String name;
     @JsonProperty("series_id")
     private int seriesId;
-    @JsonProperty("stream_cover")
+    @JsonProperty("stream_icon")
     @com.fasterxml.jackson.annotation.JsonAlias("cover")
     private String cover;
     @JsonProperty("plot")
