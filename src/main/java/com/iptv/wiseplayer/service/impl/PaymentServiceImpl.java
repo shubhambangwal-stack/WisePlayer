@@ -98,19 +98,31 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public CheckoutResponse createCheckoutSession(CheckoutRequest request) {
-        // 1. Check if device already has an active subscription
+        // 1. Check if device already has a PAID subscription
         SubscriptionResponse subStatus = subscriptionService.getSubscriptionStatus(request.getDeviceId());
-        if (subStatus.getType() == SubscriptionType.PAID_LIFETIME) {
-            log.warn("Checkout blocked for device {}: Already has a LIFETIME subscription", request.getDeviceId());
-            throw new IllegalStateException("You already have a Lifetime subscription. No further purchase is needed.");
+
+        // Block if user already has a PAID subscription
+        if (subStatus.getType() == SubscriptionType.PAID_ANNUAL
+                || subStatus.getType() == SubscriptionType.PAID_LIFETIME) {
+
+            // If it's LIFETIME, they never need to pay again
+            if (subStatus.getType() == SubscriptionType.PAID_LIFETIME) {
+                log.warn("Checkout blocked for device {}: Already has a LIFETIME subscription", request.getDeviceId());
+                throw new IllegalStateException(
+                        "You already have a Lifetime subscription. No further purchase is needed.");
+            }
+
+            // If it's ANNUAL and still ACTIVE, they shouldn't pay yet
+            if (subStatus.getStatus() == SubscriptionStatus.ACTIVE) {
+                log.warn("Checkout blocked for device {}: Already has an active ANNUAL subscription expiring at {}",
+                        request.getDeviceId(), subStatus.getEndDate());
+                throw new IllegalStateException(
+                        "You already have an active Annual subscription. Please wait until it expires to renew.");
+            }
         }
 
-        if (subStatus.getStatus() == SubscriptionStatus.ACTIVE || subStatus.getStatus() == SubscriptionStatus.TRIAL) {
-            log.warn("Checkout blocked for device {}: Already has an active {} subscription expiring at {}",
-                    request.getDeviceId(), subStatus.getStatus(), subStatus.getEndDate());
-            throw new IllegalStateException(
-                    "You already have an active subscription. Please wait until it expires to renew.");
-        }
+        // Note: TRIAL users (active or expired) are ALLOWED to proceed to checkout for
+        // a paid plan.
 
         UUID deviceId = deviceService.resolveDeviceId(request.getDeviceId());
         long amountInCents = 0;

@@ -1,9 +1,7 @@
 package com.iptv.wiseplayer.service.impl;
 
 import com.iptv.wiseplayer.domain.entity.Subscription;
-import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
 import com.iptv.wiseplayer.dto.response.SubscriptionResponse;
 import com.iptv.wiseplayer.repository.SubscriptionRepository;
@@ -201,6 +199,28 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 type,
                 sub.getStartDate(),
                 sub.getEndDate());
+    }
+
+    @Override
+    @Transactional
+    public void initializeTrial(UUID deviceId, LocalDateTime expiresAt) {
+        log.info("Initializing free trial for device: {} expiring at {}", deviceId, expiresAt);
+
+        Subscription trialSub = new Subscription(
+                deviceId,
+                com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL,
+                LocalDateTime.now(),
+                expiresAt,
+                SubscriptionStatus.TRIAL);
+
+        subscriptionRepository.save(trialSub);
+
+        // Update device status to ACTIVE via DeviceService
+        deviceService.updateDeviceSubscription(
+                deviceId,
+                com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
+                com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL,
+                expiresAt);
     }
 
     @Override

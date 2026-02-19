@@ -42,4 +42,13 @@ public interface SubscriptionService {
      * @param deviceId Device fingerprint
      */
     void revokeSubscription(String deviceId);
+
+    /**
+     * Initialize the free trial for a device.
+     * Called when a device is first activated via code.
+     *
+     * @param deviceId  Resolved device UUID
+     * @param expiresAt Trial expiration timestamp
+     */
+    void initializeTrial(java.util.UUID deviceId, java.time.LocalDateTime expiresAt);
 }

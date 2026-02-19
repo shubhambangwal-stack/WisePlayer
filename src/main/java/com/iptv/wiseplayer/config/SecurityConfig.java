@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/playlist/**").hasRole("ACTIVE")
                         .requestMatchers("/api/live/**").hasRole("ACTIVE")
                         .requestMatchers("/api/stream/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/xtream/**").hasRole("ACTIVE")
 
                         .anyRequest().authenticated())
 
