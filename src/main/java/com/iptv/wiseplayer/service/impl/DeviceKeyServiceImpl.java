@@ -15,6 +15,7 @@ import com.iptv.wiseplayer.repository.DeviceKeyRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.service.DeviceKeyService;
 import com.iptv.wiseplayer.service.DeviceService;
+import com.iptv.wiseplayer.service.SubscriptionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,15 +37,18 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
     private final DeviceRepository deviceRepository;
     private final DeviceKeyRepository deviceKeyRepository;
     private final DeviceService deviceService;
+    private final SubscriptionService subscriptionService;
     private final DeviceAuditRepository auditRepository;
 
     public DeviceKeyServiceImpl(DeviceRepository deviceRepository,
             DeviceKeyRepository deviceKeyRepository,
             DeviceService deviceService,
+            SubscriptionService subscriptionService,
             DeviceAuditRepository auditRepository) {
         this.deviceRepository = deviceRepository;
         this.deviceKeyRepository = deviceKeyRepository;
         this.deviceService = deviceService;
+        this.subscriptionService = subscriptionService;
         this.auditRepository = auditRepository;
     }
 
@@ -124,15 +128,17 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
             return new DeviceActivationResponse(false, "Invalid activation code.", device.getDeviceStatus());
         }
 
-        // 5. Activate Device
+        // 5. Activate Device and Start Trial
         DeviceStatus oldStatus = device.getDeviceStatus();
-        device.setDeviceStatus(DeviceStatus.ACTIVE);
-        device.setActivatedAt(LocalDateTime.now());
-        deviceRepository.save(device);
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(2);
+
+        // Start the trial via SubscriptionService (which also updates device status to
+        // ACTIVE)
+        subscriptionService.initializeTrial(device.getDeviceId(), expiresAt);
 
         // Audit Logging
         DeviceAuditLog auditLog = new DeviceAuditLog(device.getDeviceId(), oldStatus, DeviceStatus.ACTIVE,
-                "ACTIVATION", "Device activated via 6-digit code");
+                "ACTIVATION", "Device activated via 6-digit code. 2-minute trial started.");
         auditRepository.save(auditLog);
 
         // 6. Delete used key

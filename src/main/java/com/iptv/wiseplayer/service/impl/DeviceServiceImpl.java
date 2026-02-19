@@ -80,10 +80,9 @@ public class DeviceServiceImpl implements DeviceService {
                     device.getRegisteredAt());
         }
 
-        // Create new device with 7-day free trial
+        // Create new device (Trial type by default, but not started yet)
         Device newDevice = new Device(fingerprintHash, DeviceStatus.INACTIVE);
         newDevice.setSubscriptionType(SubscriptionType.TRIAL);
-        newDevice.setExpiresAt(LocalDateTime.now().plusSeconds(30));
         newDevice.setDeviceModel(request.getDeviceModel());
         newDevice.setOsVersion(request.getOsVersion());
         newDevice.setPlatform(request.getPlatform());
@@ -95,17 +94,8 @@ public class DeviceServiceImpl implements DeviceService {
         // Save device to database
         Device savedDevice = deviceRepository.save(newDevice);
 
-        // REQUIREMENT: Create entry in subscription table for trial
-        com.iptv.wiseplayer.domain.entity.Subscription trialSub = new com.iptv.wiseplayer.domain.entity.Subscription(
-                savedDevice.getDeviceId(),
-                com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL,
-                LocalDateTime.now(),
-                newDevice.getExpiresAt(),
-                com.iptv.wiseplayer.domain.enums.SubscriptionStatus.TRIAL);
-        subscriptionRepository.save(trialSub);
-
         logAudit(savedDevice.getDeviceId(), null, DeviceStatus.INACTIVE, "DEVICE_REGISTERED",
-                "New device registered with 30-second trial ending at " + newDevice.getExpiresAt());
+                "New device registered. Pending activation.");
 
         return new DeviceRegistrationResponse(
                 savedDevice.getDeviceId(),
@@ -159,10 +149,15 @@ public class DeviceServiceImpl implements DeviceService {
 
         String newAccessToken = tokenUtil.generateToken(device.getDeviceId().toString(), providedFingerprintHash);
 
+        SubscriptionType responseType = device.getSubscriptionType();
+        if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
+            responseType = SubscriptionType.EXPIRED;
+        }
+
         return new DeviceValidationResponse(
                 device.getDeviceId(),
                 device.getDeviceStatus(),
-                device.getSubscriptionType(),
+                responseType,
                 newAccessToken,
                 allowed,
                 message,
@@ -195,6 +190,12 @@ public class DeviceServiceImpl implements DeviceService {
         }
 
         if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
+            boolean isExpired = device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt());
+
+            if (isExpired) {
+                return "Your subscription has expired. Please renew to continue access.";
+            }
+
             if (device.getSubscriptionType() == SubscriptionType.TRIAL) {
                 return "Device is in free trial period. Please subscribe to continue access later.";
             }
@@ -248,17 +249,19 @@ public class DeviceServiceImpl implements DeviceService {
         if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
             if (device.getExpiresAt() != null && LocalDateTime.now().isBefore(device.getExpiresAt())) {
                 allowed = true;
-            } else {
-                device.setDeviceStatus(DeviceStatus.INACTIVE);
-                deviceRepository.save(device);
             }
         }
         String message = determineValidationMessage(device);
 
+        SubscriptionType responseType = device.getSubscriptionType();
+        if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
+            responseType = SubscriptionType.EXPIRED;
+        }
+
         return new DeviceValidationResponse(
                 device.getDeviceId(),
                 device.getDeviceStatus(),
-                device.getSubscriptionType(),
+                responseType,
                 newAccessToken,
                 allowed,
                 message,

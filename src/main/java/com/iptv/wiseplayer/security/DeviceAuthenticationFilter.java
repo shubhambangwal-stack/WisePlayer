@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,11 +48,12 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return  path.contains("/api/payment/paypal/webhook") ||
+        return path.contains("/api/payment/paypal/webhook") ||
                 path.contains("/api/payment/paypal/success") ||
                 path.contains("/api/payment/paypal/cancel") ||
                 path.contains("/api/device/register") ||
                 path.contains("/api/device/validate") ||
+                path.contains("/api/device/refresh") ||
                 path.contains("/api/device/key") ||
                 path.contains("/swagger-ui") ||
                 path.contains("/v3/api-docs");
@@ -90,10 +92,24 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
                 throw new DeviceAuthenticationException("Device is inactive or subscription expired");
             }
 
-            // 3. Set authentication context with status-based roles
+            // 3. Verify expiration for ACTIVE devices
+            boolean isExpired = device.getDeviceStatus() == DeviceStatus.ACTIVE &&
+                    device.getExpiresAt() != null &&
+                    LocalDateTime.now().isAfter(device.getExpiresAt());
+
+            // 4. Set authentication context with status-based roles
             List<SimpleGrantedAuthority> authorities = new ArrayList<>();
             authorities.add(new SimpleGrantedAuthority("ROLE_DEVICE"));
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + device.getDeviceStatus().name()));
+
+            // Only grant ROLE_ACTIVE if status is ACTIVE and NOT expired
+            if (device.getDeviceStatus() == DeviceStatus.ACTIVE && !isExpired) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_ACTIVE"));
+            } else {
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + device.getDeviceStatus().name()));
+                if (isExpired) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_EXPIRED"));
+                }
+            }
 
             DeviceAuthenticationToken authentication = new DeviceAuthenticationToken(device, authorities);
             SecurityContextHolder.getContext().setAuthentication(authentication);
