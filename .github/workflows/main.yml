@@ -11,13 +11,14 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@v4
 
       - name: SSH and Run Script
         uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.HOST }}
           username: root
-          password: ${{ secrets.PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            cd /root/wiseplayer
             ./deploy.sh
