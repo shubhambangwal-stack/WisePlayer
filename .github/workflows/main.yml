@@ -23,4 +23,4 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
             cd /root/wiseplayer
-            ./deploy.sh
+            ~/deploy.sh
