@@ -1,0 +1,30 @@
+package com.iptv.wiseplayer.controller.admin;
+
+import com.iptv.wiseplayer.dto.request.AdminLoginRequest;
+import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
+import com.iptv.wiseplayer.service.AdminAuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/admin/auth")
+@Tag(name = "Admin Authentication", description = "Endpoints for administrator login and session management")
+public class AdminAuthController {
+
+    private final AdminAuthService adminAuthService;
+
+    public AdminAuthController(AdminAuthService adminAuthService) {
+        this.adminAuthService = adminAuthService;
+    }
+
+    @Operation(summary = "Admin Login", description = "Authenticates an administrator and returns a session token.")
+    @PostMapping("/login")
+    public ResponseEntity<AdminAuthResponse> login(@RequestBody AdminLoginRequest request) {
+        return ResponseEntity.ok(adminAuthService.login(request));
+    }
+}

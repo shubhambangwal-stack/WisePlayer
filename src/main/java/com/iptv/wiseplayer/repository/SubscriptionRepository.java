@@ -29,4 +29,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
      */
     @Query("SELECT s FROM Subscription s WHERE (s.status = 'ACTIVE' OR s.status = 'TRIAL') AND s.endDate < :now")
     List<Subscription> findExpiredSubscriptions(LocalDateTime now);
+
+    long countByStatus(SubscriptionStatus status);
 }

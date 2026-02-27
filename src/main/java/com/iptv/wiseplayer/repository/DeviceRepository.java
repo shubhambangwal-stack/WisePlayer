@@ -42,4 +42,9 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
          * @param refreshToken Refresh token string
          * @return Optional containing device if found
          */
+        Optional<Device> findByRefreshToken(String refreshToken);
+
+        long countByDeviceStatus(com.iptv.wiseplayer.domain.enums.DeviceStatus status);
+
+        long countBySubscriptionType(com.iptv.wiseplayer.domain.enums.SubscriptionType type);
 }
