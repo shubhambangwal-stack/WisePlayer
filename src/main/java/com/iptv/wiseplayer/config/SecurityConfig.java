@@ -55,7 +55,7 @@ public class SecurityConfig {
 
                         // Admin Endpoints
                         .requestMatchers("/api/admin/auth/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
                         // Protected Endpoints (Require Device Token)
                         .requestMatchers("/api/payment/checkout").authenticated()
