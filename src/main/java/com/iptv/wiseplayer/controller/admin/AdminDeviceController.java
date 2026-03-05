@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/devices")
@@ -32,13 +32,13 @@ public class AdminDeviceController {
 
     @Operation(summary = "Get Device Details", description = "Retrieves detailed information for a specific device.")
     @GetMapping("/{id}")
-    public ResponseEntity<AdminDeviceResponse> getDeviceById(@PathVariable UUID id) {
-        return ResponseEntity.ok(adminDeviceService.getDeviceById(id));
+    public ResponseEntity<AdminDeviceResponse> getDeviceById(@PathVariable String id) {
+        return ResponseEntity.ok(adminDeviceService.getDeviceByIdOrMac(id));
     }
 
     @Operation(summary = "Update Device Status", description = "Blocks or unblocks a device.")
     @PatchMapping("/{id}/status")
-    public ResponseEntity<?> updateDeviceStatus(@PathVariable UUID id, @RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> updateDeviceStatus(@PathVariable String id, @RequestBody Map<String, String> payload) {
         DeviceStatus status = DeviceStatus.valueOf(payload.get("status").toUpperCase());
         adminDeviceService.updateDeviceStatus(id, status);
         return ResponseEntity.ok(Map.of("success", true, "message", "Device status updated to " + status));

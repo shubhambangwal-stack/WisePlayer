@@ -9,6 +9,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 @Service
@@ -24,18 +27,48 @@ public class AdminDeviceService {
         return deviceRepository.findAll(pageable).map(this::convertToResponse);
     }
 
-    public AdminDeviceResponse getDeviceById(UUID deviceId) {
-        Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found"));
+    public AdminDeviceResponse getDeviceByIdOrMac(String idOrMac) {
+        Device device = findDeviceByIdentifier(idOrMac);
         return convertToResponse(device);
     }
 
     @Transactional
-    public void updateDeviceStatus(UUID deviceId, DeviceStatus status) {
-        Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found"));
+    public void updateDeviceStatus(String idOrMac, DeviceStatus status) {
+        Device device = findDeviceByIdentifier(idOrMac);
         device.setDeviceStatus(status);
         deviceRepository.save(device);
+    }
+
+    private Device findDeviceByIdentifier(String identifier) {
+        try {
+            // Try parsing as UUID first
+            UUID id = UUID.fromString(identifier);
+            return deviceRepository.findByDeviceId(id)
+                    .orElseThrow(() -> new RuntimeException("Device not found by ID"));
+        } catch (IllegalArgumentException e) {
+            // If not a UUID, treat as MAC address and hash it
+            String hash = hashMacAddress(identifier);
+            return deviceRepository.findByFingerprintHash(hash)
+                    .orElseThrow(() -> new RuntimeException("Device not found by MAC address"));
+        }
+    }
+
+    private String hashMacAddress(String mac) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] encodedhash = digest.digest(mac.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder(2 * encodedhash.length);
+            for (byte b : encodedhash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Failed to hash MAC address", e);
+        }
     }
 
     private AdminDeviceResponse convertToResponse(Device device) {
