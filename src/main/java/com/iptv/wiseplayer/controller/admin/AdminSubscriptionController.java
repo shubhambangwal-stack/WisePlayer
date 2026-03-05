@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/subscriptions")
@@ -39,7 +39,7 @@ public class AdminSubscriptionController {
 
     @Operation(summary = "Revoke Subscription", description = "Revokes an active subscription.")
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> revokeSubscription(@PathVariable UUID id) {
+    public ResponseEntity<?> revokeSubscription(@PathVariable String id) {
         adminSubscriptionService.revokeSubscription(id);
         return ResponseEntity.ok(Map.of("success", true, "message", "Subscription revoked"));
     }
