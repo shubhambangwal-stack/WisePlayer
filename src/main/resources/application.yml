@@ -38,3 +38,10 @@ app:
 
 
     # Refresh tokens are managed internally (not exposed in API)
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+  show-actuator: false
