@@ -24,7 +24,8 @@ import java.util.Map;
 public class AdminAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(AdminAuthenticationFilter.class);
-    private static final String AUTH_HEADER = "X-Admin-Token";
+    private static final String ADMIN_TOKEN_HEADER = "X-Admin-Token";
+    private static final String BEARER_PREFIX = "Bearer ";
 
     private final AdminTokenUtil adminTokenUtil;
     private final ObjectMapper objectMapper;
@@ -45,7 +46,14 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String token = request.getHeader(AUTH_HEADER);
+        // Accept X-Admin-Token header OR standard Authorization: Bearer <token>
+        String token = request.getHeader(ADMIN_TOKEN_HEADER);
+        if (token == null || token.isEmpty()) {
+            String bearerHeader = request.getHeader("Authorization");
+            if (bearerHeader != null && bearerHeader.startsWith(BEARER_PREFIX)) {
+                token = bearerHeader.substring(BEARER_PREFIX.length());
+            }
+        }
 
         if (token == null || token.isEmpty()) {
             filterChain.doFilter(request, response);
