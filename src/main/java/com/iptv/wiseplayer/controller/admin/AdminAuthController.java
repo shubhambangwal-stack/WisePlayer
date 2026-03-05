@@ -1,15 +1,15 @@
 package com.iptv.wiseplayer.controller.admin;
 
 import com.iptv.wiseplayer.dto.request.AdminLoginRequest;
+import com.iptv.wiseplayer.dto.request.CreateAdminRequest;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.service.AdminAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin/auth")
@@ -26,5 +26,11 @@ public class AdminAuthController {
     @PostMapping("/login")
     public ResponseEntity<AdminAuthResponse> login(@RequestBody AdminLoginRequest request) {
         return ResponseEntity.ok(adminAuthService.login(request));
+    }
+
+    @Operation(summary = "Create Admin", description = "Creates a new admin account. Use this to set up the first admin.")
+    @PostMapping("/setup")
+    public ResponseEntity<AdminAuthResponse> createAdmin(@Valid @RequestBody CreateAdminRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(adminAuthService.createAdmin(request));
     }
 }
