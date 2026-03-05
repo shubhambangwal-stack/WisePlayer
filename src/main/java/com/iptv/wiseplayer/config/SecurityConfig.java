@@ -1,12 +1,15 @@
 package com.iptv.wiseplayer.config;
 
 import com.iptv.wiseplayer.security.DeviceAuthenticationFilter;
+import com.iptv.wiseplayer.security.AdminAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -15,9 +18,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final DeviceAuthenticationFilter deviceAuthenticationFilter;
+    private final AdminAuthenticationFilter adminAuthenticationFilter;
 
-    public SecurityConfig(DeviceAuthenticationFilter deviceAuthenticationFilter) {
+    public SecurityConfig(DeviceAuthenticationFilter deviceAuthenticationFilter,
+            AdminAuthenticationFilter adminAuthenticationFilter) {
         this.deviceAuthenticationFilter = deviceAuthenticationFilter;
+        this.adminAuthenticationFilter = adminAuthenticationFilter;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
@@ -42,6 +53,10 @@ public class SecurityConfig {
                         // Swagger UI
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
+                        // Admin Endpoints
+                        .requestMatchers("/api/admin/auth/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
                         // Protected Endpoints (Require Device Token)
                         .requestMatchers("/api/payment/checkout").authenticated()
                         .requestMatchers("/api/subscription/**").authenticated()
@@ -55,8 +70,9 @@ public class SecurityConfig {
 
                         .anyRequest().authenticated())
 
-                // Register custom device authentication filter
-                .addFilterBefore(deviceAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                // Register filters
+                .addFilterBefore(deviceAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
