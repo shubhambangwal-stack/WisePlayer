@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/admin/auth")
 @Tag(name = "Admin Authentication", description = "Endpoints for administrator login and session management")
@@ -30,7 +32,7 @@ public class AdminAuthController {
 
     @Operation(summary = "Create Admin", description = "Creates a new admin account. Use this to set up the first admin.")
     @PostMapping("/setup")
-    public ResponseEntity<AdminAuthResponse> createAdmin(@Valid @RequestBody CreateAdminRequest request) {
+    public ResponseEntity<Map<String, Object>> createAdmin(@Valid @RequestBody CreateAdminRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(adminAuthService.createAdmin(request));
     }
 }

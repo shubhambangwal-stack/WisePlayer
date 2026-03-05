@@ -6,6 +6,7 @@ import com.iptv.wiseplayer.dto.request.CreateAdminRequest;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
+import java.util.Map;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -41,7 +42,7 @@ public class AdminAuthService {
         return new AdminAuthResponse(true, token, admin.getUsername(), admin.getFullName());
     }
 
-    public AdminAuthResponse createAdmin(CreateAdminRequest request) {
+    public Map<String, Object> createAdmin(CreateAdminRequest request) {
         if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new RuntimeException("Username already exists");
         }
@@ -55,8 +56,9 @@ public class AdminAuthService {
 
         adminRepository.save(admin);
 
-        String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
-
-        return new AdminAuthResponse(true, token, admin.getUsername(), admin.getFullName());
+        return Map.of(
+                "success", true,
+                "message", "Admin account created. Please login via /api/admin/auth/login",
+                "username", admin.getUsername());
     }
 }
