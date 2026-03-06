@@ -2,6 +2,8 @@ package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamSeries;
+import com.iptv.wiseplayer.security.DeviceContext;
+import com.iptv.wiseplayer.service.StreamService;
 import com.iptv.wiseplayer.service.iptv.XtreamCatalogService;
 import com.iptv.wiseplayer.service.iptv.XtreamStreamResolver;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,11 +22,16 @@ public class SeriesController {
 
     private final XtreamCatalogService catalogService;
     private final XtreamStreamResolver streamResolver;
+    private final StreamService streamService;
+    private final DeviceContext deviceContext;
 
-    public SeriesController(XtreamCatalogService catalogService, XtreamStreamResolver streamResolver) {
+
+    public SeriesController(XtreamCatalogService catalogService, XtreamStreamResolver streamResolver , StreamService streamService , DeviceContext deviceContext) {
 
         this.catalogService = catalogService;
         this.streamResolver = streamResolver;
+        this.streamService = streamService;
+        this.deviceContext = deviceContext;
     }
 
     @Operation(summary = "Handle Series Request", description = "Dispatches request based on parameters: categories or series list.")
@@ -32,10 +39,12 @@ public class SeriesController {
     public ResponseEntity<?> handleRequest(
             @RequestParam UUID playlistId,
             @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) Integer streamId){
+            @RequestParam(required = false) String streamId){
         if (streamId != null) {
-            String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD);
-            return ResponseEntity.ok(Map.of("url", url));
+            //String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD);
+         //   return ResponseEntity.ok(Map.of("url", url));
+            String streamUrl = streamService.authorizeAndGetUrl(deviceContext.getCurrentDeviceId(), playlistId, streamId);
+            return ResponseEntity.ok(Map.of( "url", streamUrl));
         }
 
         // 1. Get Series List (if categoryId is present)
