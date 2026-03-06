@@ -1,5 +1,6 @@
 package com.iptv.wiseplayer.domain.entity;
 
+import com.iptv.wiseplayer.domain.enums.AdminRole;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,8 +32,9 @@ public class Admin {
     @Column(name = "full_name", length = 100)
     private String fullName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
-    private String role = "ADMIN";
+    private AdminRole role = AdminRole.ADMIN;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
@@ -44,4 +46,8 @@ public class Admin {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public boolean isSuperAdmin() {
+        return AdminRole.SUPER_ADMIN.equals(this.role);
+    }
 }

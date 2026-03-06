@@ -3,6 +3,7 @@ package com.iptv.wiseplayer.security;
 import com.iptv.wiseplayer.config.SecurityProperties;
 import org.springframework.stereotype.Component;
 
+import com.iptv.wiseplayer.domain.enums.AdminRole;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -18,12 +19,12 @@ public class AdminTokenUtil {
         this.securityProperties = securityProperties;
     }
 
-    public String generateToken(String username, String role) {
+    public String generateToken(String username, AdminRole role) {
         long expiry = System.currentTimeMillis() + (24 * 60 * 60 * 1000); // 24 hours for admin
 
         String payload = new StringJoiner("|")
                 .add(username)
-                .add(role)
+                .add(role.name())
                 .add(String.valueOf(expiry))
                 .toString();
 
