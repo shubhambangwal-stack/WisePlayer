@@ -1,7 +1,9 @@
 package com.iptv.wiseplayer.controller.admin;
 
 import com.iptv.wiseplayer.domain.entity.Admin;
+import com.iptv.wiseplayer.domain.entity.SuperAdmin;
 import com.iptv.wiseplayer.repository.AdminRepository;
+import com.iptv.wiseplayer.repository.SuperAdminRepository;
 import com.iptv.wiseplayer.service.AdminManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +14,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/management")
@@ -20,10 +24,14 @@ public class AdminManagementController {
 
     private final AdminManagementService adminManagementService;
     private final AdminRepository adminRepository;
+    private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
 
-    public AdminManagementController(AdminManagementService adminManagementService, AdminRepository adminRepository) {
+    public AdminManagementController(AdminManagementService adminManagementService,
+            AdminRepository adminRepository,
+            com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
         this.adminManagementService = adminManagementService;
         this.adminRepository = adminRepository;
+        this.superAdminRepository = superAdminRepository;
     }
 
     @Operation(summary = "Invite Admin", description = "Generates an invitation link for a new admin. Only accessible by SUPER_ADMIN.")
@@ -37,10 +45,25 @@ public class AdminManagementController {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = (String) auth.getPrincipal();
-        Admin inviter = adminRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Logged in admin not found"));
 
-        String token = adminManagementService.inviteAdmin(email, inviter, httpRequest);
+        UUID inviterId;
+        boolean isSuperAdmin = false;
+
+        // Try SuperAdmin first
+        Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository
+                .findByUsername(username);
+        if (superAdminOpt.isPresent()) {
+            inviterId = superAdminOpt.get().getId();
+            isSuperAdmin = true;
+        } else {
+            // Try Admin
+            Admin admin = adminRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("Logged in admin not found"));
+            inviterId = admin.getId();
+            isSuperAdmin = admin.isSuperAdmin();
+        }
+
+        String token = adminManagementService.inviteAdmin(email, inviterId, isSuperAdmin, httpRequest);
 
         return ResponseEntity.ok(Map.of(
                 "success", true,

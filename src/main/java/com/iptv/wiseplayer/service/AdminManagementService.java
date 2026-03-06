@@ -35,8 +35,8 @@ public class AdminManagementService {
     }
 
     @Transactional
-    public String inviteAdmin(String email, Admin inviter, HttpServletRequest request) {
-        if (!inviter.isSuperAdmin()) {
+    public String inviteAdmin(String email, UUID inviterId, boolean isSuperAdmin, HttpServletRequest request) {
+        if (!isSuperAdmin) {
             throw new RuntimeException("Only SUPER_ADMIN can invite new admins");
         }
 
@@ -54,12 +54,12 @@ public class AdminManagementService {
         AdminInvite invite = new AdminInvite();
         invite.setEmail(email);
         invite.setToken(token);
-        invite.setInvitedBy(inviter.getId());
+        invite.setInvitedBy(inviterId);
         invite.setExpiresAt(LocalDateTime.now().plusDays(7));
         adminInviteRepository.save(invite);
 
         // Logging
-        AdminAuditLog log = new AdminAuditLog(inviter.getId(), email, "INVITE_SENT", request.getRemoteAddr());
+        AdminAuditLog log = new AdminAuditLog(inviterId, email, "INVITE_SENT", request.getRemoteAddr());
         adminAuditLogRepository.save(log);
 
         return token;
