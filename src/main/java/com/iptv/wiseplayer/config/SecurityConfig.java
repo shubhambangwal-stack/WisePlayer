@@ -54,8 +54,11 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // Admin Endpoints
-                        .requestMatchers("/api/admin/auth/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/admin/auth/login").permitAll()
+                        .requestMatchers("/api/admin/management/invite/verify").permitAll()
+                        .requestMatchers("/api/admin/management/setup/complete").permitAll()
+                        .requestMatchers("/api/admin/management/**").hasAuthority("ROLE_SUPER_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
                         // Protected Endpoints (Require Device Token)
                         .requestMatchers("/api/payment/checkout").authenticated()

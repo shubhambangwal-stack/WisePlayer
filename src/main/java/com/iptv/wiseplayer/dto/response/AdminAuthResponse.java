@@ -12,4 +12,5 @@ public class AdminAuthResponse {
     private String token;
     private String username;
     private String fullName;
+    private String role;
 }

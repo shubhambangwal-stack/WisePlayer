@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.service;
 
 import com.iptv.wiseplayer.domain.entity.Admin;
+import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.dto.request.AdminLoginRequest;
 import com.iptv.wiseplayer.dto.request.CreateAdminRequest;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
@@ -39,26 +40,6 @@ public class AdminAuthService {
 
         String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
 
-        return new AdminAuthResponse(true, token, admin.getUsername(), admin.getFullName());
-    }
-
-    public Map<String, Object> createAdmin(CreateAdminRequest request) {
-        if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new RuntimeException("Username already exists");
-        }
-
-        Admin admin = new Admin();
-        admin.setUsername(request.getUsername());
-        admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        admin.setFullName(request.getFullName());
-        admin.setRole(request.getRole() != null ? request.getRole() : "ADMIN");
-        admin.setActive(true);
-
-        adminRepository.save(admin);
-
-        return Map.of(
-                "success", true,
-                "message", "Admin account created. Please login via /api/admin/auth/login",
-                "username", admin.getUsername());
+        return new AdminAuthResponse(true, token, admin.getUsername(), admin.getFullName(), admin.getRole().name());
     }
 }
