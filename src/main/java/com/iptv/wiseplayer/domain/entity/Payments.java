@@ -19,7 +19,7 @@ import java.util.UUID;
         @Index(name = "idx_payment_event_id", columnList = "stripe_event_id", unique = true),
         @Index(name = "idx_paypal_order_id", columnList = "paypal_order_id")
 })
-public class Payment {
+public class Payments {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -63,7 +63,7 @@ public class Payment {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public Payment() {
+    public Payments() {
     }
 
     public UUID getId() {

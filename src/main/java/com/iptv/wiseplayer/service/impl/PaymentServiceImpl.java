@@ -1,6 +1,6 @@
 package com.iptv.wiseplayer.service.impl;
 
-import com.iptv.wiseplayer.domain.entity.Payment;
+import com.iptv.wiseplayer.domain.entity.Payments;
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
 import com.iptv.wiseplayer.domain.enums.SubscriptionType;
@@ -144,7 +144,7 @@ public class PaymentServiceImpl implements PaymentService {
         // Create the PENDING payment record BEFORE the API call
         // This ensures the record exists even if the redirect/webhook happens extremely
         // fast
-        Payment payment = new Payment();
+        Payments payment = new Payments();
         payment.setDeviceId(deviceId);
         payment.setStatus(PaymentStatus.PENDING);
         payment.setAmount(amount);
@@ -237,7 +237,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     private void processSuccessfulPaypalPayment(String orderId, String captureId, BigDecimal fee) {
         log.info("Processing successful PayPal payment for Order ID: {}", orderId);
-        Payment payment = paymentRepository.findByPaypalOrderId(orderId)
+        Payments payment = paymentRepository.findByPaypalOrderId(orderId)
                 .orElseThrow(() -> {
                     log.error("CRITICAL: Payment record not found for PayPal Order ID: {}", orderId);
                     return new RuntimeException("Payment record not found for Order ID: " + orderId);
@@ -316,7 +316,7 @@ public class PaymentServiceImpl implements PaymentService {
         // errors
         // Use a small retry loop to handle transaction commit lag from the creation
         // step
-        Payment payment = null;
+        Payments payment = null;
         int maxRetries = 2;
         for (int i = 0; i < maxRetries; i++) {
             payment = paymentRepository.findByPaypalOrderId(finalOrderId).orElse(null);
@@ -563,7 +563,7 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("Fetching all invoices for device: {}", deviceId);
         UUID resolvedDeviceId = deviceService.resolveDeviceId(deviceId);
 
-        java.util.List<Payment> payments = paymentRepository.findAllByDeviceIdOrderByCreatedAtDesc(resolvedDeviceId);
+        java.util.List<Payments> payments = paymentRepository.findAllByDeviceIdOrderByCreatedAtDesc(resolvedDeviceId);
 
         return payments.stream()
                 .map(this::mapToInvoiceResponse)
@@ -581,7 +581,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElse(null);
     }
 
-    private com.iptv.wiseplayer.dto.response.InvoiceResponse mapToInvoiceResponse(Payment payment) {
+    private com.iptv.wiseplayer.dto.response.InvoiceResponse mapToInvoiceResponse(Payments payment) {
         com.iptv.wiseplayer.dto.response.InvoiceResponse response = new com.iptv.wiseplayer.dto.response.InvoiceResponse();
         response.setInvoiceNumber("INV-" + payment.getId().toString().substring(0, 8).toUpperCase());
         response.setPaymentId(payment.getId());

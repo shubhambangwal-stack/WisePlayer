@@ -1,6 +1,9 @@
 spring:
   application:
     name: wiseplayer
+  profiles:
+     active: dev
+  properties:
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USERNAME}
@@ -11,6 +14,7 @@ spring:
     show-sql: true
     hibernate:
       ddl-auto: update
+
 
 # stripe:
 #   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC

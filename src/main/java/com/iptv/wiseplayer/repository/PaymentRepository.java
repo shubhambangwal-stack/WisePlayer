@@ -1,6 +1,6 @@
 package com.iptv.wiseplayer.repository;
 
-import com.iptv.wiseplayer.domain.entity.Payment;
+import com.iptv.wiseplayer.domain.entity.Payments;
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -13,19 +13,19 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface PaymentRepository extends JpaRepository<Payment, UUID> {
-    Optional<Payment> findByPaypalOrderId(String orderId);
+public interface PaymentRepository extends JpaRepository<Payments, UUID> {
+    Optional<Payments> findByPaypalOrderId(String orderId);
 
-    Optional<Payment> findByStripeSessionId(String sessionId);
+    Optional<Payments> findByStripeSessionId(String sessionId);
 
-    Optional<Payment> findByStripeEventId(String eventId);
+    Optional<Payments> findByStripeEventId(String eventId);
 
-    List<Payment> findAllByDeviceIdOrderByCreatedAtDesc(UUID deviceId);
+    List<Payments> findAllByDeviceIdOrderByCreatedAtDesc(UUID deviceId);
 
-    Optional<Payment> findTopByDeviceIdAndStatusOrderByCreatedAtDesc(UUID deviceId,
+    Optional<Payments> findTopByDeviceIdAndStatusOrderByCreatedAtDesc(UUID deviceId,
             com.iptv.wiseplayer.domain.enums.PaymentStatus status);
 
-    @Query("SELECT COALESCE(SUM(p.amount),0) FROM Payment p WHERE p.status = com.iptv.wiseplayer.enums.PaymentStatus.COMPLETED")
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.status = com.iptv.wiseplayer.domain.enums.PaymentStatus.SUCCESS")
     BigDecimal sumTotalRevenue();
 
     long countByStatus(com.iptv.wiseplayer.domain.enums.PaymentStatus status);
