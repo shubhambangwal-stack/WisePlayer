@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: wiseplayer
+
+  datasource:
+    url: jdbc:postgresql://72.62.228.103:5432/wiseplayer?options=-c%20timezone=Asia/Kolkata
+    username: postgres
+    password: postgres
+  jpa:
+    generate-ddl: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+
+
+# stripe:
+#   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
+#   webhook-secret: whsec_a38a24c1241cc5914d67c43cf526b7b050783c0a5b7c2c9d8a5619d7c9df91fa
+
+paypal:
+  mode: ${PAYPAL_MODE:sandbox}
+  client-id: AY9l6yf2rSFI9Bry73axYx5J5LPPI46WmwbOJuge29clm3eiBcI-ciS3tceOc5iUZNkL9lexoyGEIMWB
+  client-secret: EAp7ehGeQnxFqLavMTOFcQNDQrBYx06AHvAk0GweKLOADV_2EMR7Bhw2AgEhpGIUTqjOZOnPXJxevzTO
+  return-url: https://api.wise-player.com/api/payment/paypal/success
+  cancel-url: https://api.wise-player.com/api/payment/paypal/cancel
+  webhook-url: https://api.wise-player.com/api/payment/paypal/webhook
+  webhook-id: 4ET3670297788543D
+
+server:
+  port: 8080
+
+app:
+  security:
+    token-secrets:
+      - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXYy
+      - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXZz
+      - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXXx
+    token-ttl-minutes: 25
+
+
+    # Refresh tokens are managed internally (not exposed in API)
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+  show-actuator: false
