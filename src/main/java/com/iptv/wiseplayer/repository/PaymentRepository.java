@@ -25,8 +25,8 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findTopByDeviceIdAndStatusOrderByCreatedAtDesc(UUID deviceId,
             com.iptv.wiseplayer.domain.enums.PaymentStatus status);
 
-    @Query("SELECT COALESCE(SUM(p.amount),0) FROM Payment p WHERE p.status = :status")
-    BigDecimal sumTotalRevenue(@Param("status") PaymentStatus status);
+    @Query("SELECT COALESCE(SUM(p.amount),0) FROM Payment p WHERE p.status = com.iptv.wiseplayer.enums.PaymentStatus.COMPLETED")
+    BigDecimal sumTotalRevenue();
 
     long countByStatus(com.iptv.wiseplayer.domain.enums.PaymentStatus status);
 }
