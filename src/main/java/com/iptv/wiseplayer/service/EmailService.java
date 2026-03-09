@@ -1,0 +1,89 @@
+package com.iptv.wiseplayer.service;
+
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
+
+@Service
+@Slf4j
+public class EmailService {
+
+    private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.username}")
+    private String fromEmail;
+
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
+
+    @Async
+    public void sendAdminInvitation(String toEmail, String inviteLink) {
+        try {
+            log.info("Sending admin invitation email to: {}", toEmail);
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
+                    StandardCharsets.UTF_8.name());
+
+            String htmlContent = createInvitationHtml(inviteLink);
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Invitation to Join WisePlayer Admin Panel");
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("Invitation email sent successfully to: {}", toEmail);
+        } catch (MessagingException e) {
+            log.error("Failed to send invitation email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String createInvitationHtml(String inviteLink) {
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f0f; color: #ffffff; padding: 20px; }
+                        .container { max-width: 600px; margin: 0 auto; background-color: #1a1a1a; padding: 40px; border-radius: 12px; border: 1px solid #333; }
+                        .logo { color: #e50914; font-size: 28px; font-weight: bold; margin-bottom: 20px; text-align: center; }
+                        .title { font-size: 24px; font-weight: 600; margin-bottom: 20px; text-align: center; color: #00d4ff; }
+                        .content { line-height: 1.6; color: #cccccc; margin-bottom: 30px; }
+                        .button-container { text-align: center; }
+                        .button { background-color: #e50914; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; transition: background-color 0.3s; }
+                        .footer { margin-top: 40px; font-size: 12px; color: #666; text-align: center; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="logo">WisePlayer</div>
+                        <div class="title">Join Our Admin Team</div>
+                        <div class="content">
+                            <p>Hello,</p>
+                            <p>You have been invited to join the WisePlayer Administrative Panel. As an admin, you will have access to manage devices, subscriptions, and payments.</p>
+                            <p>To get started and set up your account, please click the button below:</p>
+                        </div>
+                        <div class="button-container">
+                            <a href="%s" class="button">Accept Invitation & Setup Account</a>
+                        </div>
+                        <div class="content">
+                            <p>This link will expire in 7 days. If you did not expect this invitation, please ignore this email.</p>
+                        </div>
+                        <div class="footer">
+                            &copy; 2024 WisePlayer. All rights reserved.
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                .formatted(inviteLink);
+    }
+}

@@ -8,6 +8,7 @@ import com.iptv.wiseplayer.repository.AdminAuditLogRepository;
 import com.iptv.wiseplayer.repository.AdminInviteRepository;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,15 +24,21 @@ public class AdminManagementService {
     private final AdminInviteRepository adminInviteRepository;
     private final AdminAuditLogRepository adminAuditLogRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+
+    @Value("${app.base-url}")
+    private String baseUrl;
 
     public AdminManagementService(AdminRepository adminRepository,
             AdminInviteRepository adminInviteRepository,
             AdminAuditLogRepository adminAuditLogRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            EmailService emailService) {
         this.adminRepository = adminRepository;
         this.adminInviteRepository = adminInviteRepository;
         this.adminAuditLogRepository = adminAuditLogRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -57,6 +64,10 @@ public class AdminManagementService {
         invite.setInvitedBy(inviterId);
         invite.setExpiresAt(LocalDateTime.now().plusDays(7));
         adminInviteRepository.save(invite);
+
+        // Send Email
+        String inviteLink = baseUrl + "/admin/setup?token=" + token;
+        emailService.sendAdminInvitation(email, inviteLink);
 
         // Logging
         AdminAuditLog log = new AdminAuditLog(inviterId, email, "INVITE_SENT", request.getRemoteAddr());

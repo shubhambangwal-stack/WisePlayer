@@ -13,6 +13,20 @@ spring:
     hibernate:
       ddl-auto: update
 
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: sbangwal75@gmail.com
+    password: vzintqbwxiisqirq
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        debug: false
+
 
 # stripe:
 #   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
@@ -31,6 +45,7 @@ server:
   port: 8080
 
 app:
+  base-url: ${APP_BASE_URL:http://localhost:5173}
   security:
     token-secrets:
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXYy
