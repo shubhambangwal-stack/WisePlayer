@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
+@Entity(name = "payments")
 @Table(name = "payments", indexes = {
         @Index(name = "idx_payment_session_id", columnList = "stripe_session_id"),
         @Index(name = "idx_payment_event_id", columnList = "stripe_event_id", unique = true),
