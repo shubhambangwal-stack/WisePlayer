@@ -45,7 +45,7 @@ server:
   port: 8080
 
 app:
-  base-url: ${APP_BASE_URL:http://admin.wise-player.com}
+  base-url: ${APP_BASE_URL:http://localhost:5173}
   security:
     token-secrets:
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXYy

@@ -63,13 +63,17 @@ public class AdminManagementController {
             isSuperAdmin = admin.isSuperAdmin();
         }
 
-        String token = adminManagementService.inviteAdmin(email, inviterId, isSuperAdmin, httpRequest);
+        AdminManagementService.InviteResult result = adminManagementService.inviteAdmin(email, inviterId, isSuperAdmin,
+                httpRequest);
+
+        String message = result.isNew() ? "Invitation generated successfully"
+                : "Invitation already sent. It is valid for " + result.minutesRemaining() + " more minutes.";
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "Invitation generated successfully",
-                "token", token,
-                "inviteUrl", "/admin/setup?token=" + token));
+                "message", message,
+                "token", result.token(),
+                "inviteUrl", "/admin/setup?token=" + result.token()));
     }
 
     @Operation(summary = "Verify Invite", description = "Verifies if an invitation token is valid.")
