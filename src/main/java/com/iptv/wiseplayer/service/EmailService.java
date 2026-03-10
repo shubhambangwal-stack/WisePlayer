@@ -24,10 +24,10 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    @Async
+    // @Async
     public void sendAdminInvitation(String toEmail, String inviteLink) {
         try {
-            log.info("Sending admin invitation email to: {}", toEmail);
+            log.info("Sending admin invitation email to: {} from: {}", toEmail, fromEmail);
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
                     StandardCharsets.UTF_8.name());
@@ -41,8 +41,9 @@ public class EmailService {
 
             mailSender.send(message);
             log.info("Invitation email sent successfully to: {}", toEmail);
-        } catch (MessagingException e) {
-            log.error("Failed to send invitation email to {}: {}", toEmail, e.getMessage());
+        } catch (Exception e) {
+            log.error("CRITICAL: Unexpected error while sending invitation email to {}. Error type: {}, Message: {}",
+                    toEmail, e.getClass().getName(), e.getMessage(), e);
         }
     }
 

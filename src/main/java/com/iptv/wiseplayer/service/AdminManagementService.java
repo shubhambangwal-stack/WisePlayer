@@ -8,6 +8,7 @@ import com.iptv.wiseplayer.repository.AdminAuditLogRepository;
 import com.iptv.wiseplayer.repository.AdminInviteRepository;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class AdminManagementService {
 
     private final AdminRepository adminRepository;
@@ -41,8 +43,11 @@ public class AdminManagementService {
         this.emailService = emailService;
     }
 
+    public record InviteResult(String token, boolean isNew, long minutesRemaining) {
+    }
+
     @Transactional
-    public String inviteAdmin(String email, UUID inviterId, boolean isSuperAdmin, HttpServletRequest request) {
+    public InviteResult inviteAdmin(String email, UUID inviterId, boolean isSuperAdmin, HttpServletRequest request) {
         if (!isSuperAdmin) {
             throw new RuntimeException("Only SUPER_ADMIN can invite new admins");
         }
@@ -54,7 +59,18 @@ public class AdminManagementService {
         Optional<AdminInvite> existingInvite = adminInviteRepository.findByEmail(email);
         if (existingInvite.isPresent() && !existingInvite.get().isUsed()
                 && existingInvite.get().getExpiresAt().isAfter(LocalDateTime.now())) {
-            return existingInvite.get().getToken();
+            AdminInvite invite = existingInvite.get();
+            log.info("Found existing valid invitation for {}, re-sending email. Previous expiry: {}", email,
+                    invite.getExpiresAt());
+            invite.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+            adminInviteRepository.save(invite);
+
+            String inviteLink = baseUrl + "/admin/setup?token=" + invite.getToken();
+            log.info("Re-sending invite link: {}", inviteLink);
+            emailService.sendAdminInvitation(email, inviteLink);
+
+            long minutesRemaining = java.time.Duration.between(LocalDateTime.now(), invite.getExpiresAt()).toMinutes();
+            return new InviteResult(invite.getToken(), false, Math.max(0, minutesRemaining));
         }
 
         String token = UUID.randomUUID().toString();
@@ -62,18 +78,19 @@ public class AdminManagementService {
         invite.setEmail(email);
         invite.setToken(token);
         invite.setInvitedBy(inviterId);
-        invite.setExpiresAt(LocalDateTime.now().plusDays(7));
+        invite.setExpiresAt(LocalDateTime.now().plusMinutes(5));
         adminInviteRepository.save(invite);
 
         // Send Email
         String inviteLink = baseUrl + "/admin/setup?token=" + token;
+        log.info("Sending NEW invite link: {}", inviteLink);
         emailService.sendAdminInvitation(email, inviteLink);
 
         // Logging
-        AdminAuditLog log = new AdminAuditLog(inviterId, email, "INVITE_SENT", request.getRemoteAddr());
-        adminAuditLogRepository.save(log);
+        AdminAuditLog auditLog = new AdminAuditLog(inviterId, email, "INVITE_SENT", request.getRemoteAddr());
+        adminAuditLogRepository.save(auditLog);
 
-        return token;
+        return new InviteResult(token, true, 5);
     }
 
     public AdminInvite verifyInvite(String token) {
@@ -107,8 +124,8 @@ public class AdminManagementService {
         adminInviteRepository.save(invite);
 
         // Logging
-        AdminAuditLog log = new AdminAuditLog(invite.getInvitedBy(), invite.getEmail(), "ADMIN_CREATED",
+        AdminAuditLog auditLog = new AdminAuditLog(invite.getInvitedBy(), invite.getEmail(), "ADMIN_CREATED",
                 request.getRemoteAddr());
-        adminAuditLogRepository.save(log);
+        adminAuditLogRepository.save(auditLog);
     }
 }
