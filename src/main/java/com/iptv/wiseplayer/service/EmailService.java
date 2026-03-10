@@ -27,12 +27,16 @@ public class EmailService {
     // @Async
     public void sendAdminInvitation(String toEmail, String inviteLink) {
         try {
+            log.info("==== EMAIL TRIGGER START ====");
             log.info("Sending admin invitation email to: {} from: {}", toEmail, fromEmail);
+            log.info("Received invite link parameter: [{}]", inviteLink);
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
                     StandardCharsets.UTF_8.name());
 
             String htmlContent = createInvitationHtml(inviteLink);
+            log.info("Generated HTML Content containing the href. Checking value in HTML: {}",
+                    htmlContent.contains("href=\"" + inviteLink + "\""));
 
             helper.setFrom(fromEmail);
             helper.setTo(toEmail);
@@ -48,6 +52,7 @@ public class EmailService {
     }
 
     private String createInvitationHtml(String inviteLink) {
+        log.info("Passing invite link to HTML generator: [{}]", inviteLink);
         return """
                 <!DOCTYPE html>
                 <html>
