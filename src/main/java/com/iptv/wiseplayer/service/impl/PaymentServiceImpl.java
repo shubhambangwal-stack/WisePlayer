@@ -48,10 +48,10 @@ public class PaymentServiceImpl implements PaymentService {
     @Value("${paypal.mode}")
     private String paypalMode;
 
-    @Value("${paypal.return-url:http://localhost:8081/api/payment/paypal/success}")
+    @Value("${paypal.return-url:https://api.wise-player.com/api/payment/paypal/success}")
     private String paypalReturnUrl;
 
-    @Value("${paypal.cancel-url:http://localhost:8081/api/payment/paypal/cancel}")
+    @Value("${paypal.cancel-url:https://api.wise-player.com/api/payment/paypal/cancel}")
     private String paypalCancelUrl;
 
     @Value("${paypal.webhook-id}")
