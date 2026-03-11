@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -106,6 +107,17 @@ public class GlobalExceptionHandler {
                                 .collect(Collectors.joining(", "));
                 log.warn("Validation Error: {}", message);
                 return buildErrorResponse(HttpStatus.BAD_REQUEST, message, request);
+        }
+
+        @ExceptionHandler(DataIntegrityViolationException.class)
+        public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(DataIntegrityViolationException ex,
+                        HttpServletRequest request) {
+                log.warn("Data Integrity Violation: {}", ex.getMessage());
+                String message = "Resource already exists or database constraint violation";
+                if (ex.getRootCause() != null && ex.getRootCause().getMessage().contains("duplicate key")) {
+                        message = "A resource with this identifier already exists (e.g., email or name)";
+                }
+                return buildErrorResponse(HttpStatus.CONFLICT, message, request);
         }
 
         @ExceptionHandler(Exception.class)
