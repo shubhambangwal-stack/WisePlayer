@@ -8,6 +8,8 @@ import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import com.iptv.wiseplayer.exception.AccessDeniedException;
+import com.iptv.wiseplayer.exception.BadRequestException;
+import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.PlaylistRepository;
 import com.iptv.wiseplayer.service.PlaylistService;
@@ -103,7 +105,7 @@ public class PlaylistServiceImpl implements PlaylistService {
     public java.util.List<PlaylistResponse> getPlaylists(UUID deviceId) {
         // Validation check for device status
         Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new RuntimeException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "Internal Security Error: Authenticated device not found in database"));
 
         if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
@@ -137,7 +139,7 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     public void validatePlaylist(UUID deviceId, Object request) {
         Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
 
         if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
             throw new AccessDeniedException("Validation allowed only for active devices");
@@ -146,7 +148,7 @@ public class PlaylistServiceImpl implements PlaylistService {
         if (request instanceof XtreamPlaylistRequest xtreamRequest) {
             xtreamClient.authenticate(xtreamRequest.getServerUrl(), xtreamRequest.getUsername(),
                     xtreamRequest.getPassword())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid Xtream credentials or inactive account"));
+                    .orElseThrow(() -> new BadRequestException("Invalid Xtream credentials or inactive account"));
 
             // If valid, save it
             saveXtreamPlaylist(deviceId, xtreamRequest);
@@ -163,7 +165,7 @@ public class PlaylistServiceImpl implements PlaylistService {
                 // Validate as Xtream
                 xtreamClient.authenticate(xtreamRequest.getServerUrl(), xtreamRequest.getUsername(),
                         xtreamRequest.getPassword())
-                        .orElseThrow(() -> new IllegalArgumentException(
+                        .orElseThrow(() -> new BadRequestException(
                                 "Invalid Xtream credentials extracted from M3U URL"));
 
                 saveXtreamPlaylist(deviceId, xtreamRequest);
@@ -171,7 +173,7 @@ public class PlaylistServiceImpl implements PlaylistService {
                 saveM3uPlaylist(deviceId, m3uRequest);
             }
         } else {
-            throw new IllegalArgumentException("Unsupported playlist request type");
+            throw new BadRequestException("Unsupported playlist request type");
         }
     }
 }

@@ -8,6 +8,7 @@ import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
 import com.iptv.wiseplayer.dto.request.DeviceValidationRequest;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.DeviceValidationResponse;
+import com.iptv.wiseplayer.exception.BadRequestException;
 import com.iptv.wiseplayer.exception.DeviceAuthenticationException;
 import com.iptv.wiseplayer.exception.DeviceNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceAuditRepository;
@@ -48,7 +49,7 @@ public class DeviceServiceImpl implements DeviceService {
     public DeviceRegistrationResponse registerDevice(DeviceRegistrationRequest request) {
         // Validate input
         if (request.getDeviceId() == null || request.getDeviceId().trim().isEmpty()) {
-            throw new IllegalArgumentException("Device ID cannot be null or empty");
+            throw new BadRequestException("Device ID cannot be null or empty");
         }
 
         // Hash the fingerprint/deviceId (SHA-256)
@@ -111,7 +112,7 @@ public class DeviceServiceImpl implements DeviceService {
     public DeviceValidationResponse validateDevice(DeviceValidationRequest request) {
         // Validate input
         if (request.getFingerprint() == null || request.getFingerprint().trim().isEmpty()) {
-            throw new IllegalArgumentException("Device fingerprint cannot be null or empty");
+            throw new BadRequestException("Device fingerprint cannot be null or empty");
         }
 
         // Hash the provided fingerprint for lookup
@@ -276,7 +277,7 @@ public class DeviceServiceImpl implements DeviceService {
     @Override
     public java.util.UUID resolveDeviceId(String identity) {
         if (identity == null || identity.trim().isEmpty()) {
-            throw new IllegalArgumentException("Device identity cannot be null or empty");
+            throw new BadRequestException("Device identity cannot be null or empty");
         }
 
         String trimmedIdentity = identity.trim();

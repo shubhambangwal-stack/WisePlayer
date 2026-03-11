@@ -10,6 +10,7 @@ public class ErrorResponse {
     private boolean success;
     private int status;
     private String message;
+    private String path;
     private LocalDateTime timestamp;
 
     public ErrorResponse() {
@@ -17,10 +18,11 @@ public class ErrorResponse {
         this.timestamp = LocalDateTime.now();
     }
 
-    public ErrorResponse(int status, String message) {
+    public ErrorResponse(int status, String message, String path) {
         this();
         this.status = status;
         this.message = message;
+        this.path = path;
     }
 
     // Getters and Setters
@@ -46,6 +48,14 @@ public class ErrorResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
     }
 
     public LocalDateTime getTimestamp() {
