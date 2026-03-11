@@ -38,46 +38,46 @@ public class AdminAuthService {
     }
 
     public AdminAuthResponse login(AdminLoginRequest request) {
-        String username = request.getUsername();
-        log.info("Attempting login for username: '{}' (length: {})", username,
-                username != null ? username.length() : 0);
+        String fullName = request.getUsername(); // The DTO field is still 'username' but holds full name now
+        log.info("Attempting login for full name: '{}' (length: {})", fullName,
+                fullName != null ? fullName.length() : 0);
 
         // 1. Try SuperAdmin (Plain-text)
         Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository
-                .findByUsername(username);
+                .findByFullName(fullName);
 
         if (superAdminOpt.isPresent()) {
             com.iptv.wiseplayer.domain.entity.SuperAdmin superAdmin = superAdminOpt.get();
-            log.info("Found SuperAdmin record for username: '{}'", username);
+            log.info("Found SuperAdmin record for full name: '{}'", fullName);
             if (superAdmin.getPassword().equals(request.getPassword())) {
                 String token = adminTokenUtil.generateToken(superAdmin.getUsername(), AdminRole.SUPER_ADMIN);
                 return new AdminAuthResponse(true, token, superAdmin.getUsername(), superAdmin.getFullName(),
                         AdminRole.SUPER_ADMIN.name());
             } else {
-                log.warn("Password mismatch for SuperAdmin: '{}'", username);
+                log.warn("Password mismatch for SuperAdmin: '{}'", fullName);
             }
         }
 
         // 2. Try Admin (Hashed)
-        Admin admin = adminRepository.findByUsername(username)
+        Admin admin = adminRepository.findByFullName(fullName)
                 .orElseGet(() -> {
-                    log.error("User not found in database: '{}'", username);
+                    log.error("User not found in database with full name: '{}'", fullName);
                     throw new RuntimeException("Invalid credentials: user not found");
                 });
 
-        log.info("Found Admin record for username: '{}', ID: {}", username, admin.getId());
+        log.info("Found Admin record for full name: '{}', ID: {}", fullName, admin.getId());
 
         if (!admin.isActive()) {
-            log.warn("Account is disabled for username: '{}'", username);
+            log.warn("Account is disabled for full name: '{}'", fullName);
             throw new RuntimeException("Account is disabled");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), admin.getPasswordHash())) {
-            log.warn("Password mismatch for Admin: '{}'", username);
+            log.warn("Password mismatch for Admin: '{}'", fullName);
             throw new RuntimeException("Invalid credentials: password mismatch");
         }
 
-        log.info("Login successful for username: '{}'", username);
+        log.info("Login successful for full name: '{}'", fullName);
         String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
 
         return new AdminAuthResponse(true, token, admin.getUsername(), admin.getFullName(), admin.getRole().name());
