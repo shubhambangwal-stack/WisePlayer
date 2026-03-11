@@ -1,9 +1,13 @@
 package com.iptv.wiseplayer.service;
 
+import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.entity.Subscription;
 import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
 import com.iptv.wiseplayer.dto.response.AdminSubscriptionResponse;
+import com.iptv.wiseplayer.exception.DeviceNotFoundException;
+import com.iptv.wiseplayer.exception.ResourceNotFoundException;
+import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.SubscriptionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,8 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-import com.iptv.wiseplayer.domain.entity.Device;
-import com.iptv.wiseplayer.repository.DeviceRepository;
 
 @Service
 public class AdminSubscriptionService {
@@ -53,17 +55,18 @@ public class AdminSubscriptionService {
             // Try parsing as UUID first (Subscription ID)
             UUID id = UUID.fromString(identifier);
             return subscriptionRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Subscription not found by ID"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Subscription not found by ID: " + identifier));
         } catch (IllegalArgumentException e) {
             // If not a UUID, treat as MAC address, find the device, then the active
             // subscription
             String hash = hashMacAddress(identifier);
             Device device = deviceRepository.findByFingerprintHash(hash)
-                    .orElseThrow(() -> new RuntimeException("Device not found by MAC address"));
+                    .orElseThrow(() -> new DeviceNotFoundException("Device not found by MAC address: " + identifier));
 
             return subscriptionRepository.findByDeviceIdAndStatus(device.getDeviceId(), SubscriptionStatus.ACTIVE)
                     .stream().findFirst()
-                    .orElseThrow(() -> new RuntimeException("No active subscription found for this device"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "No active subscription found for device: " + identifier));
         }
     }
 

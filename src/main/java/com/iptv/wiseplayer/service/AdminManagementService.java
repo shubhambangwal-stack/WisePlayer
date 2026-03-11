@@ -4,12 +4,15 @@ import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.entity.AdminAuditLog;
 import com.iptv.wiseplayer.domain.entity.AdminInvite;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
+import com.iptv.wiseplayer.exception.InvalidInvitationException;
+import com.iptv.wiseplayer.exception.ResourceAlreadyExistsException;
 import com.iptv.wiseplayer.repository.AdminAuditLogRepository;
 import com.iptv.wiseplayer.repository.AdminInviteRepository;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,11 +52,11 @@ public class AdminManagementService {
     @Transactional
     public InviteResult inviteAdmin(String email, UUID inviterId, boolean isSuperAdmin, HttpServletRequest request) {
         if (!isSuperAdmin) {
-            throw new RuntimeException("Only SUPER_ADMIN can invite new admins");
+            throw new AccessDeniedException("Only SUPER_ADMIN can invite new admins");
         }
 
         if (adminRepository.findByUsername(email).isPresent()) {
-            throw new RuntimeException("Admin with this email already exists");
+            throw new ResourceAlreadyExistsException("Admin with this email already exists");
         }
 
         Optional<AdminInvite> existingInvite = adminInviteRepository.findByEmail(email);
@@ -95,14 +98,14 @@ public class AdminManagementService {
 
     public AdminInvite verifyInvite(String token) {
         AdminInvite invite = adminInviteRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid invitation token"));
+                .orElseThrow(() -> new InvalidInvitationException("Invalid invitation token"));
 
         if (invite.isUsed()) {
-            throw new RuntimeException("Invitation has already been used");
+            throw new InvalidInvitationException("Invitation has already been used");
         }
 
         if (invite.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Invitation has expired");
+            throw new InvalidInvitationException("Invitation has expired");
         }
 
         return invite;

@@ -6,6 +6,7 @@ import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.dto.request.AdminLoginRequest;
 import com.iptv.wiseplayer.dto.request.CreateAdminRequest;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
+import com.iptv.wiseplayer.exception.AuthenticationException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.SuperAdminRepository;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
@@ -58,23 +59,23 @@ public class AdminAuthService {
             }
         }
 
-        // 2. Try Admin (Hashed)
+        // 2. Try Admin (Find by Full Name as requested)
         Admin admin = adminRepository.findByFullName(fullName)
                 .orElseGet(() -> {
                     log.error("User not found in database with full name: '{}'", fullName);
-                    throw new RuntimeException("Invalid credentials: user not found");
+                    throw new AuthenticationException("Invalid credentials: user not found");
                 });
 
         log.info("Found Admin record for full name: '{}', ID: {}", fullName, admin.getId());
 
         if (!admin.isActive()) {
             log.warn("Account is disabled for full name: '{}'", fullName);
-            throw new RuntimeException("Account is disabled");
+            throw new AuthenticationException("Account is disabled");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), admin.getPasswordHash())) {
             log.warn("Password mismatch for Admin: '{}'", fullName);
-            throw new RuntimeException("Invalid credentials: password mismatch");
+            throw new AuthenticationException("Invalid credentials: password mismatch");
         }
 
         log.info("Login successful for full name: '{}'", fullName);
