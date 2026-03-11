@@ -44,7 +44,7 @@ public class AdminAuthService {
 
         // 1. Try SuperAdmin (Plain-text)
         Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository
-                .findByFullName(fullName);
+                .findByUsername(fullName);
 
         if (superAdminOpt.isPresent()) {
             com.iptv.wiseplayer.domain.entity.SuperAdmin superAdmin = superAdminOpt.get();
