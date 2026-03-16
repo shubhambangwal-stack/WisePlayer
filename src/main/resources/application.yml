@@ -2,13 +2,7 @@ spring:
   application:
     name: wiseplayer
   profiles:
-<<<<<<< HEAD
-     active: dev
-  properties:
-=======
     active: dev
-
->>>>>>> 408d820 (reseller changes)
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USERNAME}

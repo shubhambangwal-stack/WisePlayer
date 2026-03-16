@@ -36,15 +36,15 @@ public class DataInitializer {
             }
 
             // Seed a Test Reseller
-            if (adminRepo.findByUsername("testreseller").isEmpty()) {
+            if (adminRepo.findByEmail("reseller@test.com").isEmpty()) {
                 Admin reseller = new Admin();
-                reseller.setUsername("testreseller");
+                reseller.setEmail("reseller@test.com");
+                reseller.setUsername("Test Reseller");
                 reseller.setPasswordHash(encoder.encode("password123"));
-                reseller.setFullName("Test Reseller");
                 reseller.setRole(AdminRole.RESELLER);
                 reseller.setActive(true);
                 adminRepo.save(reseller);
-                System.out.println("Test Reseller seeded: testreseller / password123");
+                System.out.println("Test Reseller seeded: reseller@test.com / password123");
             }
         };
     }

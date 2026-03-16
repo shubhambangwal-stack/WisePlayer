@@ -1,18 +1,14 @@
 package com.iptv.wiseplayer.service;
 
 import com.iptv.wiseplayer.domain.entity.Admin;
-import com.iptv.wiseplayer.domain.entity.SuperAdmin;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.dto.request.AdminLoginRequest;
-import com.iptv.wiseplayer.dto.request.CreateAdminRequest;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.exception.AuthenticationException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.SuperAdminRepository;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
-import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,46 +35,45 @@ public class AdminAuthService {
     }
 
     public AdminAuthResponse login(AdminLoginRequest request) {
-        String loginUsername = request.getUsername(); // username field holds the admin's full name (unique)
-        log.info("Attempting login for username: '{}' (length: {})", loginUsername,
-                loginUsername != null ? loginUsername.length() : 0);
+        String loginEmail = request.getUsername(); // 'username' from request maps to email
+        log.info("Attempting login for email: '{}'", loginEmail);
 
         // 1. Try SuperAdmin (Plain-text)
         Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository
-                .findByUsername(loginUsername);
+                .findByUsername(loginEmail);
 
         if (superAdminOpt.isPresent()) {
             com.iptv.wiseplayer.domain.entity.SuperAdmin superAdmin = superAdminOpt.get();
-            log.info("Found SuperAdmin record for username: '{}'", loginUsername);
+            log.info("Found SuperAdmin record for username: '{}'", loginEmail);
             if (superAdmin.getPassword().equals(request.getPassword())) {
                 String token = adminTokenUtil.generateToken(superAdmin.getUsername(), AdminRole.SUPER_ADMIN);
                 return new AdminAuthResponse(true, token, superAdmin.getUsername(), superAdmin.getFullName(),
                         AdminRole.SUPER_ADMIN.name());
             } else {
-                log.warn("Password mismatch for SuperAdmin: '{}'", loginUsername);
+                log.warn("Password mismatch for SuperAdmin: '{}'", loginEmail);
             }
         }
 
-        // 2. Try Admin (Find by username — which now stores the full name)
-        Admin admin = adminRepository.findByUsername(loginUsername)
+        // 2. Try Admin (Find by email)
+        Admin admin = adminRepository.findByEmail(loginEmail)
                 .orElseGet(() -> {
-                    log.error("User not found in database with username: '{}'", loginUsername);
+                    log.error("User not found in database with email: '{}'", loginEmail);
                     throw new AuthenticationException("Invalid credentials: user not found");
                 });
 
-        log.info("Found Admin record for username: '{}', ID: {}", loginUsername, admin.getId());
+        log.info("Found Admin record for email: '{}', ID: {}", loginEmail, admin.getId());
 
         if (!admin.isActive()) {
-            log.warn("Account is disabled for username: '{}'", loginUsername);
+            log.warn("Account is disabled for email: '{}'", loginEmail);
             throw new AuthenticationException("Account is disabled");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), admin.getPasswordHash())) {
-            log.warn("Password mismatch for Admin: '{}'", loginUsername);
+            log.warn("Password mismatch for Admin: '{}'", loginEmail);
             throw new AuthenticationException("Invalid credentials: password mismatch");
         }
 
-        log.info("Login successful for username: '{}'", loginUsername);
+        log.info("Login successful for email: '{}'", loginEmail);
         String token = adminTokenUtil.generateToken(admin.getEmail(), admin.getRole());
 
         return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(), admin.getRole().name());

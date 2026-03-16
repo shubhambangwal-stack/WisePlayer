@@ -1,9 +1,7 @@
 package com.iptv.wiseplayer.controller.admin;
 
 import com.iptv.wiseplayer.domain.entity.Admin;
-import com.iptv.wiseplayer.domain.entity.SuperAdmin;
 import com.iptv.wiseplayer.repository.AdminRepository;
-import com.iptv.wiseplayer.repository.SuperAdminRepository;
 import com.iptv.wiseplayer.service.AdminManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -57,7 +55,7 @@ public class AdminManagementController {
             isSuperAdmin = true;
         } else {
             // Try Admin
-            Admin admin = adminRepository.findByUsername(username)
+            Admin admin = adminRepository.findByEmail(username)
                     .orElseThrow(() -> new RuntimeException("Logged in admin not found"));
             inviterId = admin.getId();
             isSuperAdmin = admin.isSuperAdmin();

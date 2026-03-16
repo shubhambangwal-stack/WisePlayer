@@ -94,12 +94,12 @@ public class ResellerController {
     }
 
     private UUID getCurrentResellerId() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        UUID resellerId = adminRepository.findByUsername(username)
+        String identifier = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID resellerId = adminRepository.findByEmail(identifier)
                 .map(Admin::getId)
-                .or(() -> superAdminRepository.findByUsername(username)
+                .or(() -> superAdminRepository.findByUsername(identifier)
                         .map(com.iptv.wiseplayer.domain.entity.SuperAdmin::getId))
-                .orElseThrow(() -> new IllegalArgumentException("Reseller not found for: " + username));
+                .orElseThrow(() -> new IllegalArgumentException("Reseller not found for: " + identifier));
         return resellerId;
     }
 }

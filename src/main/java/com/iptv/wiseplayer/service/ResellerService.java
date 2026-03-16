@@ -14,7 +14,7 @@ import java.util.UUID;
 public interface ResellerService {
     Map<String, Object> login(String username, String password);
 
-    Map<String, Object> register(String username, String password, String fullName);
+    Map<String, Object> register(String email, String password, String fullName);
 
     ResellerDashboardResponse getDashboardOverview(UUID resellerId);
 
@@ -24,7 +24,7 @@ public interface ResellerService {
 
     void disableUser(UUID resellerId, UUID deviceId);
 
-    Admin createSubReseller(UUID resellerId, String username, String password, String fullName);
+    Admin createSubReseller(UUID resellerId, String email, String password, String fullName);
 
     List<Admin> getSubResellers(UUID resellerId);
 
