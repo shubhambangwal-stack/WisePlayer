@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+
+>>>>>>> 408d820 (reseller changes)
 spring:
   application:
     name: wiseplayer

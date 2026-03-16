@@ -1,0 +1,19 @@
+package com.iptv.wiseplayer.repository;
+
+import com.iptv.wiseplayer.domain.entity.ActivationRequest;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface ActivationRequestRepository extends JpaRepository<ActivationRequest, UUID> {
+    List<ActivationRequest> findAllByResellerId(UUID resellerId);
+
+    long countByResellerIdAndStatus(UUID resellerId, String status);
+
+    boolean existsByDeviceIdAndStatus(UUID deviceId, String status);
+
+    java.util.Optional<ActivationRequest> findTopByDeviceIdOrderByCreatedAtDesc(UUID deviceId);
+}

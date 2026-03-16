@@ -38,8 +38,9 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // Only filter admin API paths
-        return !path.startsWith("/api/admin");
+        // Only filter admin, reseller and sub-reseller API paths
+        return !(path.startsWith("/api/admin") || path.startsWith("/api/reseller")
+                || path.startsWith("/api/sub-reseller"));
     }
 
     @Override
@@ -64,6 +65,7 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
             String[] claims = adminTokenUtil.verifyAndExtract(token);
             String username = claims[0];
             String role = claims[1];
+            log.info("Admin authenticated: username={}, role={}, path={}", username, role, request.getRequestURI());
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     username, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
