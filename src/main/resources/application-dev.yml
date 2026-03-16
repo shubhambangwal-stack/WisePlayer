@@ -3,7 +3,7 @@ spring:
     name: wiseplayer
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/socialtaste
+    url: jdbc:postgresql://localhost:5432/wiseplayer
     username: postgres
     password: postgres
   jpa:
