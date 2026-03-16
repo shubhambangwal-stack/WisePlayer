@@ -6,15 +6,16 @@ import jakarta.validation.constraints.Size;
 public class CreateAdminRequest {
 
     @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
+    @Size(min = 3, max = 100, message = "Username must be between 3 and 100 characters")
     private String username;
 
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
 
-    @Size(max = 100, message = "Full name must be at most 100 characters")
-    private String fullName;
+    @NotBlank(message = "Email is required")
+    @Size(max = 100, message = "Email must be at most 100 characters")
+    private String email;
 
     private String role = "ADMIN";
 
@@ -36,12 +37,12 @@ public class CreateAdminRequest {
         this.password = password;
     }
 
-    public String getFullName() {
-        return fullName;
+    public String getEmail() {
+        return email;
     }
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getRole() {

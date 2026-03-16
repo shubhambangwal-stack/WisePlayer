@@ -10,7 +10,7 @@ import lombok.Setter;
 public class AdminAuthResponse {
     private boolean success;
     private String token;
+    private String email;
     private String username;
-    private String fullName;
     private String role;
 }

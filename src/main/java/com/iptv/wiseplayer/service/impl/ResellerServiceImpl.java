@@ -51,8 +51,8 @@ public class ResellerServiceImpl implements ResellerService {
     }
 
     @Override
-    public Map<String, Object> login(String username, String password) {
-        Admin admin = adminRepository.findByUsername(username)
+    public Map<String, Object> login(String email, String password) {
+        Admin admin = adminRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
         if (!admin.isActive()) {
@@ -68,40 +68,40 @@ public class ResellerServiceImpl implements ResellerService {
             throw new RuntimeException("Invalid credentials");
         }
 
-        String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
+        String token = adminTokenUtil.generateToken(admin.getEmail(), admin.getRole());
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("token", token);
-        response.put("username", admin.getUsername());
-        response.put("fullName", admin.getFullName());
+        response.put("username", admin.getEmail());
+        response.put("fullName", admin.getUsername());
         response.put("role", admin.getRole().name());
         return response;
     }
 
     @Override
     @Transactional
-    public Map<String, Object> register(String username, String password, String fullName) {
-        if (adminRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("Username already exists");
+    public Map<String, Object> register(String email, String password, String fullName) {
+        if (adminRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Email already exists");
         }
 
         Admin reseller = new Admin();
-        reseller.setUsername(username);
+        reseller.setEmail(email);
         reseller.setPasswordHash(passwordEncoder.encode(password));
-        reseller.setFullName(fullName);
+        reseller.setUsername(fullName);
         reseller.setRole(AdminRole.RESELLER);
         reseller.setActive(true);
 
         Admin saved = adminRepository.save(reseller);
 
-        String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole());
+        String token = adminTokenUtil.generateToken(saved.getEmail(), saved.getRole());
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("token", token);
-        response.put("username", saved.getUsername());
-        response.put("fullName", saved.getFullName());
+        response.put("username", saved.getEmail());
+        response.put("fullName", saved.getUsername());
         response.put("role", saved.getRole().name());
         return response;
     }
@@ -166,14 +166,14 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
-    public Admin createSubReseller(UUID resellerId, String username, String password, String fullName) {
-        if (adminRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("Username already exists");
+    public Admin createSubReseller(UUID resellerId, String email, String password, String fullName) {
+        if (adminRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Email already exists");
         }
         Admin sub = new Admin();
-        sub.setUsername(username);
+        sub.setEmail(email);
         sub.setPasswordHash(passwordEncoder.encode(password));
-        sub.setFullName(fullName);
+        sub.setUsername(fullName);
         sub.setRole(AdminRole.SUB_RESELLER);
         sub.setParentId(resellerId);
         sub.setCreatorId(resellerId);
