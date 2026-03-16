@@ -55,7 +55,7 @@ public class AdminManagementService {
             throw new AccessDeniedException("Only SUPER_ADMIN can invite new admins");
         }
 
-        if (adminRepository.findByUsername(email).isPresent()) {
+        if (adminRepository.findByEmail(email).isPresent()) {
             throw new ResourceAlreadyExistsException("Admin with this email already exists");
         }
 
@@ -116,9 +116,9 @@ public class AdminManagementService {
         AdminInvite invite = verifyInvite(token);
 
         Admin admin = new Admin();
-        admin.setUsername(invite.getEmail());
+        admin.setEmail(invite.getEmail());
         admin.setPasswordHash(passwordEncoder.encode(password));
-        admin.setFullName(fullName);
+        admin.setUsername(fullName);
         admin.setRole(AdminRole.ADMIN);
         admin.setActive(true);
         adminRepository.save(admin);

@@ -23,14 +23,14 @@ public class Admin {
     @Column(name = "admin_id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "username", nullable = false, unique = true, length = 50)
-    private String username;
+    @Column(name = "email", nullable = false, unique = true, length = 100)
+    private String email;
 
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
-    @Column(name = "full_name", length = 100)
-    private String fullName;
+    @Column(name = "username", nullable = false, unique = true, length = 100)
+    private String username;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
