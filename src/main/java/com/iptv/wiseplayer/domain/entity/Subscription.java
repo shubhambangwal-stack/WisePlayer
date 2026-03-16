@@ -44,6 +44,9 @@ public class Subscription {
     @Column(name = "end_date", nullable = false)
     private LocalDateTime endDate;
 
+    @Column(name = "activation_source", length = 20)
+    private String activationSource; // ADMIN, PAYPAL
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -57,12 +60,13 @@ public class Subscription {
     }
 
     public Subscription(UUID deviceId, SubscriptionPlan plan, LocalDateTime startDate, LocalDateTime endDate,
-            SubscriptionStatus status) {
+            SubscriptionStatus status, String activationSource) {
         this.deviceId = deviceId;
         this.plan = plan;
         this.startDate = startDate;
         this.endDate = endDate;
         this.status = status;
+        this.activationSource = activationSource;
     }
 
     // Getters and Setters
@@ -128,5 +132,13 @@ public class Subscription {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getActivationSource() {
+        return activationSource;
+    }
+
+    public void setActivationSource(String activationSource) {
+        this.activationSource = activationSource;
     }
 }

@@ -77,7 +77,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                     request.getPlan(),
                     startDate,
                     endDate,
-                    SubscriptionStatus.ACTIVE);
+                    SubscriptionStatus.ACTIVE,
+                    "PAYPAL");
         }
 
         Subscription savedSubscription = subscriptionRepository.save(subscriptionToUpdate);
@@ -211,7 +212,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL,
                 LocalDateTime.now(),
                 expiresAt,
-                SubscriptionStatus.TRIAL);
+                SubscriptionStatus.TRIAL,
+                "SYSTEM");
 
         subscriptionRepository.save(trialSub);
 
