@@ -47,6 +47,12 @@ public class Admin {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "parent_id")
+    private UUID parentId;
+
+    @Column(name = "creator_id")
+    private UUID creatorId;
+
     public boolean isSuperAdmin() {
         return AdminRole.SUPER_ADMIN.equals(this.role);
     }

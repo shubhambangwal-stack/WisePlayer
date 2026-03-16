@@ -73,6 +73,12 @@ public class Device {
     @Column(name = "refresh_token", length = 100)
     private String refreshToken;
 
+    @Column(name = "reseller_id")
+    private UUID resellerId;
+
+    @Column(name = "is_active")
+    private Boolean active = true;
+
     // Constructors
     public Device() {
     }
@@ -195,5 +201,21 @@ public class Device {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public UUID getResellerId() {
+        return resellerId;
+    }
+
+    public void setResellerId(UUID resellerId) {
+        this.resellerId = resellerId;
+    }
+
+    public Boolean isActive() {
+        return active == null || active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 }

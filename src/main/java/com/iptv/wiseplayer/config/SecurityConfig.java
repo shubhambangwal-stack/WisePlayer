@@ -12,105 +12,82 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-        private final DeviceAuthenticationFilter deviceAuthenticationFilter;
-        private final AdminAuthenticationFilter adminAuthenticationFilter;
+    private final DeviceAuthenticationFilter deviceAuthenticationFilter;
+    private final AdminAuthenticationFilter adminAuthenticationFilter;
 
-        public SecurityConfig(DeviceAuthenticationFilter deviceAuthenticationFilter,
-                        AdminAuthenticationFilter adminAuthenticationFilter) {
-                this.deviceAuthenticationFilter = deviceAuthenticationFilter;
-                this.adminAuthenticationFilter = adminAuthenticationFilter;
-        }
+    public SecurityConfig(DeviceAuthenticationFilter deviceAuthenticationFilter,
+            AdminAuthenticationFilter adminAuthenticationFilter) {
+        this.deviceAuthenticationFilter = deviceAuthenticationFilter;
+        this.adminAuthenticationFilter = adminAuthenticationFilter;
+    }
 
-        @Bean
-        public PasswordEncoder passwordEncoder() {
-                return new BCryptPasswordEncoder();
-        }
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-        @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-                http
-                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                                // Disable CSRF using the new lambda style
-                                .csrf(AbstractHttpConfigurer::disable)
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                // Disable CSRF using the new lambda style
+                .csrf(AbstractHttpConfigurer::disable)
 
-                                // Configure session management to stateless
-                                .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Configure session management to stateless
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                                // Configure authorization rules
-                                .authorizeHttpRequests(auth -> auth
-                                                // Public Endpoints
-                                                .requestMatchers("/api/device/register").permitAll()
-                                                .requestMatchers("/api/device/validate").permitAll()
-                                                .requestMatchers("/api/device/refresh").permitAll()
-                                                .requestMatchers("/api/device/key").permitAll()
-                                                .requestMatchers("/api/device/activate").permitAll()
-                                                .requestMatchers("/api/payment/paypal/**").permitAll()
-                                                // Swagger UI
-                                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**",
-                                                                "/swagger-ui.html")
-                                                .permitAll()
+                // Configure authorization rules
+                .authorizeHttpRequests(auth -> auth
+                        // Public Endpoints
+                        .requestMatchers("/api/device/register").permitAll()
+                        .requestMatchers("/api/device/validate").permitAll()
+                        .requestMatchers("/api/device/refresh").permitAll()
+                        .requestMatchers("/api/device/key").permitAll()
+                        .requestMatchers("/api/device/activate").permitAll()
+                        .requestMatchers("/api/payment/paypal/**").permitAll()
+                        .requestMatchers("/api/reseller/**").permitAll()
+                    //    .requestMatchers("/api/reseller/**").permitAll()
+                        // Swagger UI
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                                                // Admin Endpoints
-                                                .requestMatchers("/api/admin/auth/login").permitAll()
-                                                .requestMatchers("/api/admin/management/invite/verify").permitAll()
-                                                .requestMatchers("/api/admin/management/setup/complete").permitAll()
-                                                .requestMatchers("/api/admin/management/**")
-                                                .hasAuthority("ROLE_SUPER_ADMIN")
-                                                .requestMatchers("/api/admin/**")
-                                                .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                        // Admin Endpoints
+                        .requestMatchers("/api/admin/auth/login").permitAll()
+                        .requestMatchers("/api/admin/management/invite/verify").permitAll()
+                        .requestMatchers("/api/admin/management/setup/complete").permitAll()
+                        .requestMatchers("/api/admin/management/**").hasAuthority("ROLE_SUPER_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
-                                                // Protected Endpoints (Require Device Token)
-                                                .requestMatchers("/api/payment/checkout").authenticated()
-                                                .requestMatchers("/api/subscription/**").authenticated()
-                                                .requestMatchers("/api/device/key/status").authenticated()
+                        // Reseller Endpoints
+                        .requestMatchers("/api/reseller/**")
+                        .hasAnyAuthority("ROLE_RESELLER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
-                                                // Content Endpoints (Require ACTIVE status)
-                                                .requestMatchers("/api/playlist/**").hasRole("ACTIVE")
-                                                .requestMatchers("/api/live/**").hasRole("ACTIVE")
-                                                .requestMatchers("/api/stream/**").hasRole("ACTIVE")
-                                                .requestMatchers("/api/xtream/**").hasRole("ACTIVE")
+                        // Sub-Reseller Endpoints
+                        .requestMatchers("/api/sub-reseller/**")
+                        .hasAnyAuthority("ROLE_SUB_RESELLER", "ROLE_RESELLER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
-                                                .anyRequest().authenticated())
+                        // Protected Endpoints (Require Device Token)
+                        .requestMatchers("/api/payment/checkout").authenticated()
+                        .requestMatchers("/api/subscription/**").authenticated()
+                        .requestMatchers("/api/device/key/status").authenticated()
 
-                                // Register filters
-                                .addFilterBefore(deviceAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                                .addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                        // Content Endpoints (Require ACTIVE status)
+                        .requestMatchers("/api/playlist/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/live/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/stream/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/xtream/**").hasRole("ACTIVE")
 
-                return http.build();
-        }
+                        .anyRequest().authenticated())
 
-        @Bean
-        public CorsConfigurationSource corsConfigurationSource() {
-                CorsConfiguration configuration = new CorsConfiguration();
-                configuration.setAllowedOrigins(Arrays.asList(
-                                "https://admin.wise-player.com",
-                                "http://admin.wise-player.com",
-                                "https://wise-player.com",
-                                "http://wise-player.com"));
-                configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-                configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With",
-                                "Accept",
-                                "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
-                configuration
-                                .setExposedHeaders(Arrays.asList("Access-Control-Allow-Origin",
-                                                "Access-Control-Allow-Credentials"));
-                configuration.setAllowCredentials(true);
-                configuration.setMaxAge(3600L);
+                // Register filters
+                .addFilterBefore(deviceAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-                source.registerCorsConfiguration("/**", configuration);
-                return source;
-        }
+        return http.build();
+    }
 }

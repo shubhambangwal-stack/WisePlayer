@@ -47,4 +47,12 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         long countByDeviceStatus(com.iptv.wiseplayer.domain.enums.DeviceStatus status);
 
         long countBySubscriptionType(com.iptv.wiseplayer.domain.enums.SubscriptionType type);
+
+        long countByResellerId(UUID resellerId);
+
+        long countByResellerIdAndDeviceStatus(UUID resellerId, com.iptv.wiseplayer.domain.enums.DeviceStatus status);
+
+        java.util.List<Device> findTop5ByResellerIdOrderByCreatedAtDesc(UUID resellerId);
+
+        java.util.List<Device> findAllByResellerId(UUID resellerId);
 }

@@ -5,5 +5,7 @@ package com.iptv.wiseplayer.domain.enums;
  */
 public enum AdminRole {
     SUPER_ADMIN,
-    ADMIN
+    ADMIN,
+    RESELLER,
+    SUB_RESELLER
 }

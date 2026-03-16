@@ -25,7 +25,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     Optional<Subscription> findByDeviceId(UUID deviceId);
 
     /**
-     * Find expired subscriptions that are still marked as ACTIVE.
+     * Find expired subscriptions that are still marked as ACTIVE or TRIAL.
      */
     @Query("SELECT s FROM Subscription s WHERE (s.status = 'ACTIVE' OR s.status = 'TRIAL') AND s.endDate < :now")
     List<Subscription> findExpiredSubscriptions(LocalDateTime now);
