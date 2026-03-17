@@ -23,7 +23,7 @@ public class Admin {
     @Column(name = "admin_id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "email", nullable = false, unique = true, length = 100)
+    @Column(name = "email", unique = true, length = 100)
     private String email;
 
     @Column(name = "password_hash", nullable = false, length = 100)
@@ -31,6 +31,9 @@ public class Admin {
 
     @Column(name = "username", nullable = false, unique = true, length = 100)
     private String username;
+
+    @Column(name = "full_name", length = 100)
+    private String fullName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
