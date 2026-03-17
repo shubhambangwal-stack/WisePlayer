@@ -95,7 +95,7 @@ public class ResellerController {
 
     private UUID getCurrentResellerId() {
         String identifier = SecurityContextHolder.getContext().getAuthentication().getName();
-        UUID resellerId = adminRepository.findByEmail(identifier)
+        UUID resellerId = adminRepository.findByUsername(identifier)
                 .map(Admin::getId)
                 .or(() -> superAdminRepository.findByUsername(identifier)
                         .map(com.iptv.wiseplayer.domain.entity.SuperAdmin::getId))

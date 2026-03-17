@@ -35,47 +35,48 @@ public class AdminAuthService {
     }
 
     public AdminAuthResponse login(AdminLoginRequest request) {
-        String loginEmail = request.getUsername(); // 'username' from request maps to email
-        log.info("Attempting login for email: '{}'", loginEmail);
+        String loginUsername = request.getUsername();
+        log.info("Attempting login for username: '{}'", loginUsername);
 
         // 1. Try SuperAdmin (Plain-text)
         Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository
-                .findByUsername(loginEmail);
+                .findByUsername(loginUsername);
 
         if (superAdminOpt.isPresent()) {
             com.iptv.wiseplayer.domain.entity.SuperAdmin superAdmin = superAdminOpt.get();
-            log.info("Found SuperAdmin record for username: '{}'", loginEmail);
+            log.info("Found SuperAdmin record for username: '{}'", loginUsername);
             if (superAdmin.getPassword().equals(request.getPassword())) {
                 String token = adminTokenUtil.generateToken(superAdmin.getUsername(), AdminRole.SUPER_ADMIN);
-                return new AdminAuthResponse(true, token, superAdmin.getUsername(), superAdmin.getFullName(),
+                return new AdminAuthResponse(true, token, null, superAdmin.getUsername(), superAdmin.getFullName(),
                         AdminRole.SUPER_ADMIN.name());
             } else {
-                log.warn("Password mismatch for SuperAdmin: '{}'", loginEmail);
+                log.warn("Password mismatch for SuperAdmin: '{}'", loginUsername);
             }
         }
 
-        // 2. Try Admin (Find by email)
-        Admin admin = adminRepository.findByEmail(loginEmail)
+        // 2. Try Admin (Find by username)
+        Admin admin = adminRepository.findByUsername(loginUsername)
                 .orElseGet(() -> {
-                    log.error("User not found in database with email: '{}'", loginEmail);
+                    log.error("User not found in database with username: '{}'", loginUsername);
                     throw new AuthenticationException("Invalid credentials: user not found");
                 });
 
-        log.info("Found Admin record for email: '{}', ID: {}", loginEmail, admin.getId());
+        log.info("Found Admin record for username: '{}', ID: {}", loginUsername, admin.getId());
 
         if (!admin.isActive()) {
-            log.warn("Account is disabled for email: '{}'", loginEmail);
+            log.warn("Account is disabled for username: '{}'", loginUsername);
             throw new AuthenticationException("Account is disabled");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), admin.getPasswordHash())) {
-            log.warn("Password mismatch for Admin: '{}'", loginEmail);
+            log.warn("Password mismatch for Admin: '{}'", loginUsername);
             throw new AuthenticationException("Invalid credentials: password mismatch");
         }
 
-        log.info("Login successful for email: '{}'", loginEmail);
-        String token = adminTokenUtil.generateToken(admin.getEmail(), admin.getRole());
+        log.info("Login successful for username: '{}'", loginUsername);
+        String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
 
-        return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(), admin.getRole().name());
+        return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(), admin.getFullName(),
+                admin.getRole().name());
     }
 }

@@ -13,9 +13,12 @@ public class CreateAdminRequest {
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
 
-    @NotBlank(message = "Email is required")
     @Size(max = 100, message = "Email must be at most 100 characters")
     private String email;
+
+    @NotBlank(message = "Full name is required")
+    @Size(max = 100, message = "Full name must be at most 100 characters")
+    private String fullName;
 
     private String role = "ADMIN";
 
@@ -43,6 +46,14 @@ public class CreateAdminRequest {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getRole() {
