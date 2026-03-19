@@ -2,10 +2,13 @@ package com.iptv.wiseplayer.security;
 
 import com.iptv.wiseplayer.config.SecurityProperties;
 import com.iptv.wiseplayer.exception.DeviceAuthenticationException;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -25,26 +28,31 @@ public class DeviceTokenUtil {
         }
     }
 
+    private SecretKey getSigningKey(String secret) {
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            byte[] padded = new byte[32];
+            System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
+            keyBytes = padded;
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
     /**
-     * Generates a token: base64(payload).signature
-     * Payload contains deviceId, fingerprintHash, and expiry.
+     * Generates a standard JWT token.
      */
     public String generateToken(String deviceId, String fingerprintHash) {
-        long expiry = System.currentTimeMillis() + (securityProperties.getTokenTtlMinutes() * 60 * 1000);
+        long expiryMillis = System.currentTimeMillis() + (securityProperties.getTokenTtlMinutes() * 60 * 1000);
 
-        String payload = new StringJoiner("|")
-                .add(deviceId)
-                .add(fingerprintHash)
-                .add(String.valueOf(expiry))
-                .toString();
+        SecretKey primaryKey = getSigningKey(securityProperties.getTokenSecrets().get(0));
 
-        String encodedPayload = Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
-
-        // Always sign with the first (primary) secret
-        String signature = sign(encodedPayload, securityProperties.getTokenSecrets().get(0));
-
-        return encodedPayload + "." + signature;
+        return Jwts.builder()
+                .setSubject(deviceId)
+                .claim("fingerprintHash", fingerprintHash)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(expiryMillis))
+                .signWith(primaryKey, SignatureAlgorithm.HS256)
+                .compact();
     }
 
     /**
@@ -57,72 +65,49 @@ public class DeviceTokenUtil {
     }
 
     public Map<String, String> verifyAndExtract(String token, String requestFingerprint) {
+        Claims claims = null;
+        Exception lastException = null;
+
+        // Try parsing with all available secrets (for rotation support)
+        for (String secret : securityProperties.getTokenSecrets()) {
+            try {
+                claims = Jwts.parserBuilder()
+                        .setSigningKey(getSigningKey(secret))
+                        .build()
+                        .parseClaimsJws(token)
+                        .getBody();
+                break; // Successfully parsed
+            } catch (Exception e) {
+                lastException = e;
+            }
+        }
+
+        if (claims == null) {
+            throw new DeviceAuthenticationException("Token verification failed, invalid signature or token.",
+                    lastException);
+        }
+
         try {
-            String[] parts = token.split("\\.");
-            if (parts.length != 2) {
-                throw new DeviceAuthenticationException("Invalid token format");
-            }
+            String deviceId = claims.getSubject();
+            String tokenFingerprint = claims.get("fingerprintHash", String.class);
 
-            String encodedPayload = parts[0];
-            String providedSignature = parts[1];
+            // Check expiry is already handled by Jwts.parserBuilder()
 
-            // 1. Verify signature against all active secrets (Rotation support)
-            boolean validSignature = false;
-            for (String secret : securityProperties.getTokenSecrets()) {
-                if (sign(encodedPayload, secret).equals(providedSignature)) {
-                    validSignature = true;
-                    break;
-                }
-            }
-
-            if (!validSignature) {
-                throw new DeviceAuthenticationException("Invalid token signature");
-            }
-
-            // 2. Extract payload
-            String payload = new String(Base64.getUrlDecoder().decode(encodedPayload), StandardCharsets.UTF_8);
-            String[] data = payload.split("\\|");
-            if (data.length != 3) {
-                throw new DeviceAuthenticationException("Invalid token payload");
-            }
-
-            String deviceId = data[0];
-            String tokenFingerprint = data[1];
-            long expiry = Long.parseLong(data[2]);
-
-            // 3. Check expiry
-            if (System.currentTimeMillis() > expiry) {
-                throw new DeviceAuthenticationException("Token has expired");
-            }
-
-            // 4. Match fingerprint (hash the raw input first)
+            // Match fingerprint (hash the raw input first)
             String requestFingerprintHash = hashFingerprint(requestFingerprint);
             if (!tokenFingerprint.equals(requestFingerprintHash)) {
                 throw new DeviceAuthenticationException("Fingerprint mismatch");
             }
 
-            Map<String, String> claims = new HashMap<>();
-            claims.put("deviceId", deviceId);
-            claims.put("fingerprintHash", tokenFingerprint);
-            return claims;
+            Map<String, String> result = new HashMap<>();
+            result.put("deviceId", deviceId);
+            result.put("fingerprintHash", tokenFingerprint);
+            return result;
 
+        } catch (DeviceAuthenticationException e) {
+            throw e;
         } catch (Exception e) {
-            if (e instanceof DeviceAuthenticationException)
-                throw (DeviceAuthenticationException) e;
             throw new DeviceAuthenticationException("Token verification failed", e);
-        }
-    }
-
-    private String sign(String data, String secret) {
-        try {
-            Mac sha256HMAC = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            sha256HMAC.init(secretKey);
-
-            byte[] hash = sha256HMAC.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to sign data", e);
         }
     }
 

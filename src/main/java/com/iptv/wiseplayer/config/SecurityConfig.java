@@ -33,8 +33,22 @@ public class SecurityConfig {
     }
 
     @Bean
+    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
+        configuration.setAllowedOriginPatterns(java.util.List.of("*"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(java.util.List.of("*"));
+        configuration.setExposedHeaders(java.util.List.of("Authorization"));
+        org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Enable CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // Disable CSRF using the new lambda style
                 .csrf(AbstractHttpConfigurer::disable)
 
@@ -51,10 +65,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
                         .requestMatchers("/api/payment/paypal/**").permitAll()
-                        .requestMatchers("/api/reseller/**").permitAll()
-                    //    .requestMatchers("/api/reseller/**").permitAll()
+                        .requestMatchers("/api/reseller/login", "/api/reseller/register").permitAll()
                         // Swagger UI
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .hasAuthority("ROLE_SUPER_ADMIN")
 
                         // Admin Endpoints
                         .requestMatchers("/api/admin/auth/login").permitAll()

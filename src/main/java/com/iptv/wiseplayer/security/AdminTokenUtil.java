@@ -1,14 +1,16 @@
 package com.iptv.wiseplayer.security;
 
 import com.iptv.wiseplayer.config.SecurityProperties;
+import com.iptv.wiseplayer.domain.enums.AdminRole;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
-import com.iptv.wiseplayer.domain.enums.AdminRole;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.StringJoiner;
+import java.util.Date;
 
 @Component
 public class AdminTokenUtil {
@@ -19,68 +21,46 @@ public class AdminTokenUtil {
         this.securityProperties = securityProperties;
     }
 
+    private SecretKey getSigningKey() {
+        String secret = securityProperties.getTokenSecrets().get(0);
+        // Ensure the secret is long enough for HS256
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            // Pad secret if too short (not ideal, but safer than runtime failure)
+            byte[] padded = new byte[32];
+            System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
+            keyBytes = padded;
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
     public String generateToken(String username, AdminRole role) {
-        long expiry = System.currentTimeMillis() + (24 * 60 * 60 * 1000); // 24 hours for admin
+        long expiryMillis = System.currentTimeMillis() + (24 * 60 * 60 * 1000); // 24 hours
 
-        String payload = new StringJoiner("|")
-                .add(username)
-                .add(role.name())
-                .add(String.valueOf(expiry))
-                .toString();
-
-        String encodedPayload = Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
-
-        String signature = sign(encodedPayload, securityProperties.getTokenSecrets().get(0));
-
-        return encodedPayload + "." + signature;
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("role", role.name())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(expiryMillis))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
     }
 
     public String[] verifyAndExtract(String token) {
-        String[] parts = token.split("\\.");
-        if (parts.length != 2) {
-            throw new RuntimeException("Invalid admin token format");
-        }
-
-        String encodedPayload = parts[0];
-        String providedSignature = parts[1];
-
-        boolean validSignature = false;
-        for (String secret : securityProperties.getTokenSecrets()) {
-            if (sign(encodedPayload, secret).equals(providedSignature)) {
-                validSignature = true;
-                break;
-            }
-        }
-
-        if (!validSignature) {
-            throw new RuntimeException("Invalid admin token signature");
-        }
-
-        String payload = new String(Base64.getUrlDecoder().decode(encodedPayload), StandardCharsets.UTF_8);
-        String[] data = payload.split("\\|");
-        if (data.length != 3) {
-            throw new RuntimeException("Invalid admin token payload");
-        }
-
-        long expiry = Long.parseLong(data[2]);
-        if (System.currentTimeMillis() > expiry) {
-            throw new RuntimeException("Admin token has expired");
-        }
-
-        return data; // [username, role, expiry]
-    }
-
-    private String sign(String data, String secret) {
         try {
-            Mac sha256HMAC = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            sha256HMAC.init(secretKey);
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
 
-            byte[] hash = sha256HMAC.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+            String username = claims.getSubject();
+            String role = claims.get("role", String.class);
+            long expiry = claims.getExpiration().getTime();
+
+            return new String[] { username, role, String.valueOf(expiry) };
         } catch (Exception e) {
-            throw new RuntimeException("Failed to sign admin data", e);
+            throw new RuntimeException("Invalid or expired admin token", e);
         }
     }
 }
