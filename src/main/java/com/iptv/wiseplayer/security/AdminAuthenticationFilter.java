@@ -38,6 +38,16 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+
+        // Skip filtering for public auth endpoints
+        if (path.equals("/api/admin/auth/login") ||
+                path.equals("/api/reseller/login") ||
+                path.equals("/api/reseller/register") ||
+                path.equals("/api/admin/management/invite/verify") ||
+                path.equals("/api/admin/management/setup/complete")) {
+            return true;
+        }
+
         // Only filter admin, reseller and sub-reseller API paths
         return !(path.startsWith("/api/admin") || path.startsWith("/api/reseller")
                 || path.startsWith("/api/sub-reseller"));
