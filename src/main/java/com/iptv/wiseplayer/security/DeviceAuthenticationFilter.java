@@ -55,6 +55,8 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
                 path.contains("/api/device/validate") ||
                 path.contains("/api/device/refresh") ||
                 path.contains("/api/device/key") ||
+                path.contains("/api/reseller/login") ||
+                path.contains("/api/reseller/register") ||
                 path.contains("/swagger-ui") ||
                 path.contains("/v3/api-docs");
     }
