@@ -8,12 +8,11 @@ spring:
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
   jpa:
-    generate-ddl: true
+    generate-ddl: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
-    show-sql: true
+    show-sql: false
     hibernate:
-      ddl-auto: update
-
+      ddl-auto: validate
 
 # stripe:
 #   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
@@ -44,7 +43,7 @@ app:
 
 springdoc:
   api-docs:
-    enabled: true
+    enabled: false
   swagger-ui:
-    enabled: true
+    enabled: false
   show-actuator: false

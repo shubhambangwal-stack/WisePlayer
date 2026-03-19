@@ -7,8 +7,18 @@ import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
+import com.iptv.wiseplayer.dto.request.ResellerActivationRequestDto;
+import com.iptv.wiseplayer.dto.request.ResellerLoginRequest;
+import com.iptv.wiseplayer.dto.request.ResellerRegisterRequest;
+import com.iptv.wiseplayer.dto.request.SubResellerCreateRequest;
+import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.ResellerDashboardResponse;
+import com.iptv.wiseplayer.exception.AccessDeniedException;
+import com.iptv.wiseplayer.exception.AuthenticationException;
+import com.iptv.wiseplayer.exception.ResourceAlreadyExistsException;
+import com.iptv.wiseplayer.exception.ResourceNotFoundException;
+import com.iptv.wiseplayer.exception.BadRequestException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.ActivationRequestRepository;
@@ -20,9 +30,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -51,45 +59,40 @@ public class ResellerServiceImpl implements ResellerService {
     }
 
     @Override
-    public Map<String, Object> login(String username, String password) {
-        Admin admin = adminRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+    public AdminAuthResponse login(ResellerLoginRequest request) {
+        Admin admin = adminRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new AuthenticationException("Invalid credentials"));
 
         if (!admin.isActive()) {
-            throw new RuntimeException("Account is disabled");
+            throw new AccessDeniedException("Account is disabled");
         }
 
         // Only allow RESELLER or SUB_RESELLER
         if (admin.getRole() != AdminRole.RESELLER && admin.getRole() != AdminRole.SUB_RESELLER) {
-            throw new RuntimeException("Access denied: Not a reseller account");
+            throw new AccessDeniedException("Access denied: Not a reseller account");
         }
 
-        if (!passwordEncoder.matches(password, admin.getPasswordHash())) {
-            throw new RuntimeException("Invalid credentials");
+        if (!passwordEncoder.matches(request.getPassword(), admin.getPasswordHash())) {
+            throw new AuthenticationException("Invalid credentials");
         }
 
         String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("token", token);
-        response.put("username", admin.getUsername());
-        response.put("fullName", admin.getFullName());
-        response.put("role", admin.getRole().name());
-        return response;
+        return new AdminAuthResponse(true, token, null, admin.getUsername(), admin.getFullName(),
+                admin.getRole().name());
     }
 
     @Override
     @Transactional
-    public Map<String, Object> register(String username, String password, String fullName) {
-        if (adminRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("Username already exists");
+    public AdminAuthResponse register(ResellerRegisterRequest request) {
+        if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new ResourceAlreadyExistsException("Username already exists");
         }
 
         Admin reseller = new Admin();
-        reseller.setUsername(username);
-        reseller.setFullName(fullName);
-        reseller.setPasswordHash(passwordEncoder.encode(password));
+        reseller.setUsername(request.getUsername());
+        reseller.setFullName(request.getFullName());
+        reseller.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         reseller.setRole(AdminRole.RESELLER);
         reseller.setActive(true);
 
@@ -97,13 +100,8 @@ public class ResellerServiceImpl implements ResellerService {
 
         String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("token", token);
-        response.put("username", saved.getUsername());
-        response.put("fullName", saved.getFullName());
-        response.put("role", saved.getRole().name());
-        return response;
+        return new AdminAuthResponse(true, token, null, saved.getUsername(), saved.getFullName(),
+                saved.getRole().name());
     }
 
     @Override
@@ -122,7 +120,7 @@ public class ResellerServiceImpl implements ResellerService {
     public DeviceRegistrationResponse createEndUser(UUID resellerId, DeviceRegistrationRequest request) {
         String fingerprintHash = tokenUtil.hashFingerprint(request.getDeviceId());
         if (deviceRepository.findByFingerprintHash(fingerprintHash).isPresent()) {
-            throw new RuntimeException("Device already registered");
+            throw new ResourceAlreadyExistsException("Device already registered");
         }
 
         Device device = new Device(fingerprintHash, DeviceStatus.INACTIVE);
@@ -155,9 +153,9 @@ public class ResellerServiceImpl implements ResellerService {
     @Transactional
     public void disableUser(UUID resellerId, UUID deviceId) {
         Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
         if (!resellerId.equals(device.getResellerId())) {
-            throw new RuntimeException("Permission denied");
+            throw new AccessDeniedException("Permission denied");
         }
         device.setActive(false);
         device.setDeviceStatus(DeviceStatus.INACTIVE);
@@ -166,14 +164,14 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
-    public Admin createSubReseller(UUID resellerId, String username, String password, String fullName) {
-        if (adminRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("Username already exists");
+    public Admin createSubReseller(UUID resellerId, SubResellerCreateRequest request) {
+        if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new ResourceAlreadyExistsException("Username already exists");
         }
         Admin sub = new Admin();
-        sub.setUsername(username);
-        sub.setFullName(fullName);
-        sub.setPasswordHash(passwordEncoder.encode(password));
+        sub.setUsername(request.getUsername());
+        sub.setFullName(request.getFullName());
+        sub.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         sub.setRole(AdminRole.SUB_RESELLER);
         sub.setParentId(resellerId);
         sub.setCreatorId(resellerId);
@@ -187,11 +185,15 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
-    public ActivationRequest submitActivationRequest(UUID resellerId, UUID deviceId, String planName, String status) {
+    public ActivationRequest submitActivationRequest(UUID resellerId, ResellerActivationRequestDto requestDto) {
+        UUID deviceId = requestDto.getDeviceId();
+        String planName = requestDto.getPlanName();
+        String status = requestDto.getStatus();
+
         Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
         if (!resellerId.equals(device.getResellerId())) {
-            throw new RuntimeException("Permission denied");
+            throw new AccessDeniedException("Permission denied");
         }
 
         // Determine target status: use parameter if provided, otherwise default to
@@ -205,13 +207,13 @@ public class ResellerServiceImpl implements ResellerService {
 
             // If the status and plan are already the same, block it
             if (targetStatus.equals(existing.getStatus()) && planName.equalsIgnoreCase(existing.getPlanName())) {
-                throw new IllegalStateException(
+                throw new BadRequestException(
                         "An activation request for this device with status [" + targetStatus + "] already exists");
             }
 
             // Also block if it's already PENDING and we're trying to submit another PENDING
             if ("PENDING".equals(existing.getStatus()) && "PENDING".equals(targetStatus)) {
-                throw new IllegalStateException("An activation request for this device is already pending");
+                throw new BadRequestException("An activation request for this device is already pending");
             }
 
             // Otherwise, update the existing record

@@ -4,22 +4,31 @@ import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.entity.ActivationRequest;
 import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
+import com.iptv.wiseplayer.dto.request.ResellerActivationRequestDto;
+import com.iptv.wiseplayer.dto.request.ResellerLoginRequest;
+import com.iptv.wiseplayer.dto.request.ResellerRegisterRequest;
+import com.iptv.wiseplayer.dto.request.SubResellerCreateRequest;
+import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.ResellerDashboardResponse;
+import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.service.ResellerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/reseller")
 @Slf4j
+@Tag(name = "Reseller API", description = "Endpoints for Reseller Management")
 public class ResellerController {
 
     private final ResellerService resellerService;
@@ -37,69 +46,75 @@ public class ResellerController {
     // --- Authentication Endpoints ---
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> body) {
-        return ResponseEntity.ok(resellerService.login(body.get("username"), body.get("password")));
+    @Operation(summary = "Reseller Login", description = "Authenticate a reseller and get a JWT token")
+    public ResponseEntity<AdminAuthResponse> login(@Valid @RequestBody ResellerLoginRequest request) {
+        return ResponseEntity.ok(resellerService.login(request));
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Map<String, Object>> register(@RequestBody Map<String, String> body) {
-        return ResponseEntity
-                .ok(resellerService.register(body.get("username"), body.get("password"), body.get("fullName")));
+    @Operation(summary = "Reseller Registration", description = "Register a new reseller account")
+    public ResponseEntity<AdminAuthResponse> register(@Valid @RequestBody ResellerRegisterRequest request) {
+        return ResponseEntity.ok(resellerService.register(request));
     }
 
     // --- Reseller Management Endpoints ---
 
     @PostMapping("/user")
-    public ResponseEntity<DeviceRegistrationResponse> createEndUser(@RequestBody DeviceRegistrationRequest request) {
+    @Operation(summary = "Create End User", description = "Register an end user device under this reseller")
+    public ResponseEntity<DeviceRegistrationResponse> createEndUser(
+            @Valid @RequestBody DeviceRegistrationRequest request) {
         return ResponseEntity.ok(resellerService.createEndUser(getCurrentResellerId(), request));
     }
 
     @GetMapping("/dashboard")
+    @Operation(summary = "Reseller Dashboard", description = "Get overview metrics for the reseller")
     public ResponseEntity<ResellerDashboardResponse> getDashboard() {
         return ResponseEntity.ok(resellerService.getDashboardOverview(getCurrentResellerId()));
     }
 
     @GetMapping("/users")
+    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this reseller")
     public ResponseEntity<List<Device>> getUsers() {
         return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentResellerId()));
     }
 
     @PutMapping("/users/{deviceId}/disable")
+    @Operation(summary = "Disable User", description = "Disable a specific device/user")
     public ResponseEntity<Void> disableUser(@PathVariable UUID deviceId) {
         resellerService.disableUser(getCurrentResellerId(), deviceId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/sub-resellers")
-    public ResponseEntity<Admin> createSubReseller(@RequestBody Map<String, String> body) {
-        return ResponseEntity.ok(resellerService.createSubReseller(
-                getCurrentResellerId(), body.get("username"), body.get("password"), body.get("fullName")));
+    @Operation(summary = "Create Sub-Reseller", description = "Create a new sub-reseller under this reseller")
+    public ResponseEntity<Admin> createSubReseller(@Valid @RequestBody SubResellerCreateRequest request) {
+        return ResponseEntity.ok(resellerService.createSubReseller(getCurrentResellerId(), request));
     }
 
     @GetMapping("/sub-resellers")
+    @Operation(summary = "Get Sub-Resellers", description = "Get a list of all sub-resellers created by this reseller")
     public ResponseEntity<List<Admin>> getSubResellers() {
         return ResponseEntity.ok(resellerService.getSubResellers(getCurrentResellerId()));
     }
 
     @PostMapping("/activation-request")
-    public ResponseEntity<ActivationRequest> submitRequest(@RequestParam UUID deviceId, @RequestParam String planName,
-            @RequestParam(required = false) String status) {
-        return ResponseEntity
-                .ok(resellerService.submitActivationRequest(getCurrentResellerId(), deviceId, planName, status));
+    @Operation(summary = "Submit Activation Request", description = "Submit a request to activate a user/device subscription")
+    public ResponseEntity<ActivationRequest> submitRequest(@Valid @RequestBody ResellerActivationRequestDto request) {
+        return ResponseEntity.ok(resellerService.submitActivationRequest(getCurrentResellerId(), request));
     }
 
     @GetMapping("/activation-request")
+    @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this reseller")
     public ResponseEntity<List<ActivationRequest>> getRequests() {
         return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId()));
     }
 
     private UUID getCurrentResellerId() {
         String identifier = SecurityContextHolder.getContext().getAuthentication().getName();
-        UUID resellerId = adminRepository.findByUsername(identifier)
+        return adminRepository.findByUsername(identifier)
                 .map(Admin::getId)
                 .or(() -> superAdminRepository.findByUsername(identifier)
                         .map(com.iptv.wiseplayer.domain.entity.SuperAdmin::getId))
-                .orElseThrow(() -> new IllegalArgumentException("Reseller not found for: " + identifier));
-        return resellerId;
+                .orElseThrow(() -> new ResourceNotFoundException("Reseller not found for: " + identifier));
     }
 }
