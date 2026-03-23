@@ -55,4 +55,8 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         java.util.List<Device> findTop5ByResellerIdOrderByCreatedAtDesc(UUID resellerId);
 
         java.util.List<Device> findAllByResellerId(UUID resellerId);
+
+        long countByRegisteredAtBetween(java.time.LocalDateTime from, java.time.LocalDateTime to);
+
+        long countByResellerIdAndRegisteredAtBetween(UUID resellerId, java.time.LocalDateTime from, java.time.LocalDateTime to);
 }

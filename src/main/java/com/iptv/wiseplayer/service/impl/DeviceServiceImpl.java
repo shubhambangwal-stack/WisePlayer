@@ -123,12 +123,6 @@ public class DeviceServiceImpl implements DeviceService {
                 .orElseThrow(() -> new DeviceNotFoundException(
                         "Device not found. Please register device first."));
 
-        // VERIFY HARDWARE-LINKED SECRET
-        String providedSecretHash = tokenUtil.hashSecret(request.getDeviceSecret());
-        if (device.getDeviceSecretHash() == null || !device.getDeviceSecretHash().equals(providedSecretHash)) {
-            throw new DeviceAuthenticationException("Invalid device secret. Access denied.");
-        }
-
         // Update last seen timestamp
         device.setLastSeenAt(LocalDateTime.now());
         deviceRepository.save(device);

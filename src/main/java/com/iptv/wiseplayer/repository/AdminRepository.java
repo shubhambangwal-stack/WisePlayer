@@ -1,9 +1,13 @@
 package com.iptv.wiseplayer.repository;
 
 import com.iptv.wiseplayer.domain.entity.Admin;
+import com.iptv.wiseplayer.domain.enums.AdminRole;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,5 +17,9 @@ public interface AdminRepository extends JpaRepository<Admin, UUID> {
 
     Optional<Admin> findByUsername(String username);
 
-    java.util.List<Admin> findAllByParentId(UUID parentId);
+    List<Admin> findAllByParentId(UUID parentId);
+
+    Page<Admin> findAllByRoleIn(List<AdminRole> roles, Pageable pageable);
+
+    List<Admin> findAllByRoleIn(List<AdminRole> roles);
 }
