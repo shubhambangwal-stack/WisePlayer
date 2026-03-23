@@ -14,7 +14,9 @@ import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.PlaylistRepository;
 import com.iptv.wiseplayer.service.PlaylistService;
 import com.iptv.wiseplayer.service.iptv.XtreamClient;
+import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.util.EncryptionUtil;
+import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,17 +34,20 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final EncryptionUtil encryptionUtil;
     private final XtreamClient xtreamClient;
     private final com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser;
+    private final DeviceTokenUtil tokenUtil;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository,
             DeviceRepository deviceRepository,
             EncryptionUtil encryptionUtil,
             XtreamClient xtreamClient,
-            com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser) {
+            com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser,
+            DeviceTokenUtil tokenUtil) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
         this.encryptionUtil = encryptionUtil;
         this.xtreamClient = xtreamClient;
         this.xtreamUrlParser = xtreamUrlParser;
+        this.tokenUtil = tokenUtil;
     }
 
     @Override
@@ -99,6 +104,50 @@ public class PlaylistServiceImpl implements PlaylistService {
         playlist.setPassword(null);
 
         playlistRepository.save(playlist);
+    }
+
+    @Override
+    @Transactional
+    public void savePublicM3uPlaylist(String deviceId, M3uPlaylistRequest request) {
+        if (deviceId == null || deviceId.trim().isEmpty()) {
+            throw new BadRequestException("Device ID is required");
+        }
+
+        String identity = deviceId.trim();
+        Device device = null;
+
+        // 1. Try as UUID
+        try {
+            UUID uuid = UUID.fromString(identity);
+            device = deviceRepository.findByDeviceId(uuid).orElse(null);
+        } catch (IllegalArgumentException e) {
+            // Not a UUID, try as fingerprint
+        }
+
+        // 2. Try as Fingerprint (MAC) if UUID didn't work
+        if (device == null) {
+            String fingerprintHash = tokenUtil.hashFingerprint(identity);
+            device = deviceRepository.findByFingerprintHash(fingerprintHash)
+                    .orElseThrow(() -> new ResourceNotFoundException("Device not found with identity: " + identity));
+        }
+
+        // REQUIRED: MUST BE ACTIVE AND NOT EXPIRED
+        if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
+            throw new AccessDeniedException(
+                    "Upload failed: Device is not active. Current status: " + device.getDeviceStatus());
+        }
+
+        if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
+            throw new AccessDeniedException("Upload failed: Device subscription has expired");
+        }
+
+        // Construct a standard M3uPlaylistRequest to reuse existing logic (including
+        // Xtream Promotion)
+        M3uPlaylistRequest m3uRequest = new M3uPlaylistRequest();
+        m3uRequest.setName(request.getName());
+        m3uRequest.setM3uUrl(request.getM3uUrl());
+
+        saveM3uPlaylist(device.getDeviceId(), m3uRequest);
     }
 
     @Override

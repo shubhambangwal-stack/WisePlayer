@@ -44,6 +44,15 @@ public class PlaylistController {
         return ResponseEntity.ok(Map.of("success", true, "message", "M3U playlist saved successfully"));
     }
 
+    @Operation(summary = "Save Public M3U Playlist", description = "Public endpoint for website users to save M3U playlists.")
+    @PostMapping("/public/{deviceId}/m3u")
+    public ResponseEntity<?> savePublicM3uPlaylist(
+            @PathVariable String deviceId,
+            @RequestBody M3uPlaylistRequest request) {
+        playlistService.savePublicM3uPlaylist(deviceId, request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "M3U playlist saved effectively"));
+    }
+
     @Operation(summary = "Get All Playlists", description = "Retrieves all saved playlists for the authenticated device.")
     @GetMapping
     public ResponseEntity<List<PlaylistResponse>> getPlaylists() {

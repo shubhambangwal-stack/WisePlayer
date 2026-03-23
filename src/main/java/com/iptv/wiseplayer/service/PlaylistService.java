@@ -11,6 +11,8 @@ public interface PlaylistService {
 
     void saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request);
 
+    void savePublicM3uPlaylist(String deviceId, M3uPlaylistRequest request);
+
     java.util.List<PlaylistResponse> getPlaylists(UUID deviceId);
 
     void validatePlaylist(UUID deviceId, Object request);
