@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/device/refresh").permitAll()
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
+                        .requestMatchers("/api/playlist/public/**").permitAll()
                         .requestMatchers("/api/payment/paypal/**").permitAll()
                         .requestMatchers("/api/reseller/login", "/api/reseller/register").permitAll()
                         // Swagger UI
@@ -62,9 +63,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/management/setup/complete").permitAll()
                         .requestMatchers("/api/admin/management/**").hasAuthority("ROLE_SUPER_ADMIN")
                         .requestMatchers("/api/admin/resellers/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
-                        .requestMatchers("/api/admin/plans/active").hasAnyAuthority("ROLE_RESELLER", "ROLE_SUB_RESELLER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                        .requestMatchers("/api/admin/plans/active")
+                        .hasAnyAuthority("ROLE_RESELLER", "ROLE_SUB_RESELLER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")
                         .requestMatchers("/api/admin/plans/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
-                        .requestMatchers("/api/admin/activation-requests/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                        .requestMatchers("/api/admin/activation-requests/**")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
                         .requestMatchers("/api/admin/reports/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
                         .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
