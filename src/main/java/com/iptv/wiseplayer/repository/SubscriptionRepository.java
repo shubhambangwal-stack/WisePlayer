@@ -31,4 +31,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     List<Subscription> findExpiredSubscriptions(LocalDateTime now);
 
     long countByStatus(SubscriptionStatus status);
+
+    long countByStatusAndStartDateBetween(SubscriptionStatus status, LocalDateTime from, LocalDateTime to);
 }

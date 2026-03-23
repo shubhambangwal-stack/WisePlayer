@@ -37,6 +37,12 @@ public class ActivationRequest {
     @Column(name = "admin_notes", length = 500)
     private String adminNotes;
 
+    @Column(name = "reviewed_by")
+    private UUID reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
