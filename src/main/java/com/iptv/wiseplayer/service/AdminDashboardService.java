@@ -19,13 +19,16 @@ public class AdminDashboardService {
     private final DeviceRepository deviceRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final PaymentRepository paymentRepository;
+    private final com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository;
 
     public AdminDashboardService(DeviceRepository deviceRepository,
             SubscriptionRepository subscriptionRepository,
-            PaymentRepository paymentRepository) {
+            PaymentRepository paymentRepository,
+            com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository) {
         this.deviceRepository = deviceRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.paymentRepository = paymentRepository;
+        this.activationRequestRepository = activationRequestRepository;
     }
 
     public Map<String, Object> getDashboardStats() {
@@ -45,6 +48,9 @@ public class AdminDashboardService {
         BigDecimal totalRevenue = paymentRepository.sumTotalRevenue();
         stats.put("totalRevenue", totalRevenue != null ? totalRevenue : BigDecimal.ZERO);
         stats.put("totalPayments", paymentRepository.countByStatus(PaymentStatus.SUCCESS));
+
+        // Activation Requests
+        stats.put("pendingActivations", activationRequestRepository.countByStatus("PENDING"));
 
         return stats;
     }

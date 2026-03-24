@@ -15,9 +15,12 @@ public interface ActivationRequestRepository extends JpaRepository<ActivationReq
 
     boolean existsByDeviceIdAndStatus(UUID deviceId, String status);
 
-    org.springframework.data.domain.Page<ActivationRequest> findAllByStatus(String status, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<ActivationRequest> findAllByStatus(String status,
+            org.springframework.data.domain.Pageable pageable);
 
     java.util.List<ActivationRequest> findAllByStatus(String status);
+
+    long countByStatus(String status);
 
     java.util.Optional<ActivationRequest> findTopByDeviceIdOrderByCreatedAtDesc(UUID deviceId);
 }
