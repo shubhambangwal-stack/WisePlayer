@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/playlist/public/**").permitAll()
                         .requestMatchers("/api/payment/paypal/**").permitAll()
                         .requestMatchers("/api/reseller/login", "/api/reseller/register").permitAll()
+                        .requestMatchers("/api/payment/public/**").permitAll()
                         // Swagger UI
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .hasAuthority("ROLE_SUPER_ADMIN")
