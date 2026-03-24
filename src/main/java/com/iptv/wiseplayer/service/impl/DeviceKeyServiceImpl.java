@@ -130,7 +130,7 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
 
         // 5. Activate Device and Start Trial
         DeviceStatus oldStatus = device.getDeviceStatus();
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(2);
+        LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
 
         // Start the trial via SubscriptionService (which also updates device status to
         // ACTIVE)
