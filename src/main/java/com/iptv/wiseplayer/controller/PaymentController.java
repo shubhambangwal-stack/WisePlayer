@@ -26,6 +26,13 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Create Public Checkout Session", description = "Initiates a PayPal checkout session for a subscription (Public access for web users).")
+    @PostMapping("/public/checkout")
+    public ResponseEntity<CheckoutResponse> createPublicCheckoutSession(@RequestBody CheckoutRequest request) {
+        CheckoutResponse response = paymentService.createCheckoutSession(request);
+        return ResponseEntity.ok(response);
+    }
+
     @Operation(summary = "Stripe Webhook (Disabled)", description = "Endpoint to handle Stripe events (currently disabled).", hidden = true)
     @PostMapping("/webhook")
     public ResponseEntity<String> handleStripeWebhook(@RequestBody String payload,
