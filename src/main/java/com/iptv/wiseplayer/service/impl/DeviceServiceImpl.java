@@ -59,26 +59,7 @@ public class DeviceServiceImpl implements DeviceService {
         Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
 
         if (existingDevice.isPresent()) {
-            Device device = existingDevice.get();
-            if (request.getPlatform() != null && !request.getPlatform().equals(device.getPlatform())) {
-                device.setPlatform(request.getPlatform());
-                device.setDeviceModel(request.getDeviceModel());
-                device.setOsVersion(request.getOsVersion());
-                deviceRepository.save(device);
-            }
-
-            // Always rotate secret on re-registration (Assumes app reinstall/cleared data)
-            String rawSecret = tokenUtil.generateRefreshToken();
-            device.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
-            deviceRepository.save(device);
-
-            return new DeviceRegistrationResponse(
-                    device.getDeviceId(),
-                    device.getDeviceStatus(),
-                    device.getSubscriptionType(),
-                    tokenUtil.generateToken(device.getDeviceId().toString(), fingerprintHash),
-                    rawSecret,
-                    device.getRegisteredAt());
+            throw new com.iptv.wiseplayer.exception.ResourceAlreadyExistsException("Device already registered");
         }
 
         // Create new device (Trial type by default, but not started yet)

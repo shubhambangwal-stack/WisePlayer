@@ -205,17 +205,34 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     @Transactional
     public void initializeTrial(UUID deviceId, LocalDateTime expiresAt) {
-        log.info("Initializing free trial for device: {} expiring at {}", deviceId, expiresAt);
+        log.info("Initializing/Updating free trial for device: {} expiring at {}", deviceId, expiresAt);
 
-        Subscription trialSub = new Subscription(
-                deviceId,
-                com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL,
-                LocalDateTime.now(),
-                expiresAt,
-                SubscriptionStatus.TRIAL,
-                "SYSTEM");
+        // 1. Check for existing subscription record
+        Optional<Subscription> existingSub = subscriptionRepository.findByDeviceId(deviceId);
+
+        Subscription trialSub;
+        if (existingSub.isPresent()) {
+            trialSub = existingSub.get();
+            log.info("Device {} has an existing subscription record (ID: {}). Updating to TRIAL...", deviceId,
+                    trialSub.getId());
+            trialSub.setPlan(com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL);
+            trialSub.setStartDate(LocalDateTime.now());
+            trialSub.setEndDate(expiresAt);
+            trialSub.setStatus(SubscriptionStatus.TRIAL);
+            trialSub.setActivationSource("SYSTEM");
+        } else {
+            trialSub = new Subscription(
+                    deviceId,
+                    com.iptv.wiseplayer.domain.enums.SubscriptionPlan.TRIAL,
+                    LocalDateTime.now(),
+                    expiresAt,
+                    SubscriptionStatus.TRIAL,
+                    "SYSTEM");
+        }
 
         subscriptionRepository.save(trialSub);
+
+        // Update device status to ACTIVE via DeviceService
 
         // Update device status to ACTIVE via DeviceService
         deviceService.updateDeviceSubscription(
