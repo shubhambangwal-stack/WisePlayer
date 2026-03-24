@@ -48,6 +48,27 @@ public class AdminResellerService {
         adminRepository.save(admin);
     }
 
+    @Transactional
+    public void updateReseller(UUID id, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request, org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
+        Admin admin = adminRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
+        
+        // Ensure we are only updating resellers or sub-resellers
+        if (admin.getRole() != AdminRole.RESELLER && admin.getRole() != AdminRole.SUB_RESELLER) {
+            throw new ResourceNotFoundException("Admin is not a reseller");
+        }
+
+        if (request.getFullName() != null) admin.setFullName(request.getFullName());
+        if (request.getEmail() != null) admin.setEmail(request.getEmail());
+        if (request.getRole() != null) admin.setRole(request.getRole());
+        
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            admin.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+        
+        adminRepository.save(admin);
+    }
+
     private ResellerResponse convertToResponse(Admin admin) {
         ResellerResponse response = new ResellerResponse();
         response.setId(admin.getId());

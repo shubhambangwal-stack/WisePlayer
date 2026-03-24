@@ -20,6 +20,7 @@ import java.util.UUID;
 public class AdminResellerController {
 
     private final AdminResellerService adminResellerService;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Operation(summary = "List All Resellers", description = "Retrieves a paginated list of all resellers and sub-resellers.")
     @GetMapping
@@ -31,6 +32,14 @@ public class AdminResellerController {
     @GetMapping("/{id}")
     public ResponseEntity<ResellerResponse> getResellerById(@PathVariable UUID id) {
         return ResponseEntity.ok(adminResellerService.getResellerById(id));
+    }
+
+    @Operation(summary = "Update Reseller Details", description = "Updates a reseller's information. Only accessible by SUPER_ADMIN.")
+    @PutMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ROLE_SUPER_ADMIN')")
+    public ResponseEntity<?> updateReseller(@PathVariable UUID id, @RequestBody com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+        adminResellerService.updateReseller(id, request, passwordEncoder);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Reseller updated successfully"));
     }
 
     @Operation(summary = "Toggle Reseller Status", description = "Activates or deactivates a reseller account.")
