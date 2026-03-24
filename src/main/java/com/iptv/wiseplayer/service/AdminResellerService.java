@@ -63,7 +63,7 @@ public class AdminResellerService {
         if (request.getRole() != null) admin.setRole(request.getRole());
         
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
-            admin.setPassword(passwordEncoder.encode(request.getPassword()));
+            admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
         
         adminRepository.save(admin);
