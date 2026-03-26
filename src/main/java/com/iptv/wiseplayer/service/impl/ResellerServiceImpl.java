@@ -218,6 +218,8 @@ public class ResellerServiceImpl implements ResellerService {
 
             // Otherwise, update the existing record
             existing.setPlanName(planName);
+            existing.setAmount(requestDto.getAmount());
+            existing.setCurrency(requestDto.getCurrency());
             existing.setStatus(targetStatus);
             existing.setResellerId(resellerId);
             return activationRequestRepository.save(existing);
@@ -227,6 +229,8 @@ public class ResellerServiceImpl implements ResellerService {
         request.setResellerId(resellerId);
         request.setDeviceId(deviceId);
         request.setPlanName(planName);
+        request.setAmount(requestDto.getAmount());
+        request.setCurrency(requestDto.getCurrency());
         request.setStatus(targetStatus);
         return activationRequestRepository.save(request);
     }

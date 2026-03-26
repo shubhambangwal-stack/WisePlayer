@@ -31,6 +31,12 @@ public class ActivationRequest {
     @Column(name = "plan_name", nullable = false, length = 50)
     private String planName;
 
+    @Column(name = "amount")
+    private Double amount;
+
+    @Column(name = "currency", length = 10)
+    private String currency;
+
     @Column(name = "status", nullable = false, length = 20)
     private String status; // PENDING, APPROVED, REJECTED
 
