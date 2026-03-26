@@ -57,16 +57,17 @@ public class AdminActivationRequestService {
         }
 
         UUID adminId = getCurrentAdminId();
-        
+
         // Trigger subscription activation
         SubscriptionActivationRequest activationDto = new SubscriptionActivationRequest();
         activationDto.setDeviceId(request.getDeviceId().toString());
-        
+
         // Find corresponding SubscriptionPlan enum
         try {
             activationDto.setPlan(SubscriptionPlan.valueOf(request.getPlanName().toUpperCase()));
         } catch (IllegalArgumentException e) {
-            // Default or handle error if dynamic plans are used (but manualActivate currently uses enum)
+            // Default or handle error if dynamic plans are used (but manualActivate
+            // currently uses enum)
             throw new BadRequestException("Invalid plan name in request: " + request.getPlanName());
         }
 
@@ -76,7 +77,7 @@ public class AdminActivationRequestService {
         request.setAdminNotes(adminNotes);
         request.setReviewedBy(adminId);
         request.setReviewedAt(LocalDateTime.now());
-        
+
         activationRequestRepository.save(request);
     }
 
@@ -95,7 +96,7 @@ public class AdminActivationRequestService {
         request.setAdminNotes(adminNotes);
         request.setReviewedBy(adminId);
         request.setReviewedAt(LocalDateTime.now());
-        
+
         activationRequestRepository.save(request);
     }
 
@@ -103,17 +104,19 @@ public class AdminActivationRequestService {
         ActivationRequestResponse response = new ActivationRequestResponse();
         response.setId(request.getId());
         response.setResellerId(request.getResellerId());
-        
+
         adminRepository.findById(request.getResellerId())
                 .map(Admin::getUsername)
                 .ifPresent(response::setResellerUsername);
-        
+
         response.setDeviceId(request.getDeviceId());
         deviceRepository.findByDeviceId(request.getDeviceId())
                 .map(d -> d.getDeviceStatus().name())
                 .ifPresent(response::setDeviceStatus);
 
         response.setPlanName(request.getPlanName());
+        response.setAmount(request.getAmount());
+        response.setCurrency(request.getCurrency());
         response.setStatus(request.getStatus());
         response.setAdminNotes(request.getAdminNotes());
         response.setReviewedBy(request.getReviewedBy());

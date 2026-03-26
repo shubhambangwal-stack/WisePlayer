@@ -14,5 +14,9 @@ public class ResellerActivationRequestDto {
     @NotBlank(message = "Plan name is required")
     private String planName;
 
+    private Double amount;
+
+    private String currency;
+
     private String status;
 }

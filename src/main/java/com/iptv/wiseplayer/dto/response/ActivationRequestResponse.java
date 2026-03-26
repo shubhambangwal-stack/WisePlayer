@@ -17,6 +17,8 @@ public class ActivationRequestResponse {
     private UUID deviceId;
     private String deviceStatus;
     private String planName;
+    private Double amount;
+    private String currency;
     private String status;
     private String adminNotes;
     private UUID reviewedBy;
