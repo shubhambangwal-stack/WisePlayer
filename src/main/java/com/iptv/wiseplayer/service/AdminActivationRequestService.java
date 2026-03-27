@@ -32,6 +32,7 @@ public class AdminActivationRequestService {
     private final SuperAdminRepository superAdminRepository;
     private final DeviceRepository deviceRepository;
     private final AdminSubscriptionService adminSubscriptionService;
+    private final com.iptv.wiseplayer.service.CreditService creditService;
 
     public Page<ActivationRequestResponse> getAllRequests(String status, Pageable pageable) {
         if (status != null && !status.isEmpty()) {
@@ -98,6 +99,11 @@ public class AdminActivationRequestService {
         request.setReviewedAt(LocalDateTime.now());
 
         activationRequestRepository.save(request);
+
+        // Refund credits if it was a reseller request
+        if (request.getResellerId() != null) {
+            creditService.refundCredits(request.getResellerId(), request.getId());
+        }
     }
 
     private ActivationRequestResponse convertToResponse(ActivationRequest request) {

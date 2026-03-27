@@ -11,5 +11,6 @@ public class ResellerDashboardResponse {
     private long totalUsers;
     private long activeSubscriptions;
     private long pendingRequests;
+    private java.math.BigDecimal credits;
     private List<Device> recentUsers;
 }

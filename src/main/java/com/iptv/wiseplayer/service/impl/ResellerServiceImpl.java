@@ -43,19 +43,22 @@ public class ResellerServiceImpl implements ResellerService {
     private final DeviceTokenUtil tokenUtil;
     private final AdminTokenUtil adminTokenUtil;
     private final PasswordEncoder passwordEncoder;
+    private final com.iptv.wiseplayer.service.CreditService creditService;
 
     public ResellerServiceImpl(DeviceRepository deviceRepository,
             AdminRepository adminRepository,
             ActivationRequestRepository activationRequestRepository,
             DeviceTokenUtil tokenUtil,
             AdminTokenUtil adminTokenUtil,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            com.iptv.wiseplayer.service.CreditService creditService) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
         this.tokenUtil = tokenUtil;
         this.adminTokenUtil = adminTokenUtil;
         this.passwordEncoder = passwordEncoder;
+        this.creditService = creditService;
     }
 
     @Override
@@ -111,6 +114,7 @@ public class ResellerServiceImpl implements ResellerService {
         response.setActiveSubscriptions(
                 deviceRepository.countByResellerIdAndDeviceStatus(resellerId, DeviceStatus.ACTIVE));
         response.setPendingRequests(activationRequestRepository.countByResellerIdAndStatus(resellerId, "PENDING"));
+        response.setCredits(creditService.getBalance(resellerId));
         response.setRecentUsers(deviceRepository.findTop5ByResellerIdOrderByCreatedAtDesc(resellerId));
         return response;
     }
@@ -232,7 +236,20 @@ public class ResellerServiceImpl implements ResellerService {
         request.setAmount(requestDto.getAmount());
         request.setCurrency(requestDto.getCurrency());
         request.setStatus(targetStatus);
-        return activationRequestRepository.save(request);
+        
+        ActivationRequest saved = activationRequestRepository.save(request);
+        
+        // Deduct credits
+        try {
+            creditService.deductCredits(resellerId, planName, saved.getId());
+            saved.setCreditsUsed(creditService.getActivationCost(planName));
+            return activationRequestRepository.save(saved);
+        } catch (Exception e) {
+            // If credit deduction fails, we should probably rollback or handle it
+            // Transactional will handle it if we throw an exception
+            log.error("Failed to deduct credits for request: {}", saved.getId(), e);
+            throw e;
+        }
     }
 
     @Override

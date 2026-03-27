@@ -65,6 +65,10 @@ public class AdminResellerService {
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
+
+        if (request.getCredits() != null) {
+            admin.setCredits(request.getCredits());
+        }
         
         adminRepository.save(admin);
     }
@@ -79,6 +83,7 @@ public class AdminResellerService {
         response.setActive(admin.isActive());
         response.setCreatedAt(admin.getCreatedAt());
         response.setTotalUsers(deviceRepository.countByResellerId(admin.getId()));
+        response.setCredits(admin.getCredits());
         return response;
     }
 }

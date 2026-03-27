@@ -20,4 +20,5 @@ public class ResellerResponse {
     private boolean active;
     private LocalDateTime createdAt;
     private long totalUsers;
+    private java.math.BigDecimal credits;
 }

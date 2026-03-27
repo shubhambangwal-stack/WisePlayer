@@ -9,4 +9,5 @@ public class UpdateResellerRequest {
     private String email;
     private AdminRole role;
     private String password;
+    private java.math.BigDecimal credits;
 }
