@@ -57,9 +57,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Value("${paypal.webhook-id}")
     private String paypalWebhookId;
 
-    private final SubscriptionService subscriptionService;
     private final com.iptv.wiseplayer.service.CreditService creditService;
-    private final org.springframework.web.client.RestTemplate restTemplate;
 
     public PaymentServiceImpl(PaymentRepository paymentRepository,
             DeviceService deviceService,
