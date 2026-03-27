@@ -44,6 +44,7 @@ public class ResellerServiceImpl implements ResellerService {
     private final AdminTokenUtil adminTokenUtil;
     private final PasswordEncoder passwordEncoder;
     private final com.iptv.wiseplayer.service.CreditService creditService;
+    private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
 
     public ResellerServiceImpl(DeviceRepository deviceRepository,
             AdminRepository adminRepository,
@@ -51,7 +52,8 @@ public class ResellerServiceImpl implements ResellerService {
             DeviceTokenUtil tokenUtil,
             AdminTokenUtil adminTokenUtil,
             PasswordEncoder passwordEncoder,
-            com.iptv.wiseplayer.service.CreditService creditService) {
+            com.iptv.wiseplayer.service.CreditService creditService,
+            com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
@@ -59,6 +61,7 @@ public class ResellerServiceImpl implements ResellerService {
         this.adminTokenUtil = adminTokenUtil;
         this.passwordEncoder = passwordEncoder;
         this.creditService = creditService;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @Override
@@ -200,6 +203,26 @@ public class ResellerServiceImpl implements ResellerService {
             throw new AccessDeniedException("Permission denied");
         }
 
+        // Check if device already has an active subscription with the same plan
+        subscriptionRepository
+                .findByDeviceIdAndStatus(deviceId, com.iptv.wiseplayer.domain.enums.SubscriptionStatus.ACTIVE)
+                .ifPresent(sub -> {
+                    // Try to map request plan name to enum for comparison
+                    try {
+                        com.iptv.wiseplayer.domain.enums.SubscriptionPlan requestedPlan = com.iptv.wiseplayer.domain.enums.SubscriptionPlan
+                                .valueOf(planName.toUpperCase());
+
+                        if (sub.getPlan() == requestedPlan) {
+                            throw new BadRequestException(
+                                    "Device already has an active subscription with the " + planName + " plan");
+                        }
+                    } catch (IllegalArgumentException e) {
+                        // If plan name doesn't match enum, we might allow it or handle differently
+                        // For now, if we can't match it, we skip this specific plan-comparison block
+                        log.warn("Unknown plan name in activation request: {}", planName);
+                    }
+                });
+
         // Determine target status: use parameter if provided, otherwise default to
         // PENDING
         String targetStatus = (status != null && !status.isEmpty()) ? status.toUpperCase() : "PENDING";
@@ -236,9 +259,9 @@ public class ResellerServiceImpl implements ResellerService {
         request.setAmount(requestDto.getAmount());
         request.setCurrency(requestDto.getCurrency());
         request.setStatus(targetStatus);
-        
+
         ActivationRequest saved = activationRequestRepository.save(request);
-        
+
         // Deduct credits
         try {
             creditService.deductCredits(resellerId, planName, saved.getId());
