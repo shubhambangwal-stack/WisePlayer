@@ -26,8 +26,14 @@ public class Payments {
     @Column(name = "payment_id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "device_id", nullable = false)
+    @Column(name = "device_id")
     private UUID deviceId;
+
+    @Column(name = "reseller_id")
+    private UUID resellerId;
+
+    @Column(name = "credit_amount")
+    private Integer creditAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -160,5 +166,21 @@ public class Payments {
 
     public void setPaypalFee(BigDecimal paypalFee) {
         this.paypalFee = paypalFee;
+    }
+
+    public UUID getResellerId() {
+        return resellerId;
+    }
+
+    public void setResellerId(UUID resellerId) {
+        this.resellerId = resellerId;
+    }
+
+    public Integer getCreditAmount() {
+        return creditAmount;
+    }
+
+    public void setCreditAmount(Integer creditAmount) {
+        this.creditAmount = creditAmount;
     }
 }

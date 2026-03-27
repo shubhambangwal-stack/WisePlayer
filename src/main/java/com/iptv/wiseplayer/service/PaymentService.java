@@ -19,5 +19,7 @@ public interface PaymentService {
 
     List<InvoiceResponse> getAllInvoicesByDevice(String deviceId);
 
+    CheckoutResponse createCreditCheckoutSession(java.util.UUID resellerId, int creditAmount);
+
     InvoiceResponse getCurrentInvoice(String deviceId);
 }

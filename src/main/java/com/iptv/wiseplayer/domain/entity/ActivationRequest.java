@@ -40,6 +40,9 @@ public class ActivationRequest {
     @Column(name = "status", nullable = false, length = 20)
     private String status; // PENDING, APPROVED, REJECTED
 
+    @Column(name = "credits_used", precision = 10, scale = 2)
+    private java.math.BigDecimal creditsUsed;
+
     @Column(name = "admin_notes", length = 500)
     private String adminNotes;
 

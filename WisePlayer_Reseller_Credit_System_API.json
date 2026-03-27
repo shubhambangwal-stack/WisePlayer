@@ -1,0 +1,267 @@
+{
+  "info": {
+    "name": "WisePlayer Reseller Credit System API",
+    "description": "Postman Collection for testing the full reseller credit system flow, including purchasing, manual adjustments, credit deduction upon activation, and credit refund upon rejection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Super Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"superadmin\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Reseller Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"reseller1\",\n  \"password\": \"resellerpass\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Credit Management (Reseller View)",
+      "item": [
+        {
+          "name": "Get Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{resellerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/credits/balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "credits", "balance"]
+            }
+          }
+        },
+        {
+          "name": "Check Pricing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{resellerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/credits/pricing?quantity=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "credits", "pricing"],
+              "query": [
+                {
+                  "key": "quantity",
+                  "value": "100"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Purchase Credits Checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{resellerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"creditAmount\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/credits/purchase",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "credits", "purchase"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Credit Management (Super Admin View)",
+      "item": [
+        {
+          "name": "Update Reseller Credits (Manual Add/Remove)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"credits\": 100.50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/resellers/{{resellerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "resellers", "{{resellerId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Activation Flow (Credit Deduction / Refund)",
+      "item": [
+        {
+          "name": "Submit Activation Request (Deducts Credit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{resellerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planName\": \"ANNUAL\",\n  \"status\": \"PENDING\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/activation-request",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "activation-request"]
+            }
+          }
+        },
+        {
+          "name": "Admin Approve Activation Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminNotes\": \"Approved by system\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/activation-requests/{{activationRequestId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "activation-requests", "{{activationRequestId}}", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Admin Reject Activation Request (Refunds Credit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAdminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminNotes\": \"Rejected due to incorrect details\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/activation-requests/{{activationRequestId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "activation-requests", "{{activationRequestId}}", "reject"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "resellerToken",
+      "value": "YOUR_RESELLER_JWT_TOKEN"
+    },
+    {
+      "key": "superAdminToken",
+      "value": "YOUR_SUPER_ADMIN_JWT_TOKEN"
+    },
+    {
+      "key": "resellerId",
+      "value": "UUID_OF_A_RESELLER"
+    },
+    {
+      "key": "deviceId",
+      "value": "UUID_OF_A_DEVICE"
+    },
+    {
+      "key": "activationRequestId",
+      "value": "UUID_OF_THE_ACTIVATION_REQUEST"
+    }
+  ]
+}

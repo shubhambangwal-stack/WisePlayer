@@ -7,7 +7,8 @@ public enum SubscriptionPlan {
     ANNUAL(365),
     LIFETIME(36500),
     MONTHLY(30),
-    TRIAL(7);
+    TRIAL(7),
+    CREDITS(0);
 
     private final int days;
 

@@ -59,6 +59,9 @@ public class Admin {
     @Column(name = "creator_id")
     private UUID creatorId;
 
+    @Column(name = "credits", precision = 10, scale = 2, nullable = false)
+    private java.math.BigDecimal credits = java.math.BigDecimal.ZERO;
+
     public boolean isSuperAdmin() {
         return AdminRole.SUPER_ADMIN.equals(this.role);
     }

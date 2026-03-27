@@ -57,12 +57,18 @@ public class PaymentServiceImpl implements PaymentService {
     @Value("${paypal.webhook-id}")
     private String paypalWebhookId;
 
+    private final SubscriptionService subscriptionService;
+    private final com.iptv.wiseplayer.service.CreditService creditService;
+    private final org.springframework.web.client.RestTemplate restTemplate;
+
     public PaymentServiceImpl(PaymentRepository paymentRepository,
             DeviceService deviceService,
-            SubscriptionService subscriptionService) {
+            SubscriptionService subscriptionService,
+            com.iptv.wiseplayer.service.CreditService creditService) {
         this.paymentRepository = paymentRepository;
         this.deviceService = deviceService;
         this.subscriptionService = subscriptionService;
+        this.creditService = creditService;
         this.restTemplate = new org.springframework.web.client.RestTemplate();
     }
 
@@ -204,6 +210,78 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
+    public CheckoutResponse createCreditCheckoutSession(UUID resellerId, int creditAmount) {
+        BigDecimal unitPrice = creditService.calculateUnitPrice(creditAmount);
+        BigDecimal totalAmount = unitPrice.multiply(BigDecimal.valueOf(creditAmount));
+
+        String accessToken = getAccessToken();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(accessToken);
+
+        java.util.Map<String, Object> orderRequest = new java.util.HashMap<>();
+        orderRequest.put("intent", "CAPTURE");
+
+        java.util.Map<String, Object> purchaseUnit = new java.util.HashMap<>();
+        
+        Payments payment = new Payments();
+        payment.setResellerId(resellerId);
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setAmount(totalAmount);
+        payment.setPlan(SubscriptionPlan.CREDITS);
+        payment.setCreditAmount(creditAmount);
+        payment = paymentRepository.save(payment);
+
+        purchaseUnit.put("reference_id", payment.getId().toString());
+
+        java.util.Map<String, Object> amountMap = new java.util.HashMap<>();
+        amountMap.put("currency_code", "EUR");
+        amountMap.put("value", totalAmount.toString());
+        purchaseUnit.put("amount", amountMap);
+
+        orderRequest.put("purchase_units", java.util.Collections.singletonList(purchaseUnit));
+
+        java.util.Map<String, String> applicationContext = new java.util.HashMap<>();
+        applicationContext.put("return_url", paypalReturnUrl);
+        applicationContext.put("cancel_url", paypalCancelUrl);
+        applicationContext.put("landing_page", "BILLING");
+        applicationContext.put("user_action", "PAY_NOW");
+        applicationContext.put("shipping_preference", "NO_SHIPPING");
+        orderRequest.put("application_context", applicationContext);
+
+        org.springframework.http.HttpEntity<java.util.Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(
+                orderRequest, headers);
+
+        org.springframework.http.ResponseEntity<java.util.Map> response = restTemplate.postForEntity(
+                getPaypalBaseUrl() + "/v2/checkout/orders", entity, java.util.Map.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            String orderId = (String) response.getBody().get("id");
+            String approveUrl = "";
+
+            java.util.List<java.util.Map<String, String>> links = (java.util.List<java.util.Map<String, String>>) response
+                    .getBody().get("links");
+            for (java.util.Map<String, String> link : links) {
+                if ("approve".equals(link.get("rel"))) {
+                    approveUrl = link.get("href");
+                }
+            }
+
+            payment.setPaypalOrderId(orderId);
+            paymentRepository.save(payment);
+
+            log.info("PayPal Credit Order {} created for reseller {}", orderId, resellerId);
+            return new CheckoutResponse(approveUrl, orderId);
+        }
+
+        payment.setStatus(PaymentStatus.FAILED);
+        paymentRepository.save(payment);
+
+        throw new RuntimeException("Failed to create PayPal order for credits");
+    }
+
+    @Override
+    @Transactional
     public void handleWebhook(String payload, String sigHeader) {
         // Stripe webhook logic commented out
         /*
@@ -259,12 +337,16 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.SUCCESS);
         paymentRepository.save(payment);
 
-        SubscriptionActivationRequest activationRequest = new SubscriptionActivationRequest();
-        activationRequest.setDeviceId(payment.getDeviceId().toString());
-        activationRequest.setPlan(payment.getPlan());
-        subscriptionService.activateSubscription(activationRequest);
-
-        log.info("PayPal Subscription activated successfully for device: {}", payment.getDeviceId());
+        if (payment.getPlan() == SubscriptionPlan.CREDITS) {
+            creditService.addCredits(payment.getResellerId(), payment.getCreditAmount(), orderId);
+            log.info("Credits added successfully for reseller: {}", payment.getResellerId());
+        } else {
+            SubscriptionActivationRequest activationRequest = new SubscriptionActivationRequest();
+            activationRequest.setDeviceId(payment.getDeviceId().toString());
+            activationRequest.setPlan(payment.getPlan());
+            subscriptionService.activateSubscription(activationRequest);
+            log.info("PayPal Subscription activated successfully for device: {}", payment.getDeviceId());
+        }
     }
 
     private void processCaptureDenied(java.util.Map<String, Object> payload) {
