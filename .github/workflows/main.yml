@@ -22,5 +22,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
+           whoami
            cd /opt/wiseplayer/backend 
-           ./deploy.sh
+           sudo ./deploy.sh
