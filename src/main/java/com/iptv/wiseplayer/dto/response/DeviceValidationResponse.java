@@ -18,6 +18,7 @@ public class DeviceValidationResponse {
     private String token;
     private boolean allowed;
     private String message;
+    private String deviceSecret;
     private LocalDateTime lastSeenAt;
 
     // Constructors
@@ -82,6 +83,14 @@ public class DeviceValidationResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getDeviceSecret() {
+        return deviceSecret;
+    }
+
+    public void setDeviceSecret(String deviceSecret) {
+        this.deviceSecret = deviceSecret;
     }
 
     public LocalDateTime getLastSeenAt() {

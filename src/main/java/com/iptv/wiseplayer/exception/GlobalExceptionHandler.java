@@ -67,7 +67,10 @@ public class GlobalExceptionHandler {
         public ResponseEntity<ErrorResponse> handleResourceAlreadyExistsException(ResourceAlreadyExistsException ex,
                         HttpServletRequest request) {
                 log.warn("Resource Already Exists: {}", ex.getMessage());
-                return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+                ErrorResponse response = new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage(),
+                                request.getRequestURI());
+                response.setDeviceSecret(ex.getDeviceSecret());
+                return new ResponseEntity<>(response, HttpStatus.CONFLICT);
         }
 
         @ExceptionHandler(InvalidInvitationException.class)
