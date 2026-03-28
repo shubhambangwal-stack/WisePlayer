@@ -59,7 +59,10 @@ public class DeviceServiceImpl implements DeviceService {
         Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
 
         if (existingDevice.isPresent()) {
-            throw new com.iptv.wiseplayer.exception.ResourceAlreadyExistsException("Device already registered");
+            String rawSecret = tokenUtil.generateRefreshToken();
+            String deviceSecret = tokenUtil.hashSecret(rawSecret);
+            throw new com.iptv.wiseplayer.exception.ResourceAlreadyExistsException("Device already registered",
+                    deviceSecret);
         }
 
         // Create new device (Trial type by default, but not started yet)
