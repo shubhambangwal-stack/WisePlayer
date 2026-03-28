@@ -59,10 +59,8 @@ public class DeviceServiceImpl implements DeviceService {
         Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
 
         if (existingDevice.isPresent()) {
-            String rawSecret = tokenUtil.generateRefreshToken();
-            String deviceSecret = tokenUtil.hashSecret(rawSecret);
             throw new com.iptv.wiseplayer.exception.ResourceAlreadyExistsException("Device already registered",
-                    deviceSecret);
+                    null); // We can't return the old secret here, frontend should call validate
         }
 
         // Create new device (Trial type by default, but not started yet)
@@ -107,6 +105,10 @@ public class DeviceServiceImpl implements DeviceService {
                 .orElseThrow(() -> new DeviceNotFoundException(
                         "Device not found. Please register device first."));
 
+        // Rotate Hardware-Linked Secret (HLS) for recovery
+        String rawSecret = tokenUtil.generateRefreshToken();
+        device.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
+
         // Update last seen timestamp
         device.setLastSeenAt(LocalDateTime.now());
         deviceRepository.save(device);
@@ -133,7 +135,7 @@ public class DeviceServiceImpl implements DeviceService {
             responseType = SubscriptionType.EXPIRED;
         }
 
-        return new DeviceValidationResponse(
+        DeviceValidationResponse response = new DeviceValidationResponse(
                 device.getDeviceId(),
                 device.getDeviceStatus(),
                 responseType,
@@ -141,6 +143,8 @@ public class DeviceServiceImpl implements DeviceService {
                 allowed,
                 message,
                 device.getLastSeenAt());
+        response.setDeviceSecret(rawSecret);
+        return response;
     }
 
     /**

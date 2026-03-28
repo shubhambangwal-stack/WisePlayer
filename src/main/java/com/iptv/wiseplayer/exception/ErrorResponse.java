@@ -11,6 +11,7 @@ public class ErrorResponse {
     private int status;
     private String message;
     private String path;
+    private String deviceSecret;
     private LocalDateTime timestamp;
 
     public ErrorResponse() {
@@ -56,6 +57,14 @@ public class ErrorResponse {
 
     public void setPath(String path) {
         this.path = path;
+    }
+
+    public String getDeviceSecret() {
+        return deviceSecret;
+    }
+
+    public void setDeviceSecret(String deviceSecret) {
+        this.deviceSecret = deviceSecret;
     }
 
     public LocalDateTime getTimestamp() {
