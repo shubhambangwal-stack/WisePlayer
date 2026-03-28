@@ -22,8 +22,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-          echo "USER: $(whoami)"
-          echo "HOME: $HOME"
-             pwd
              cd /opt/wiseplayer/backend 
              sudo ./update.sh
