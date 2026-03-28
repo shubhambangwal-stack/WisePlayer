@@ -23,4 +23,4 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
              cd /opt/wiseplayer/backend 
-             sudo ./update.sh
+             ./deploy.sh
