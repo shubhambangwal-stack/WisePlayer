@@ -25,5 +25,5 @@ jobs:
           echo "USER: $(whoami)"
           echo "HOME: $HOME"
              pwd
-             cd /opt/SocialTaste/backend
+             cd /opt/wiseplayer/backend 
              sudo ./update.sh
