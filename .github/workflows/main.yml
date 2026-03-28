@@ -24,7 +24,6 @@ jobs:
           script: |
           echo "USER: $(whoami)"
           echo "HOME: $HOME"
-          pwd
-          ls -la ~/.ssh
-          cd /opt/SocialTaste/backend
-          sudo ./update.sh
+             pwd
+             cd /opt/SocialTaste/backend
+             sudo ./update.sh
