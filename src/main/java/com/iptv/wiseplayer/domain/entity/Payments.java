@@ -1,7 +1,6 @@
 package com.iptv.wiseplayer.domain.entity;
 
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -57,9 +56,8 @@ public class Payments {
     @Column(name = "amount", precision = 10, scale = 2)
     private BigDecimal amount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "plan", nullable = false)
-    private SubscriptionPlan plan;
+    @Column(name = "plan", nullable = false, length = 100)
+    private String planName;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -120,12 +118,12 @@ public class Payments {
         this.amount = amount;
     }
 
-    public SubscriptionPlan getPlan() {
-        return plan;
+    public String getPlanName() {
+        return planName;
     }
 
-    public void setPlan(SubscriptionPlan plan) {
-        this.plan = plan;
+    public void setPlanName(String planName) {
+        this.planName = planName;
     }
 
     public LocalDateTime getCreatedAt() {

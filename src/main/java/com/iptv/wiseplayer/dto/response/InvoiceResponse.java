@@ -1,7 +1,6 @@
 package com.iptv.wiseplayer.dto.response;
 
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,7 +18,7 @@ public class InvoiceResponse {
     private UUID deviceId;
     private LocalDateTime transactionDate;
     private PaymentStatus status;
-    private SubscriptionPlan plan;
+    private String planName;
     private String planDisplayName;
     private BigDecimal amount;
     private String currency;

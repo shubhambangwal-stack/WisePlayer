@@ -1,21 +1,19 @@
 package com.iptv.wiseplayer.dto.request;
 
-import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
-
 /**
  * Request to activate a subscription for a device.
  */
 public class SubscriptionActivationRequest {
 
     private String deviceId;
-    private SubscriptionPlan plan;
+    private String planName;
 
     public SubscriptionActivationRequest() {
     }
 
-    public SubscriptionActivationRequest(String deviceId, SubscriptionPlan plan) {
+    public SubscriptionActivationRequest(String deviceId, String planName) {
         this.deviceId = deviceId;
-        this.plan = plan;
+        this.planName = planName;
     }
 
     public String getDeviceId() {
@@ -26,11 +24,11 @@ public class SubscriptionActivationRequest {
         this.deviceId = deviceId;
     }
 
-    public SubscriptionPlan getPlan() {
-        return plan;
+    public String getPlanName() {
+        return planName;
     }
 
-    public void setPlan(SubscriptionPlan plan) {
-        this.plan = plan;
+    public void setPlanName(String planName) {
+        this.planName = planName;
     }
 }

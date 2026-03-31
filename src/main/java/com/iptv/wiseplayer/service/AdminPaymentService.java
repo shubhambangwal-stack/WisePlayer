@@ -1,7 +1,6 @@
 package com.iptv.wiseplayer.service;
 
 import com.iptv.wiseplayer.domain.entity.Payments;
-import com.iptv.wiseplayer.domain.entity.Payments;
 import com.iptv.wiseplayer.dto.response.AdminPaymentResponse;
 import com.iptv.wiseplayer.repository.PaymentRepository;
 import org.springframework.data.domain.Page;
@@ -41,7 +40,7 @@ public class AdminPaymentService {
         response.setDeviceId(payment.getDeviceId());
         response.setStatus(payment.getStatus());
         response.setAmount(payment.getAmount());
-        response.setPlan(payment.getPlan());
+        response.setPlanName(payment.getPlanName());
         response.setPaypalOrderId(payment.getPaypalOrderId());
         response.setCreatedAt(payment.getCreatedAt());
         return response;

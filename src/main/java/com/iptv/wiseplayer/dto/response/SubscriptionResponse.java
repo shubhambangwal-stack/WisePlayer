@@ -1,6 +1,5 @@
 package com.iptv.wiseplayer.dto.response;
 
-import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
 import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 
@@ -14,7 +13,7 @@ public class SubscriptionResponse {
 
     private UUID subscriptionId;
     private UUID deviceId;
-    private SubscriptionPlan plan;
+    private String planName;
     private SubscriptionStatus status;
     private SubscriptionType type;
     private LocalDateTime startDate;
@@ -23,11 +22,11 @@ public class SubscriptionResponse {
     public SubscriptionResponse() {
     }
 
-    public SubscriptionResponse(UUID subscriptionId, UUID deviceId, SubscriptionPlan plan, SubscriptionStatus status,
+    public SubscriptionResponse(UUID subscriptionId, UUID deviceId, String planName, SubscriptionStatus status,
             SubscriptionType type, LocalDateTime startDate, LocalDateTime endDate) {
         this.subscriptionId = subscriptionId;
         this.deviceId = deviceId;
-        this.plan = plan;
+        this.planName = planName;
         this.status = status;
         this.type = type;
         this.startDate = startDate;
@@ -50,12 +49,12 @@ public class SubscriptionResponse {
         this.deviceId = deviceId;
     }
 
-    public SubscriptionPlan getPlan() {
-        return plan;
+    public String getPlanName() {
+        return planName;
     }
 
-    public void setPlan(SubscriptionPlan plan) {
-        this.plan = plan;
+    public void setPlanName(String planName) {
+        this.planName = planName;
     }
 
     public SubscriptionStatus getStatus() {

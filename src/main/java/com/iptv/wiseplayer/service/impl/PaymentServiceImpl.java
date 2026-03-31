@@ -1,26 +1,21 @@
 package com.iptv.wiseplayer.service.impl;
 
 import com.iptv.wiseplayer.domain.entity.Payments;
+import com.iptv.wiseplayer.domain.entity.SubscriptionPlanConfig;
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
 import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.dto.request.CheckoutRequest;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
 import com.iptv.wiseplayer.dto.response.CheckoutResponse;
+import com.iptv.wiseplayer.dto.response.InvoiceResponse;
+import com.iptv.wiseplayer.dto.response.SubscriptionResponse;
+import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
+import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.PaymentRepository;
+import com.iptv.wiseplayer.repository.PlanConfigRepository;
 import com.iptv.wiseplayer.service.DeviceService;
 import com.iptv.wiseplayer.service.PaymentService;
 import com.iptv.wiseplayer.service.SubscriptionService;
-import com.iptv.wiseplayer.dto.response.SubscriptionResponse;
-import com.iptv.wiseplayer.dto.response.InvoiceResponse;
-import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
-import com.stripe.Stripe;
-import com.stripe.exception.SignatureVerificationException;
-import com.stripe.exception.StripeException;
-import com.stripe.model.Event;
-import com.stripe.model.checkout.Session;
-import com.stripe.net.Webhook;
-import com.stripe.param.checkout.SessionCreateParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,13 +25,21 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+/**
+ * PaymentServiceImpl — plan details are resolved from
+ * subscription_plan_configs.
+ * The sentinel String "CREDITS" is used for reseller credit top-up payments (no
+ * plan lookup).
+ */
 @Service
 public class PaymentServiceImpl implements PaymentService {
     private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
+    private static final String CREDITS_PLAN = "CREDITS";
 
     private final PaymentRepository paymentRepository;
     private final DeviceService deviceService;
     private final SubscriptionService subscriptionService;
+    private final PlanConfigRepository planConfigRepository;
     private final org.springframework.web.client.RestTemplate restTemplate;
 
     @Value("${paypal.client-id}")
@@ -62,10 +65,12 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentServiceImpl(PaymentRepository paymentRepository,
             DeviceService deviceService,
             SubscriptionService subscriptionService,
+            PlanConfigRepository planConfigRepository,
             com.iptv.wiseplayer.service.CreditService creditService) {
         this.paymentRepository = paymentRepository;
         this.deviceService = deviceService;
         this.subscriptionService = subscriptionService;
+        this.planConfigRepository = planConfigRepository;
         this.creditService = creditService;
         this.restTemplate = new org.springframework.web.client.RestTemplate();
     }
@@ -77,9 +82,6 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private String getAccessToken() {
-        String auth = paypalClientId + ":" + paypalClientSecret;
-        String encodedAuth = java.util.Base64.getEncoder().encodeToString(auth.getBytes());
-
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
         headers.setBasicAuth(paypalClientId, paypalClientSecret);
@@ -105,18 +107,15 @@ public class PaymentServiceImpl implements PaymentService {
         // 1. Check if device already has a PAID subscription
         SubscriptionResponse subStatus = subscriptionService.getSubscriptionStatus(request.getDeviceId());
 
-        // Block if user already has a PAID subscription
         if (subStatus.getType() == SubscriptionType.PAID_ANNUAL
                 || subStatus.getType() == SubscriptionType.PAID_LIFETIME) {
 
-            // If it's LIFETIME, they never need to pay again
             if (subStatus.getType() == SubscriptionType.PAID_LIFETIME) {
                 log.warn("Checkout blocked for device {}: Already has a LIFETIME subscription", request.getDeviceId());
                 throw new IllegalStateException(
                         "You already have a Lifetime subscription. No further purchase is needed.");
             }
 
-            // If it's ANNUAL and still ACTIVE, they shouldn't pay yet
             if (subStatus.getStatus() == SubscriptionStatus.ACTIVE) {
                 log.warn("Checkout blocked for device {}: Already has an active ANNUAL subscription expiring at {}",
                         request.getDeviceId(), subStatus.getEndDate());
@@ -125,16 +124,12 @@ public class PaymentServiceImpl implements PaymentService {
             }
         }
 
-        // Note: TRIAL users (active or expired) are ALLOWED to proceed to checkout for
-        // a paid plan.
+        // 2. Resolve plan config from DB — gets price dynamically
+        SubscriptionPlanConfig planConfig = planConfigRepository.findByName(request.getPlanName())
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + request.getPlanName()));
 
         UUID deviceId = deviceService.resolveDeviceId(request.getDeviceId());
-        long amountInCents = 0;
-        switch (request.getPlan()) {
-            case ANNUAL -> amountInCents = 600; // 6.00 EUR
-            case LIFETIME -> amountInCents = 1000; // 10.00 EUR
-        }
-        BigDecimal amount = BigDecimal.valueOf(amountInCents).divide(BigDecimal.valueOf(100));
+        BigDecimal amount = planConfig.getPrice();
 
         String accessToken = getAccessToken();
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
@@ -145,20 +140,19 @@ public class PaymentServiceImpl implements PaymentService {
         orderRequest.put("intent", "CAPTURE");
 
         java.util.Map<String, Object> purchaseUnit = new java.util.HashMap<>();
+
         // Create the PENDING payment record BEFORE the API call
-        // This ensures the record exists even if the redirect/webhook happens extremely
-        // fast
         Payments payment = new Payments();
         payment.setDeviceId(deviceId);
         payment.setStatus(PaymentStatus.PENDING);
         payment.setAmount(amount);
-        payment.setPlan(request.getPlan());
+        payment.setPlanName(planConfig.getName());
         payment = paymentRepository.save(payment);
 
-        purchaseUnit.put("reference_id", payment.getId().toString()); // Use our internal ID as reference
+        purchaseUnit.put("reference_id", payment.getId().toString());
 
         java.util.Map<String, Object> amountMap = new java.util.HashMap<>();
-        amountMap.put("currency_code", "EUR");
+        amountMap.put("currency_code", planConfig.getCurrency());
         amountMap.put("value", amount.toString());
         purchaseUnit.put("amount", amountMap);
 
@@ -190,16 +184,13 @@ public class PaymentServiceImpl implements PaymentService {
                 }
             }
 
-            // Update the record with the PayPal Order ID
             payment.setPaypalOrderId(orderId);
             paymentRepository.save(payment);
 
             log.info("PayPal Order {} created and linked to Payment ID {}", orderId, payment.getId());
-
             return new CheckoutResponse(approveUrl, orderId);
         }
 
-        // If it failed, we might want to delete or mark the payment as FAILED
         payment.setStatus(PaymentStatus.FAILED);
         paymentRepository.save(payment);
 
@@ -221,12 +212,12 @@ public class PaymentServiceImpl implements PaymentService {
         orderRequest.put("intent", "CAPTURE");
 
         java.util.Map<String, Object> purchaseUnit = new java.util.HashMap<>();
-        
+
         Payments payment = new Payments();
         payment.setResellerId(resellerId);
         payment.setStatus(PaymentStatus.PENDING);
         payment.setAmount(totalAmount);
-        payment.setPlan(SubscriptionPlan.CREDITS);
+        payment.setPlanName(CREDITS_PLAN); // sentinel — no plan config entry needed
         payment.setCreditAmount(creditAmount);
         payment = paymentRepository.save(payment);
 
@@ -281,11 +272,6 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public void handleWebhook(String payload, String sigHeader) {
-        // Stripe webhook logic commented out
-        /*
-         * log.info("Received Stripe webhook...");
-         * ...
-         */
         log.info("Stripe webhook received but ignored as Stripe is disabled.");
     }
 
@@ -319,7 +305,6 @@ public class PaymentServiceImpl implements PaymentService {
                     return new RuntimeException("Payment record not found for Order ID: " + orderId);
                 });
 
-        // Idempotency check
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             log.info("Payment for Order ID: {} is already marked as SUCCESS. Skipping activation.", orderId);
             return;
@@ -335,13 +320,14 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.SUCCESS);
         paymentRepository.save(payment);
 
-        if (payment.getPlan() == SubscriptionPlan.CREDITS) {
+        // Use sentinel check — no enum comparison needed
+        if (CREDITS_PLAN.equalsIgnoreCase(payment.getPlanName())) {
             creditService.addCredits(payment.getResellerId(), payment.getCreditAmount(), orderId);
             log.info("Credits added successfully for reseller: {}", payment.getResellerId());
         } else {
             SubscriptionActivationRequest activationRequest = new SubscriptionActivationRequest();
             activationRequest.setDeviceId(payment.getDeviceId().toString());
-            activationRequest.setPlan(payment.getPlan());
+            activationRequest.setPlanName(payment.getPlanName());
             subscriptionService.activateSubscription(activationRequest);
             log.info("PayPal Subscription activated successfully for device: {}", payment.getDeviceId());
         }
@@ -378,7 +364,6 @@ public class PaymentServiceImpl implements PaymentService {
                 }
             });
         }
-
     }
 
     @Override
@@ -392,10 +377,6 @@ public class PaymentServiceImpl implements PaymentService {
         final String finalOrderId = orderId.trim();
         log.info("Attempting to capture PayPal order: {}", finalOrderId);
 
-        // 1. Check if payment exists first to avoid unnecessary API calls or cryptic
-        // errors
-        // Use a small retry loop to handle transaction commit lag from the creation
-        // step
         Payments payment = null;
         int maxRetries = 2;
         for (int i = 0; i < maxRetries; i++) {
@@ -404,8 +385,8 @@ public class PaymentServiceImpl implements PaymentService {
                 break;
 
             if (i < maxRetries - 1) {
-                log.warn("Payment record not found for Order ID: {} on attempt {}. Retrying in 500ms...", finalOrderId,
-                        i + 1);
+                log.warn("Payment record not found for Order ID: {} on attempt {}. Retrying in 500ms...",
+                        finalOrderId, i + 1);
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
@@ -462,8 +443,7 @@ public class PaymentServiceImpl implements PaymentService {
                                     java.util.Map<String, Object> paypalFeeMap = (java.util.Map<String, Object>) sellerReceivableBreakdown
                                             .get("paypal_fee");
                                     if (paypalFeeMap != null) {
-                                        String feeValue = (String) paypalFeeMap.get("value");
-                                        fee = new BigDecimal(feeValue);
+                                        fee = new BigDecimal((String) paypalFeeMap.get("value"));
                                     }
                                 }
                             }
@@ -515,29 +495,20 @@ public class PaymentServiceImpl implements PaymentService {
 
     private void processDisputeCreated(java.util.Map<String, Object> payload) {
         log.warn("Processing CUSTOMER.DISPUTE.CREATED ...");
-        // Disputes are tricky to link back to Order ID directly via standard
-        // supplementary_data sometimes.
-        // But let's try the standard extraction first.
         String orderId = extractOrderId(payload);
 
         if (orderId == null) {
-            // Fallback: Try to find by Capture ID if available in disputed_transactions
             java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
             java.util.List<java.util.Map<String, Object>> disputedTransactions = (java.util.List<java.util.Map<String, Object>>) resource
                     .get("disputed_transactions");
 
             if (disputedTransactions != null && !disputedTransactions.isEmpty()) {
-                String captureId = (String) disputedTransactions.get(0).get("buyer_transaction_id"); // often maps to
-                                                                                                     // capture id // or
-                                                                                                     // seller_transaction_id
+                String captureId = (String) disputedTransactions.get(0).get("buyer_transaction_id");
                 if (captureId == null)
                     captureId = (String) disputedTransactions.get(0).get("seller_transaction_id");
 
                 if (captureId != null) {
                     log.info("Found Capture ID {} in dispute. Searching payment...", captureId);
-                    // We don't have findByCaptureId yet, but we can assume we might need it.
-                    // For now, if we can't find it, we log error.
-                    // TO DO: Add findByPaypalCaptureId to repo if needed.
                 }
             }
             log.error("Could not link DISPUTE to an Order ID. Manual intervention required.");
@@ -575,7 +546,7 @@ public class PaymentServiceImpl implements PaymentService {
                 return (String) relatedIds.get("order_id");
             }
         }
-        return null; // Could not extract
+        return null;
     }
 
     private void processCaptureCompleted(java.util.Map<String, Object> payload) {
@@ -588,7 +559,6 @@ public class PaymentServiceImpl implements PaymentService {
         java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
         String captureId = (String) resource.get("id");
 
-        // Extract Fee
         BigDecimal fee = BigDecimal.ZERO;
         java.util.Map<String, Object> sellerReceivableBreakdown = (java.util.Map<String, Object>) resource
                 .get("seller_receivable_breakdown");
@@ -596,8 +566,7 @@ public class PaymentServiceImpl implements PaymentService {
             java.util.Map<String, Object> paypalFeeMap = (java.util.Map<String, Object>) sellerReceivableBreakdown
                     .get("paypal_fee");
             if (paypalFeeMap != null) {
-                String feeValue = (String) paypalFeeMap.get("value");
-                fee = new BigDecimal(feeValue);
+                fee = new BigDecimal((String) paypalFeeMap.get("value"));
             }
         }
 
@@ -639,7 +608,7 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse> getAllInvoicesByDevice(String deviceId) {
+    public java.util.List<InvoiceResponse> getAllInvoicesByDevice(String deviceId) {
         log.info("Fetching all invoices for device: {}", deviceId);
         UUID resolvedDeviceId = deviceService.resolveDeviceId(deviceId);
 
@@ -661,15 +630,15 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElse(null);
     }
 
-    private com.iptv.wiseplayer.dto.response.InvoiceResponse mapToInvoiceResponse(Payments payment) {
-        com.iptv.wiseplayer.dto.response.InvoiceResponse response = new com.iptv.wiseplayer.dto.response.InvoiceResponse();
+    private InvoiceResponse mapToInvoiceResponse(Payments payment) {
+        InvoiceResponse response = new InvoiceResponse();
         response.setInvoiceNumber("INV-" + payment.getId().toString().substring(0, 8).toUpperCase());
         response.setPaymentId(payment.getId());
         response.setDeviceId(payment.getDeviceId());
         response.setTransactionDate(payment.getCreatedAt());
         response.setStatus(payment.getStatus());
-        response.setPlan(payment.getPlan());
-        response.setPlanDisplayName(getPlanDisplayName(payment.getPlan()));
+        response.setPlanName(payment.getPlanName());
+        response.setPlanDisplayName(getPlanDisplayName(payment.getPlanName()));
         response.setAmount(payment.getAmount());
         response.setCurrency("EUR");
         response.setPaymentMethod("PayPal");
@@ -680,11 +649,17 @@ public class PaymentServiceImpl implements PaymentService {
         return response;
     }
 
-    private String getPlanDisplayName(SubscriptionPlan plan) {
-        return switch (plan) {
-            case ANNUAL -> "Annual Subscription";
-            case LIFETIME -> "Lifetime Subscription";
-            default -> "Unknown Plan";
-        };
+    /**
+     * Returns a human-readable display name for the plan.
+     * Tries the plan config description first; falls back to capitalizing the name.
+     */
+    private String getPlanDisplayName(String planName) {
+        if (planName == null)
+            return "Unknown Plan";
+        if (CREDITS_PLAN.equalsIgnoreCase(planName))
+            return "Credit Top-Up";
+        return planConfigRepository.findByName(planName)
+                .map(cfg -> cfg.getDescription() != null ? cfg.getDescription() : cfg.getName())
+                .orElse(planName);
     }
 }
