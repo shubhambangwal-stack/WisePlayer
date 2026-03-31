@@ -4,7 +4,6 @@ import com.iptv.wiseplayer.domain.entity.ActivationRequest;
 import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.entity.SuperAdmin;
-import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
 import com.iptv.wiseplayer.dto.response.ActivationRequestResponse;
 import com.iptv.wiseplayer.exception.BadRequestException;
@@ -12,6 +11,7 @@ import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.ActivationRequestRepository;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
+import com.iptv.wiseplayer.repository.PlanConfigRepository;
 import com.iptv.wiseplayer.repository.SuperAdminRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,6 +33,7 @@ public class AdminActivationRequestService {
     private final DeviceRepository deviceRepository;
     private final AdminSubscriptionService adminSubscriptionService;
     private final com.iptv.wiseplayer.service.CreditService creditService;
+    private final PlanConfigRepository planConfigRepository;
 
     public Page<ActivationRequestResponse> getAllRequests(String status, Pageable pageable) {
         if (status != null && !status.isEmpty()) {
@@ -59,18 +60,13 @@ public class AdminActivationRequestService {
 
         UUID adminId = getCurrentAdminId();
 
-        // Trigger subscription activation
+        // Validate plan exists in subscription_plan_configs (no enum.valueOf needed)
+        planConfigRepository.findByName(request.getPlanName())
+                .orElseThrow(() -> new BadRequestException("Invalid plan name in request: " + request.getPlanName()));
+
         SubscriptionActivationRequest activationDto = new SubscriptionActivationRequest();
         activationDto.setDeviceId(request.getDeviceId().toString());
-
-        // Find corresponding SubscriptionPlan enum
-        try {
-            activationDto.setPlan(SubscriptionPlan.valueOf(request.getPlanName().toUpperCase()));
-        } catch (IllegalArgumentException e) {
-            // Default or handle error if dynamic plans are used (but manualActivate
-            // currently uses enum)
-            throw new BadRequestException("Invalid plan name in request: " + request.getPlanName());
-        }
+        activationDto.setPlanName(request.getPlanName());
 
         adminSubscriptionService.manualActivate(activationDto);
 

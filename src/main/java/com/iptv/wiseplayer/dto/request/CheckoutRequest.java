@@ -1,12 +1,8 @@
 package com.iptv.wiseplayer.dto.request;
 
-import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
-import lombok.Getter;
-import lombok.Setter;
-
 public class CheckoutRequest {
     private String deviceId; // Fingerprint
-    private SubscriptionPlan plan;
+    private String planName;
 
     public String getDeviceId() {
         return deviceId;
@@ -16,11 +12,11 @@ public class CheckoutRequest {
         this.deviceId = deviceId;
     }
 
-    public SubscriptionPlan getPlan() {
-        return plan;
+    public String getPlanName() {
+        return planName;
     }
 
-    public void setPlan(SubscriptionPlan plan) {
-        this.plan = plan;
+    public void setPlanName(String planName) {
+        this.planName = planName;
     }
 }

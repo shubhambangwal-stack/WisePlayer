@@ -1,6 +1,5 @@
 package com.iptv.wiseplayer.domain.entity;
 
-import com.iptv.wiseplayer.domain.enums.SubscriptionPlan;
 import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -30,9 +29,8 @@ public class Subscription {
     @Column(name = "device_id", nullable = false)
     private UUID deviceId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "plan", nullable = false, length = 20)
-    private SubscriptionPlan plan;
+    @Column(name = "plan", nullable = false, length = 100)
+    private String planName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -59,10 +57,10 @@ public class Subscription {
     public Subscription() {
     }
 
-    public Subscription(UUID deviceId, SubscriptionPlan plan, LocalDateTime startDate, LocalDateTime endDate,
+    public Subscription(UUID deviceId, String planName, LocalDateTime startDate, LocalDateTime endDate,
             SubscriptionStatus status, String activationSource) {
         this.deviceId = deviceId;
-        this.plan = plan;
+        this.planName = planName;
         this.startDate = startDate;
         this.endDate = endDate;
         this.status = status;
@@ -86,12 +84,12 @@ public class Subscription {
         this.deviceId = deviceId;
     }
 
-    public SubscriptionPlan getPlan() {
-        return plan;
+    public String getPlanName() {
+        return planName;
     }
 
-    public void setPlan(SubscriptionPlan plan) {
-        this.plan = plan;
+    public void setPlanName(String planName) {
+        this.planName = planName;
     }
 
     public SubscriptionStatus getStatus() {

@@ -92,7 +92,7 @@ public class AdminSubscriptionService {
         AdminSubscriptionResponse response = new AdminSubscriptionResponse();
         response.setSubscriptionId(subscription.getId());
         response.setDeviceId(subscription.getDeviceId());
-        response.setPlan(subscription.getPlan());
+        response.setPlanName(subscription.getPlanName());
         response.setStatus(subscription.getStatus());
         response.setStartDate(subscription.getStartDate());
         response.setEndDate(subscription.getEndDate());
