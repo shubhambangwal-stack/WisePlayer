@@ -164,8 +164,11 @@ public class ResellerServiceImpl implements ResellerService {
         if (!resellerId.equals(device.getResellerId())) {
             throw new AccessDeniedException("Permission denied");
         }
-        device.setActive(false);
-        device.setDeviceStatus(DeviceStatus.INACTIVE);
+
+        boolean newStatus = !device.isActive();
+        device.setActive(newStatus);
+        device.setDeviceStatus(newStatus ? DeviceStatus.ACTIVE : DeviceStatus.INACTIVE);
+
         deviceRepository.save(device);
     }
 

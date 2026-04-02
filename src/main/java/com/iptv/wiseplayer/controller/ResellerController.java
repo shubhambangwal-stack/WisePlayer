@@ -79,7 +79,7 @@ public class ResellerController {
     }
 
     @PutMapping("/users/{deviceId}/disable")
-    @Operation(summary = "Disable User", description = "Disable a specific device/user")
+    @Operation(summary = "Toggle User Status", description = "Toggle a specific device/user between active and inactive")
     public ResponseEntity<Void> disableUser(@PathVariable UUID deviceId) {
         resellerService.disableUser(getCurrentResellerId(), deviceId);
         return ResponseEntity.ok().build();
