@@ -630,6 +630,27 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElse(null);
     }
 
+    @Override
+    public java.util.List<com.iptv.wiseplayer.dto.response.PlanResponse> getActivePlans() {
+        log.info("Fetching all active plans for public access");
+        return planConfigRepository.findAllByActiveTrue().stream()
+                .map(this::convertToPlanResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private com.iptv.wiseplayer.dto.response.PlanResponse convertToPlanResponse(SubscriptionPlanConfig plan) {
+        com.iptv.wiseplayer.dto.response.PlanResponse response = new com.iptv.wiseplayer.dto.response.PlanResponse();
+        response.setId(plan.getId());
+        response.setName(plan.getName());
+        response.setDurationDays(plan.getDurationDays());
+        response.setPrice(plan.getPrice());
+        response.setCurrency(plan.getCurrency());
+        response.setDescription(plan.getDescription());
+        response.setActive(plan.isActive());
+        response.setCreatedAt(plan.getCreatedAt());
+        return response;
+    }
+
     private InvoiceResponse mapToInvoiceResponse(Payments payment) {
         InvoiceResponse response = new InvoiceResponse();
         response.setInvoiceNumber("INV-" + payment.getId().toString().substring(0, 8).toUpperCase());
