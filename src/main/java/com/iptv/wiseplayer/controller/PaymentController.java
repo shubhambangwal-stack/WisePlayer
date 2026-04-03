@@ -33,6 +33,12 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Get All Active Plans", description = "Retrieves a list of all active subscription plans for public access.")
+    @GetMapping("/public/plans")
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.PlanResponse>> getActivePlans() {
+        return ResponseEntity.ok(paymentService.getActivePlans());
+    }
+
     @Operation(summary = "Stripe Webhook (Disabled)", description = "Endpoint to handle Stripe events (currently disabled).", hidden = true)
     @PostMapping("/webhook")
     public ResponseEntity<String> handleStripeWebhook(@RequestBody String payload,

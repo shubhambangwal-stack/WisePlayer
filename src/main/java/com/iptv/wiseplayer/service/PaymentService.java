@@ -22,4 +22,6 @@ public interface PaymentService {
     CheckoutResponse createCreditCheckoutSession(java.util.UUID resellerId, int creditAmount);
 
     InvoiceResponse getCurrentInvoice(String deviceId);
+
+    List<com.iptv.wiseplayer.dto.response.PlanResponse> getActivePlans();
 }
