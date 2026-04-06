@@ -48,18 +48,19 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.contains("/api/payment/paypal/webhook") ||
-                path.contains("/api/payment/paypal/success") ||
-                path.contains("/api/payment/paypal/cancel") ||
-                path.contains("/api/device/register") ||
-                path.contains("/api/device/validate") ||
-                path.contains("/api/device/refresh") ||
-                path.contains("/api/device/key") ||
-                path.contains("/api/playlist/public/") ||
-                path.contains("/api/reseller/login") ||
-                path.contains("/api/reseller/register") ||
-                path.contains("/swagger-ui") ||
-                path.contains("/v3/api-docs");
+        return path.startsWith("/api/payment/paypal/") ||
+                path.startsWith("/api/payment/public/") ||
+                path.startsWith("/api/device/register") ||
+                path.startsWith("/api/device/validate") ||
+                path.startsWith("/api/device/refresh") ||
+                path.startsWith("/api/device/key") ||
+                path.startsWith("/api/device/activate") ||
+                path.startsWith("/api/playlist/public/") ||
+                path.startsWith("/api/reseller/login") ||
+                path.startsWith("/api/reseller/register") ||
+                path.startsWith("/api/admin/auth/login") ||
+                path.startsWith("/swagger-ui") ||
+                path.startsWith("/v3/api-docs");
     }
 
     @Override
