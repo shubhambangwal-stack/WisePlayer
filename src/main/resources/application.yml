@@ -37,6 +37,23 @@ app:
       - ${SECURITY_TOKEN_SECRET_2}
       - ${SECURITY_TOKEN_SECRET_3}
     token-ttl-minutes: ${TOKEN_TTL_MINUTES}
+    allowed-origins:
+      - "*"
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      - PATCH
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - X-Device-Token
+      - X-Device-Fingerprint
+      - X-Admin-Token
+      - Cache-Control
+    allow-credentials: true
 
 
     # Refresh tokens are managed internally (not exposed in API)

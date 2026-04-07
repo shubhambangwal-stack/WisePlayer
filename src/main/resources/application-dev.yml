@@ -11,7 +11,7 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
 
   mail:
     host: ${SMTP_HOST:smtp.gmail.com}
@@ -52,6 +52,25 @@ app:
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXZz
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXXx
     token-ttl-minutes: 25
+    allowed-origins:
+      - "http://localhost:3000"
+      - "http://localhost:5173"
+      - "https://admin.wise-player.com"
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      - PATCH
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - X-Device-Token
+      - X-Device-Fingerprint
+      - X-Admin-Token
+      - Cache-Control
+    allow-credentials: true
 
 
     # Refresh tokens are managed internally (not exposed in API)

@@ -24,6 +24,26 @@ public class SecurityProperties {
      */
     private long tokenTtlMinutes;
 
+    /**
+     * CORS Configuration: List of allowed origins.
+     */
+    private List<String> allowedOrigins;
+
+    /**
+     * CORS Configuration: List of allowed HTTP methods.
+     */
+    private List<String> allowedMethods;
+
+    /**
+     * CORS Configuration: List of allowed headers.
+     */
+    private List<String> allowedHeaders;
+
+    /**
+     * CORS Configuration: Whether to allow credentials (cookies, auth headers).
+     */
+    private boolean allowCredentials = true;
+
     public List<String> getTokenSecrets() {
         return tokenSecrets;
     }
@@ -38,5 +58,37 @@ public class SecurityProperties {
 
     public void setTokenTtlMinutes(long tokenTtlMinutes) {
         this.tokenTtlMinutes = tokenTtlMinutes;
+    }
+
+    public List<String> getAllowedOrigins() {
+        return allowedOrigins;
+    }
+
+    public void setAllowedOrigins(List<String> allowedOrigins) {
+        this.allowedOrigins = allowedOrigins;
+    }
+
+    public List<String> getAllowedMethods() {
+        return allowedMethods;
+    }
+
+    public void setAllowedMethods(List<String> allowedMethods) {
+        this.allowedMethods = allowedMethods;
+    }
+
+    public List<String> getAllowedHeaders() {
+        return allowedHeaders;
+    }
+
+    public void setAllowedHeaders(List<String> allowedHeaders) {
+        this.allowedHeaders = allowedHeaders;
+    }
+
+    public boolean isAllowCredentials() {
+        return allowCredentials;
+    }
+
+    public void setAllowCredentials(boolean allowCredentials) {
+        this.allowCredentials = allowCredentials;
     }
 }

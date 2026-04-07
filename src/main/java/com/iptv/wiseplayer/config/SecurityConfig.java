@@ -12,6 +12,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -20,11 +23,14 @@ public class SecurityConfig {
 
     private final DeviceAuthenticationFilter deviceAuthenticationFilter;
     private final AdminAuthenticationFilter adminAuthenticationFilter;
+    private final SecurityProperties securityProperties;
 
     public SecurityConfig(DeviceAuthenticationFilter deviceAuthenticationFilter,
-            AdminAuthenticationFilter adminAuthenticationFilter) {
+            AdminAuthenticationFilter adminAuthenticationFilter,
+            SecurityProperties securityProperties) {
         this.deviceAuthenticationFilter = deviceAuthenticationFilter;
         this.adminAuthenticationFilter = adminAuthenticationFilter;
+        this.securityProperties = securityProperties;
     }
 
     @Bean
@@ -33,8 +39,25 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(securityProperties.getAllowedOrigins());
+        configuration.setAllowedMethods(securityProperties.getAllowedMethods());
+        configuration.setAllowedHeaders(securityProperties.getAllowedHeaders());
+        configuration.setAllowCredentials(securityProperties.isAllowCredentials());
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Enable CORS using the configured source
+                // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
                 // Disable CSRF using the new lambda style
                 .csrf(AbstractHttpConfigurer::disable)
 
