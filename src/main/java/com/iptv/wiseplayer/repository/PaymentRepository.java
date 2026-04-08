@@ -16,6 +16,8 @@ import java.util.UUID;
 public interface PaymentRepository extends JpaRepository<Payments, UUID> {
     Optional<Payments> findByPaypalOrderId(String orderId);
 
+    Optional<Payments> findByPaypalCaptureId(String captureId);
+
     Optional<Payments> findByStripeSessionId(String sessionId);
 
     Optional<Payments> findByStripeEventId(String eventId);
@@ -29,9 +31,11 @@ public interface PaymentRepository extends JpaRepository<Payments, UUID> {
     BigDecimal sumTotalRevenue();
 
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.status = com.iptv.wiseplayer.domain.enums.PaymentStatus.SUCCESS AND p.createdAt >= :from AND p.createdAt <= :to")
-    BigDecimal sumTotalRevenueBetween(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+    BigDecimal sumTotalRevenueBetween(@Param("from") java.time.LocalDateTime from,
+            @Param("to") java.time.LocalDateTime to);
 
     long countByStatus(com.iptv.wiseplayer.domain.enums.PaymentStatus status);
 
-    long countByStatusAndCreatedAtBetween(com.iptv.wiseplayer.domain.enums.PaymentStatus status, java.time.LocalDateTime from, java.time.LocalDateTime to);
+    long countByStatusAndCreatedAtBetween(com.iptv.wiseplayer.domain.enums.PaymentStatus status,
+            java.time.LocalDateTime from, java.time.LocalDateTime to);
 }

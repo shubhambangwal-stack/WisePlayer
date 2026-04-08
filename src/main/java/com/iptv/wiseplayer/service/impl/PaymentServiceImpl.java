@@ -460,9 +460,24 @@ public class PaymentServiceImpl implements PaymentService {
                 throw new RuntimeException("PayPal capture failed with status: " + response.getStatusCode());
             }
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
-            log.error("PayPal API Error during capture! Status: {}, Body: {}",
-                    e.getStatusCode(), e.getResponseBodyAsString());
-            throw new RuntimeException("PayPal API capture error: " + e.getResponseBodyAsString(), e);
+            String body = e.getResponseBodyAsString();
+            // 422 ORDER_ALREADY_CAPTURED means a webhook already finalised this order;
+            // check the DB and complete if still PENDING rather than throwing.
+            if (e.getStatusCode().value() == 422 && body.contains("ORDER_ALREADY_CAPTURED")) {
+                log.warn("PayPal order {} was already captured (422). Checking DB to complete if still PENDING.",
+                        orderId);
+                paymentRepository.findByPaypalOrderId(finalOrderId).ifPresent(p -> {
+                    if (p.getStatus() == PaymentStatus.PENDING) {
+                        p.setStatus(PaymentStatus.SUCCESS);
+                        paymentRepository.save(p);
+                        log.info("Marked payment for order {} as SUCCESS after 422 ORDER_ALREADY_CAPTURED.",
+                                finalOrderId);
+                    }
+                });
+                return;
+            }
+            log.error("PayPal API Error during capture! Status: {}, Body: {}", e.getStatusCode(), body);
+            throw new RuntimeException("PayPal API capture error: " + body, e);
         } catch (Exception e) {
             log.error("Unexpected error capturing PayPal order: {}", orderId, e);
             throw new RuntimeException("Unexpected error during PayPal capture", e);
@@ -550,28 +565,80 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private void processCaptureCompleted(java.util.Map<String, Object> payload) {
+        java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
+        String captureId = (String) resource.get("id");
+        BigDecimal fee = extractFee(resource);
+
+        // Strategy 1: supplementary_data.related_ids.order_id (present on some
+        // accounts/regions)
         String orderId = extractOrderId(payload);
+
+        // Strategy 2: parse order_id from resource.links where rel == "up"
         if (orderId == null) {
-            log.error("Could not determine Order ID from PayPal Webhook for PAYMENT.CAPTURE.COMPLETED: {}", payload);
+            orderId = extractOrderIdFromLinks(resource);
+        }
+
+        if (orderId != null) {
+            log.info("Extracted Order ID {}, Capture ID {}, Fee {} from capture webhook", orderId, captureId, fee);
+            processSuccessfulPaypalPayment(orderId, captureId, fee);
             return;
         }
 
-        java.util.Map<String, Object> resource = (java.util.Map<String, Object>) payload.get("resource");
-        String captureId = (String) resource.get("id");
+        // Strategy 3: look up by the capture ID that was stored during the redirect
+        // capture
+        log.warn("Could not extract Order ID from PAYMENT.CAPTURE.COMPLETED webhook. "
+                + "Falling back to capture-ID lookup for captureId={}", captureId);
+        if (captureId != null) {
+            paymentRepository.findByPaypalCaptureId(captureId).ifPresentOrElse(
+                    payment -> {
+                        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+                            processSuccessfulPaypalPayment(payment.getPaypalOrderId(), captureId, fee);
+                        } else {
+                            log.info("Payment for captureId {} is already SUCCESS — skipping.", captureId);
+                        }
+                    },
+                    () -> log.error("CRITICAL: No payment record found for captureId={}. Manual intervention required.",
+                            captureId));
+        } else {
+            log.error("CRITICAL: Could not determine Order ID or Capture ID from PAYMENT.CAPTURE.COMPLETED payload: {}",
+                    payload);
+        }
+    }
 
-        BigDecimal fee = BigDecimal.ZERO;
-        java.util.Map<String, Object> sellerReceivableBreakdown = (java.util.Map<String, Object>) resource
-                .get("seller_receivable_breakdown");
-        if (sellerReceivableBreakdown != null) {
-            java.util.Map<String, Object> paypalFeeMap = (java.util.Map<String, Object>) sellerReceivableBreakdown
-                    .get("paypal_fee");
-            if (paypalFeeMap != null) {
-                fee = new BigDecimal((String) paypalFeeMap.get("value"));
+    /**
+     * Extracts the PayPal order ID from the resource links array.
+     * PayPal includes a link with rel=\"up\" whose href ends with the order ID,
+     * e.g. https://api-m.paypal.com/v2/checkout/orders/{orderId}
+     */
+    private String extractOrderIdFromLinks(java.util.Map<String, Object> resource) {
+        java.util.List<java.util.Map<String, Object>> links = (java.util.List<java.util.Map<String, Object>>) resource
+                .get("links");
+        if (links == null)
+            return null;
+        for (java.util.Map<String, Object> link : links) {
+            if ("up".equals(link.get("rel"))) {
+                String href = (String) link.get("href");
+                if (href != null && href.contains("/checkout/orders/")) {
+                    String id = href.substring(href.lastIndexOf('/') + 1);
+                    log.info("Extracted Order ID {} from capture webhook 'up' link.", id);
+                    return id;
+                }
             }
         }
+        return null;
+    }
 
-        log.info("Extracted Order ID {}, Capture ID {}, Fee {} from capture webhook", orderId, captureId, fee);
-        processSuccessfulPaypalPayment(orderId, captureId, fee);
+    /** Extracts the PayPal fee from a capture resource map. */
+    private BigDecimal extractFee(java.util.Map<String, Object> resource) {
+        java.util.Map<String, Object> breakdown = (java.util.Map<String, Object>) resource
+                .get("seller_receivable_breakdown");
+        if (breakdown != null) {
+            java.util.Map<String, Object> feeMap = (java.util.Map<String, Object>) breakdown.get("paypal_fee");
+            if (feeMap != null) {
+                return new BigDecimal((String) feeMap.get("value"));
+            }
+        }
+        return BigDecimal.ZERO;
     }
 
     private boolean verifyWebhookSignature(java.util.Map<String, Object> payload,
