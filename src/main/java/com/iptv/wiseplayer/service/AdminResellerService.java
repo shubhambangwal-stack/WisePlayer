@@ -22,6 +22,7 @@ public class AdminResellerService {
 
     private final AdminRepository adminRepository;
     private final DeviceRepository deviceRepository;
+    private final com.iptv.wiseplayer.repository.CreditTransactionRepository creditTransactionRepository;
 
     public Page<ResellerResponse> getAllResellers(Pageable pageable) {
         List<AdminRole> roles = Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER);
@@ -32,11 +33,11 @@ public class AdminResellerService {
     public ResellerResponse getResellerById(UUID id) {
         Admin admin = adminRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
-        
+
         if (admin.getRole() != AdminRole.RESELLER && admin.getRole() != AdminRole.SUB_RESELLER) {
             throw new ResourceNotFoundException("Admin is not a reseller");
         }
-        
+
         return convertToResponse(admin);
     }
 
@@ -49,27 +50,44 @@ public class AdminResellerService {
     }
 
     @Transactional
-    public void updateReseller(UUID id, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request, org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
+    public void updateReseller(UUID id, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request,
+            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         Admin admin = adminRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
-        
+
         // Ensure we are only updating resellers or sub-resellers
         if (admin.getRole() != AdminRole.RESELLER && admin.getRole() != AdminRole.SUB_RESELLER) {
             throw new ResourceNotFoundException("Admin is not a reseller");
         }
 
-        if (request.getFullName() != null) admin.setFullName(request.getFullName());
-        if (request.getEmail() != null) admin.setEmail(request.getEmail());
-        if (request.getRole() != null) admin.setRole(request.getRole());
-        
+        if (request.getFullName() != null)
+            admin.setFullName(request.getFullName());
+        if (request.getEmail() != null)
+            admin.setEmail(request.getEmail());
+        if (request.getRole() != null)
+            admin.setRole(request.getRole());
+
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
         if (request.getCredits() != null) {
-            admin.setCredits(request.getCredits());
+            java.math.BigDecimal oldCredits = admin.getCredits() == null ? java.math.BigDecimal.ZERO
+                    : admin.getCredits();
+            java.math.BigDecimal newCredits = request.getCredits();
+
+            if (oldCredits.compareTo(newCredits) != 0) {
+                admin.setCredits(newCredits);
+
+                com.iptv.wiseplayer.domain.entity.CreditTransaction tx = new com.iptv.wiseplayer.domain.entity.CreditTransaction();
+                tx.setAdminId(admin.getId());
+                tx.setAmount(newCredits.subtract(oldCredits));
+                tx.setType(com.iptv.wiseplayer.domain.enums.CreditTransactionType.MANUAL_ADJUSTMENT);
+                tx.setNotes("Manual adjustment by admin. Old balance: " + oldCredits + ", New balance: " + newCredits);
+                creditTransactionRepository.save(tx);
+            }
         }
-        
+
         adminRepository.save(admin);
     }
 
