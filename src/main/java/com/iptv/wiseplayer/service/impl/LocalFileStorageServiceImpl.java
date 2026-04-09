@@ -24,11 +24,15 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
 
     @PostConstruct
     public void init() {
-        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
+            if (uploadDir == null || uploadDir.trim().isEmpty()) {
+                uploadDir = "uploads/support-tickets";
+            }
+            this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
             Files.createDirectories(this.fileStorageLocation);
         } catch (Exception ex) {
-            throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
+            System.err.println("CRITICAL WARNING: Could not create upload directory. Exception: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 
