@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public interface CreditService {
-    
+
     /**
      * Deducts credits from a reseller for an activation request.
      */
@@ -29,9 +29,14 @@ public interface CreditService {
      * Calculates the total cost for a credit activation based on plan name.
      */
     BigDecimal getActivationCost(String planName);
-    
+
     /**
      * Gets the current credit balance for a reseller.
      */
     BigDecimal getBalance(UUID resellerId);
+
+    /**
+     * Gets the transaction history for a reseller.
+     */
+    java.util.List<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(UUID resellerId);
 }

@@ -32,7 +32,8 @@ public class CreditServiceImpl implements CreditService {
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
 
         if (reseller.getCredits().compareTo(cost) < 0) {
-            throw new BadRequestException("Insufficient credits. Required: " + cost + ", Available: " + reseller.getCredits());
+            throw new BadRequestException(
+                    "Insufficient credits. Required: " + cost + ", Available: " + reseller.getCredits());
         }
 
         reseller.setCredits(reseller.getCredits().subtract(cost));
@@ -53,13 +54,16 @@ public class CreditServiceImpl implements CreditService {
     @Transactional
     public void refundCredits(UUID resellerId, UUID requestId) {
         // Find the original deduction transaction to get the exact amount
-        java.util.List<CreditTransaction> transactions = creditTransactionRepository.findAllByAdminIdOrderByCreatedAtDesc(resellerId);
-        
+        java.util.List<CreditTransaction> transactions = creditTransactionRepository
+                .findAllByAdminIdOrderByCreatedAtDesc(resellerId);
+
         BigDecimal refundAmount = transactions.stream()
-                .filter(t -> requestId.equals(t.getRelatedRequestId()) && t.getType() == CreditTransactionType.DEDUCTION)
+                .filter(t -> requestId.equals(t.getRelatedRequestId())
+                        && t.getType() == CreditTransactionType.DEDUCTION)
                 .findFirst()
                 .map(t -> t.getAmount().abs())
-                .orElseThrow(() -> new ResourceNotFoundException("Original deduction transaction not found for request: " + requestId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Original deduction transaction not found for request: " + requestId));
 
         Admin reseller = adminRepository.findById(resellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
@@ -100,19 +104,29 @@ public class CreditServiceImpl implements CreditService {
 
     @Override
     public BigDecimal calculateUnitPrice(int quantity) {
-        if (quantity >= 1000) return new BigDecimal("1.49");
-        if (quantity >= 500) return new BigDecimal("2.49");
-        if (quantity >= 200) return new BigDecimal("3.49");
-        if (quantity >= 100) return new BigDecimal("3.99");
-        if (quantity >= 50) return new BigDecimal("4.99");
-        if (quantity >= 10) return new BigDecimal("5.49");
-        if (quantity >= 1) return new BigDecimal("5.99");
+        if (quantity >= 1000) {
+            throw new BadRequestException(
+                    "You will have to buy it custom via whatsapp channell. Please contact us for bulk purchases.");
+        }
+        if (quantity >= 500)
+            return new BigDecimal("1.25");
+        if (quantity >= 200)
+            return new BigDecimal("1.50");
+        if (quantity >= 100)
+            return new BigDecimal("1.75");
+        if (quantity >= 50)
+            return new BigDecimal("2.00");
+        if (quantity > 10)
+            return new BigDecimal("2.20");
+        if (quantity >= 1)
+            return new BigDecimal("2.50");
         return BigDecimal.ZERO;
     }
 
     @Override
     public BigDecimal getActivationCost(String planName) {
-        if (planName == null) return BigDecimal.ZERO;
+        if (planName == null)
+            return BigDecimal.ZERO;
         String upperPlan = planName.toUpperCase();
         if (upperPlan.contains("LIFETIME") || upperPlan.contains("FOREVER")) {
             return new BigDecimal("2.5");
@@ -128,5 +142,21 @@ public class CreditServiceImpl implements CreditService {
         return adminRepository.findById(resellerId)
                 .map(Admin::getCredits)
                 .orElse(BigDecimal.ZERO);
+    }
+
+    @Override
+    public java.util.List<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
+            UUID resellerId) {
+        return creditTransactionRepository.findAllByAdminIdOrderByCreatedAtDesc(resellerId).stream()
+                .map(transaction -> {
+                    com.iptv.wiseplayer.dto.response.CreditTransactionResponse response = new com.iptv.wiseplayer.dto.response.CreditTransactionResponse();
+                    response.setId(transaction.getId());
+                    response.setAmount(transaction.getAmount());
+                    response.setType(transaction.getType());
+                    response.setNotes(transaction.getNotes());
+                    response.setRelatedRequestId(transaction.getRelatedRequestId());
+                    response.setCreatedAt(transaction.getCreatedAt());
+                    return response;
+                }).collect(java.util.stream.Collectors.toList());
     }
 }

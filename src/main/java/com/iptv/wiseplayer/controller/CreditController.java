@@ -40,10 +40,17 @@ public class CreditController {
         return ResponseEntity.ok(creditService.calculateUnitPrice(quantity));
     }
 
+    @GetMapping("/transactions")
+    @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in reseller")
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.CreditTransactionResponse>> getTransactionHistory() {
+        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentResellerId()));
+    }
+
     @PostMapping("/purchase")
     @Operation(summary = "Purchase Credits", description = "Initiate a PayPal checkout session for purchasing credits")
     public ResponseEntity<CheckoutResponse> purchaseCredits(@Valid @RequestBody CreditPurchaseRequest request) {
-        return ResponseEntity.ok(paymentService.createCreditCheckoutSession(getCurrentResellerId(), request.getCreditAmount()));
+        return ResponseEntity
+                .ok(paymentService.createCreditCheckoutSession(getCurrentResellerId(), request.getCreditAmount()));
     }
 
     private UUID getCurrentResellerId() {
