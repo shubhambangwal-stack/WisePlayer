@@ -1,0 +1,244 @@
+{
+  "info": {
+    "name": "WisePlayer New Endpoints (Support & Transactions)",
+    "description": "API collection for the newly added Public Support Helpdesk and Reseller Transaction History features.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Reseller Transaction History",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer <YOUR_RESELLER_TOKEN>",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/reseller/credits/transactions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reseller",
+            "credits",
+            "transactions"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Submit Public Support Ticket",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "firstName",
+              "value": "John",
+              "type": "text"
+            },
+            {
+              "key": "lastName",
+              "value": "Doe",
+              "type": "text"
+            },
+            {
+              "key": "email",
+              "value": "john.doe@example.com",
+              "type": "text"
+            },
+            {
+              "key": "macAddress",
+              "value": "00:1A:2B:3C:4D:5E",
+              "type": "text"
+            },
+            {
+              "key": "inquiryType",
+              "value": "TECHNICAL_ISSUE",
+              "type": "text"
+            },
+            {
+              "key": "message",
+              "value": "I am experiencing buffer issues when trying to watch live streams.",
+              "type": "text"
+            },
+            {
+              "key": "attachment",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/public/support/ticket",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "public",
+            "support",
+            "ticket"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Get All Support Tickets",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer <YOUR_ADMIN_TOKEN>",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/support/tickets?status=OPEN&page=0&size=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "support",
+            "tickets"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "OPEN"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Get Single Support Ticket",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer <YOUR_ADMIN_TOKEN>",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/support/tickets/456e7890-e89b-12d3-a456-426614174000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "support",
+            "tickets",
+            "456e7890-e89b-12d3-a456-426614174000"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Update Ticket Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer <YOUR_ADMIN_TOKEN>",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"status\": \"RESOLVED\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/support/tickets/456e7890-e89b-12d3-a456-426614174000/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "support",
+            "tickets",
+            "456e7890-e89b-12d3-a456-426614174000",
+            "status"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Manually Update Reseller Credits",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer <YOUR_SUPER_ADMIN_TOKEN>",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"credits\": 50.00\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/resellers/123e4567-e89b-12d3-a456-426614174000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "resellers",
+            "123e4567-e89b-12d3-a456-426614174000"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
