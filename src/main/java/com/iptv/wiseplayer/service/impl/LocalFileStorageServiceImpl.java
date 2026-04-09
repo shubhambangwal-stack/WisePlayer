@@ -17,7 +17,7 @@ import java.util.UUID;
 @Service
 public class LocalFileStorageServiceImpl implements FileStorageService {
 
-    @Value("${file.upload-dir:uploads/support-tickets}")
+    @Value("${file.upload-dir:/opt/wiseplayer/backend/uploads/support-tickets/}")
     private String uploadDir;
 
     private Path fileStorageLocation;
@@ -26,7 +26,7 @@ public class LocalFileStorageServiceImpl implements FileStorageService {
     public void init() {
         try {
             if (uploadDir == null || uploadDir.trim().isEmpty()) {
-                uploadDir = "uploads/support-tickets";
+                uploadDir = "/opt/wiseplayer/backend/uploads/support-tickets/";
             }
             this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
             Files.createDirectories(this.fileStorageLocation);
