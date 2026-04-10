@@ -145,9 +145,9 @@ public class CreditServiceImpl implements CreditService {
     }
 
     @Override
-    public java.util.List<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
-            UUID resellerId) {
-        return creditTransactionRepository.findAllByAdminIdOrderByCreatedAtDesc(resellerId).stream()
+    public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
+            UUID resellerId, org.springframework.data.domain.Pageable pageable) {
+        return creditTransactionRepository.findAllByAdminIdOrderByCreatedAtDesc(resellerId, pageable)
                 .map(transaction -> {
                     com.iptv.wiseplayer.dto.response.CreditTransactionResponse response = new com.iptv.wiseplayer.dto.response.CreditTransactionResponse();
                     response.setId(transaction.getId());
@@ -157,6 +157,48 @@ public class CreditServiceImpl implements CreditService {
                     response.setRelatedRequestId(transaction.getRelatedRequestId());
                     response.setCreatedAt(transaction.getCreatedAt());
                     return response;
-                }).collect(java.util.stream.Collectors.toList());
+                });
+    }
+
+    @Override
+    @Transactional
+    public void transferCredits(UUID fromId, UUID toId, BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Transfer amount must be greater than zero");
+        }
+
+        Admin sender = adminRepository.findById(fromId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sender reseller not found"));
+
+        if (sender.getCredits().compareTo(amount) < 0) {
+            throw new BadRequestException("Insufficient credits for transfer. Available: " + sender.getCredits());
+        }
+
+        Admin receiver = adminRepository.findById(toId)
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver reseller not found"));
+
+        // Deduct from sender
+        sender.setCredits(sender.getCredits().subtract(amount));
+        adminRepository.save(sender);
+
+        CreditTransaction outTx = new CreditTransaction();
+        outTx.setAdminId(fromId);
+        outTx.setAmount(amount.negate());
+        outTx.setType(CreditTransactionType.TRANSFER_OUT);
+        outTx.setNotes("Credit transfer to sub-reseller: " + receiver.getUsername());
+        creditTransactionRepository.save(outTx);
+
+        // Add to receiver
+        receiver.setCredits(receiver.getCredits().add(amount));
+        adminRepository.save(receiver);
+
+        CreditTransaction inTx = new CreditTransaction();
+        inTx.setAdminId(toId);
+        inTx.setAmount(amount);
+        inTx.setType(CreditTransactionType.TRANSFER_IN);
+        inTx.setNotes("Credit transfer from parent reseller: " + sender.getUsername());
+        creditTransactionRepository.save(inTx);
+
+        log.info("Transferred {} credits from {} to {}", amount, fromId, toId);
     }
 }

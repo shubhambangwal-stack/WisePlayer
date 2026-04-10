@@ -2,7 +2,6 @@ package com.iptv.wiseplayer.service;
 
 import com.iptv.wiseplayer.domain.entity.ActivationRequest;
 import com.iptv.wiseplayer.domain.entity.Admin;
-import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.entity.SuperAdmin;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
 import com.iptv.wiseplayer.dto.response.ActivationRequestResponse;

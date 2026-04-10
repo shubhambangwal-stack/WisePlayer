@@ -18,7 +18,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -54,8 +53,9 @@ public class SubResellerController {
 
     @GetMapping("/users")
     @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this sub-reseller")
-    public ResponseEntity<List<Device>> getUsers() {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentSubResellerId()));
+    public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentSubResellerId(), pageable));
     }
 
     @PostMapping("/activation-request")
@@ -66,8 +66,9 @@ public class SubResellerController {
 
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this sub-reseller")
-    public ResponseEntity<List<ActivationRequest>> getRequests() {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentSubResellerId()));
+    public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentSubResellerId(), pageable));
     }
 
     private UUID getCurrentSubResellerId() {

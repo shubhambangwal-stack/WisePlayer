@@ -56,7 +56,11 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
         java.util.List<Device> findAllByResellerId(UUID resellerId);
 
+        org.springframework.data.domain.Page<Device> findAllByResellerId(UUID resellerId,
+                        org.springframework.data.domain.Pageable pageable);
+
         long countByRegisteredAtBetween(java.time.LocalDateTime from, java.time.LocalDateTime to);
 
-        long countByResellerIdAndRegisteredAtBetween(UUID resellerId, java.time.LocalDateTime from, java.time.LocalDateTime to);
+        long countByResellerIdAndRegisteredAtBetween(UUID resellerId, java.time.LocalDateTime from,
+                        java.time.LocalDateTime to);
 }

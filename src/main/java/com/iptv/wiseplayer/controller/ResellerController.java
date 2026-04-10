@@ -22,7 +22,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -74,8 +73,9 @@ public class ResellerController {
 
     @GetMapping("/users")
     @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this reseller")
-    public ResponseEntity<List<Device>> getUsers() {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentResellerId()));
+    public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentResellerId(), pageable));
     }
 
     @PutMapping("/users/{deviceId}/disable")
@@ -93,8 +93,24 @@ public class ResellerController {
 
     @GetMapping("/sub-resellers")
     @Operation(summary = "Get Sub-Resellers", description = "Get a list of all sub-resellers created by this reseller")
-    public ResponseEntity<List<Admin>> getSubResellers() {
-        return ResponseEntity.ok(resellerService.getSubResellers(getCurrentResellerId()));
+    public ResponseEntity<org.springframework.data.domain.Page<Admin>> getSubResellers(
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(resellerService.getSubResellers(getCurrentResellerId(), pageable));
+    }
+
+    @PutMapping("/sub-resellers/{id}")
+    @Operation(summary = "Update Sub-Reseller", description = "Update details for a specific sub-reseller")
+    public ResponseEntity<Void> updateSubReseller(@PathVariable UUID id,
+            @Valid @RequestBody com.iptv.wiseplayer.dto.request.SubResellerUpdateRequest request) {
+        resellerService.updateSubReseller(getCurrentResellerId(), id, request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/sub-resellers/{id}/status")
+    @Operation(summary = "Toggle Sub-Reseller Status", description = "Activate or deactivate a sub-reseller account")
+    public ResponseEntity<Void> toggleSubResellerStatus(@PathVariable UUID id) {
+        resellerService.toggleSubResellerStatus(getCurrentResellerId(), id);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/activation-request")
@@ -105,8 +121,9 @@ public class ResellerController {
 
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this reseller")
-    public ResponseEntity<List<ActivationRequest>> getRequests() {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId()));
+    public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), pageable));
     }
 
     private UUID getCurrentResellerId() {

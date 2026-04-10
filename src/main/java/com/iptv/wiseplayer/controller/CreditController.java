@@ -42,8 +42,9 @@ public class CreditController {
 
     @GetMapping("/transactions")
     @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in reseller")
-    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.CreditTransactionResponse>> getTransactionHistory() {
-        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentResellerId()));
+    public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse>> getTransactionHistory(
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentResellerId(), pageable));
     }
 
     @PostMapping("/purchase")
@@ -51,6 +52,14 @@ public class CreditController {
     public ResponseEntity<CheckoutResponse> purchaseCredits(@Valid @RequestBody CreditPurchaseRequest request) {
         return ResponseEntity
                 .ok(paymentService.createCreditCheckoutSession(getCurrentResellerId(), request.getCreditAmount()));
+    }
+
+    @PostMapping("/transfer")
+    @Operation(summary = "Transfer Credits", description = "Transfer credits from current reseller to a sub-reseller")
+    public ResponseEntity<Void> transferCredits(
+            @Valid @RequestBody com.iptv.wiseplayer.dto.request.CreditTransferRequest request) {
+        creditService.transferCredits(getCurrentResellerId(), request.getSubResellerId(), request.getAmount());
+        return ResponseEntity.ok().build();
     }
 
     private UUID getCurrentResellerId() {

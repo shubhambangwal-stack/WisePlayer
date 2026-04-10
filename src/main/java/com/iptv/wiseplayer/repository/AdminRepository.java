@@ -19,6 +19,8 @@ public interface AdminRepository extends JpaRepository<Admin, UUID> {
 
     List<Admin> findAllByParentId(UUID parentId);
 
+    Page<Admin> findAllByParentId(UUID parentId, Pageable pageable);
+
     Page<Admin> findAllByRoleIn(List<AdminRole> roles, Pageable pageable);
 
     List<Admin> findAllByRoleIn(List<AdminRole> roles);
