@@ -152,8 +152,9 @@ public class ResellerServiceImpl implements ResellerService {
     }
 
     @Override
-    public List<Device> getResellerUsers(UUID resellerId) {
-        return deviceRepository.findAllByResellerId(resellerId);
+    public org.springframework.data.domain.Page<Device> getResellerUsers(UUID resellerId,
+            org.springframework.data.domain.Pageable pageable) {
+        return deviceRepository.findAllByResellerId(resellerId, pageable);
     }
 
     @Override
@@ -189,8 +190,41 @@ public class ResellerServiceImpl implements ResellerService {
     }
 
     @Override
-    public List<Admin> getSubResellers(UUID resellerId) {
-        return adminRepository.findAllByParentId(resellerId);
+    public org.springframework.data.domain.Page<Admin> getSubResellers(UUID resellerId,
+            org.springframework.data.domain.Pageable pageable) {
+        return adminRepository.findAllByParentId(resellerId, pageable);
+    }
+
+    @Override
+    @Transactional
+    public void updateSubReseller(UUID resellerId, UUID subResellerId,
+            com.iptv.wiseplayer.dto.request.SubResellerUpdateRequest request) {
+        Admin sub = adminRepository.findById(subResellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
+
+        if (!resellerId.equals(sub.getParentId())) {
+            throw new AccessDeniedException("Permission denied: Not your sub-reseller");
+        }
+
+        sub.setFullName(request.getFullName());
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            sub.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        }
+        adminRepository.save(sub);
+    }
+
+    @Override
+    @Transactional
+    public void toggleSubResellerStatus(UUID resellerId, UUID subResellerId) {
+        Admin sub = adminRepository.findById(subResellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
+
+        if (!resellerId.equals(sub.getParentId())) {
+            throw new AccessDeniedException("Permission denied: Not your sub-reseller");
+        }
+
+        sub.setActive(!sub.isActive());
+        adminRepository.save(sub);
     }
 
     @Override
@@ -269,7 +303,33 @@ public class ResellerServiceImpl implements ResellerService {
     }
 
     @Override
-    public List<ActivationRequest> getResellerRequests(UUID resellerId) {
-        return activationRequestRepository.findAllByResellerId(resellerId);
+    public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
+            UUID resellerId, org.springframework.data.domain.Pageable pageable) {
+        return activationRequestRepository.findAllByResellerId(resellerId, pageable)
+                .map(request -> {
+                    com.iptv.wiseplayer.dto.response.ActivationRequestResponse response = new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();
+                    response.setId(request.getId());
+                    response.setResellerId(request.getResellerId());
+                    response.setDeviceId(request.getDeviceId());
+                    response.setPlanName(request.getPlanName());
+                    response.setAmount(request.getAmount());
+                    response.setCurrency(request.getCurrency());
+                    response.setStatus(request.getStatus());
+                    response.setCreditsUsed(request.getCreditsUsed());
+                    response.setAdminNotes(request.getAdminNotes());
+                    response.setReviewedBy(request.getReviewedBy());
+                    response.setReviewedAt(request.getReviewedAt());
+                    response.setCreatedAt(request.getCreatedAt());
+                    response.setUpdatedAt(request.getUpdatedAt());
+
+                    // Fetch device details
+                    deviceRepository.findByDeviceId(request.getDeviceId()).ifPresent(device -> {
+                        response.setDeviceModel(device.getDeviceModel());
+                        response.setPlatform(device.getPlatform());
+                        response.setDeviceStatus(device.getDeviceStatus().name());
+                    });
+
+                    return response;
+                });
     }
 }

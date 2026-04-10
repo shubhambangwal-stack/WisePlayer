@@ -11,6 +11,9 @@ import java.util.UUID;
 public interface ActivationRequestRepository extends JpaRepository<ActivationRequest, UUID> {
     List<ActivationRequest> findAllByResellerId(UUID resellerId);
 
+    org.springframework.data.domain.Page<ActivationRequest> findAllByResellerId(UUID resellerId,
+            org.springframework.data.domain.Pageable pageable);
+
     long countByResellerIdAndStatus(UUID resellerId, String status);
 
     boolean existsByDeviceIdAndStatus(UUID deviceId, String status);

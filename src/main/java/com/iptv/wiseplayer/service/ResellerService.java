@@ -24,15 +24,23 @@ public interface ResellerService {
 
     DeviceRegistrationResponse createEndUser(UUID resellerId, DeviceRegistrationRequest request);
 
-    List<Device> getResellerUsers(UUID resellerId);
+    org.springframework.data.domain.Page<Device> getResellerUsers(UUID resellerId,
+            org.springframework.data.domain.Pageable pageable);
 
     void disableUser(UUID resellerId, UUID deviceId);
 
     Admin createSubReseller(UUID resellerId, SubResellerCreateRequest request);
 
-    List<Admin> getSubResellers(UUID resellerId);
+    org.springframework.data.domain.Page<Admin> getSubResellers(UUID resellerId,
+            org.springframework.data.domain.Pageable pageable);
+
+    void updateSubReseller(UUID resellerId, UUID subResellerId,
+            com.iptv.wiseplayer.dto.request.SubResellerUpdateRequest request);
+
+    void toggleSubResellerStatus(UUID resellerId, UUID subResellerId);
 
     ActivationRequest submitActivationRequest(UUID resellerId, ResellerActivationRequestDto request);
 
-    List<ActivationRequest> getResellerRequests(UUID resellerId);
+    org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
+            UUID resellerId, org.springframework.data.domain.Pageable pageable);
 }
