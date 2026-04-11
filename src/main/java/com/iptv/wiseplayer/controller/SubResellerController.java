@@ -22,7 +22,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/sub-reseller")
-@PreAuthorize("hasAnyAuthority('ROLE_SUB_RESELLER', 'ROLE_RESELLER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_SUB_RESELLER')")
 @Tag(name = "Sub-Reseller API", description = "Endpoints for Sub-Reseller Management")
 public class SubResellerController {
 
