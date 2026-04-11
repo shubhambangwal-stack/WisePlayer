@@ -100,11 +100,11 @@ public class SecurityConfig {
 
                         // Reseller Endpoints
                         .requestMatchers("/api/reseller/**")
-                        .hasAnyAuthority("ROLE_RESELLER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                        .hasAuthority("ROLE_RESELLER")
 
                         // Sub-Reseller Endpoints
                         .requestMatchers("/api/sub-reseller/**")
-                        .hasAnyAuthority("ROLE_SUB_RESELLER", "ROLE_RESELLER", "ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                        .hasAuthority("ROLE_SUB_RESELLER")
 
                         // Protected Endpoints (Require Device Token)
                         .requestMatchers("/api/payment/checkout").authenticated()

@@ -58,6 +58,7 @@ public class ResellerController {
 
     // --- Reseller Management Endpoints ---
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PostMapping("/user")
     @Operation(summary = "Create End User", description = "Register an end user device under this reseller")
     public ResponseEntity<DeviceRegistrationResponse> createEndUser(
@@ -65,12 +66,14 @@ public class ResellerController {
         return ResponseEntity.ok(resellerService.createEndUser(getCurrentResellerId(), request));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/dashboard")
     @Operation(summary = "Reseller Dashboard", description = "Get overview metrics for the reseller")
     public ResponseEntity<ResellerDashboardResponse> getDashboard() {
         return ResponseEntity.ok(resellerService.getDashboardOverview(getCurrentResellerId()));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/users")
     @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this reseller")
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
@@ -78,6 +81,7 @@ public class ResellerController {
         return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentResellerId(), pageable));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PutMapping("/users/{deviceId}/disable")
     @Operation(summary = "Toggle User Status", description = "Toggle a specific device/user between active and inactive")
     public ResponseEntity<Void> disableUser(@PathVariable UUID deviceId) {
@@ -85,12 +89,14 @@ public class ResellerController {
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PostMapping("/sub-resellers")
     @Operation(summary = "Create Sub-Reseller", description = "Create a new sub-reseller under this reseller")
     public ResponseEntity<Admin> createSubReseller(@Valid @RequestBody SubResellerCreateRequest request) {
         return ResponseEntity.ok(resellerService.createSubReseller(getCurrentResellerId(), request));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/sub-resellers")
     @Operation(summary = "Get Sub-Resellers", description = "Get a list of all sub-resellers created by this reseller")
     public ResponseEntity<org.springframework.data.domain.Page<Admin>> getSubResellers(
@@ -98,6 +104,7 @@ public class ResellerController {
         return ResponseEntity.ok(resellerService.getSubResellers(getCurrentResellerId(), pageable));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PutMapping("/sub-resellers/{id}")
     @Operation(summary = "Update Sub-Reseller", description = "Update details for a specific sub-reseller")
     public ResponseEntity<Void> updateSubReseller(@PathVariable UUID id,
@@ -106,6 +113,7 @@ public class ResellerController {
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PatchMapping("/sub-resellers/{id}/status")
     @Operation(summary = "Toggle Sub-Reseller Status", description = "Activate or deactivate a sub-reseller account")
     public ResponseEntity<Void> toggleSubResellerStatus(@PathVariable UUID id) {
@@ -113,12 +121,14 @@ public class ResellerController {
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PostMapping("/activation-request")
     @Operation(summary = "Submit Activation Request", description = "Submit a request to activate a user/device subscription")
     public ResponseEntity<ActivationRequest> submitRequest(@Valid @RequestBody ResellerActivationRequestDto request) {
         return ResponseEntity.ok(resellerService.submitActivationRequest(getCurrentResellerId(), request));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
