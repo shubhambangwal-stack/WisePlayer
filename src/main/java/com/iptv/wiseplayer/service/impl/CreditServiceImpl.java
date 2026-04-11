@@ -92,13 +92,25 @@ public class CreditServiceImpl implements CreditService {
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
 
         reseller.setCredits(reseller.getCredits().add(creditAmount));
-        adminRepository.save(reseller);
 
         CreditTransaction transaction = new CreditTransaction();
         transaction.setAdminId(resellerId);
         transaction.setAmount(creditAmount);
         transaction.setType(CreditTransactionType.PURCHASE);
-        transaction.setNotes("Credit purchase. Payment ID: " + paymentId);
+
+        String notes = "Credit purchase. Payment ID: " + paymentId;
+        if (amount >= 1000) {
+            int bonus = 200;
+            BigDecimal bonusAmount = BigDecimal.valueOf(bonus);
+            reseller.setCredits(reseller.getCredits().add(bonusAmount));
+            notes += " (+ " + bonus + " free bonus codes)";
+            transaction.setAmount(creditAmount.add(bonusAmount));
+            log.info("Applied {} bonus credits for bulk purchase of {} codes to reseller {}", bonus, amount,
+                    resellerId);
+        }
+
+        adminRepository.save(reseller);
+        transaction.setNotes(notes);
         creditTransactionRepository.save(transaction);
 
         log.info("Added {} credits to reseller {} via payment {}", amount, resellerId, paymentId);
@@ -107,8 +119,7 @@ public class CreditServiceImpl implements CreditService {
     @Override
     public BigDecimal calculateUnitPrice(int quantity) {
         if (quantity >= 1000) {
-            throw new BadRequestException(
-                    "You will have to buy it custom via whatsapp channell. Please contact us for bulk purchases.");
+            return new BigDecimal("1.00");
         }
         if (quantity >= 500)
             return new BigDecimal("1.25");
