@@ -7,6 +7,7 @@ import com.iptv.wiseplayer.exception.BadRequestException;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.CreditTransactionRepository;
+import com.iptv.wiseplayer.repository.PlanConfigRepository;
 import com.iptv.wiseplayer.service.CreditService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class CreditServiceImpl implements CreditService {
 
     private final AdminRepository adminRepository;
     private final CreditTransactionRepository creditTransactionRepository;
+    private final PlanConfigRepository planConfigRepository;
 
     @Override
     @Transactional
@@ -124,17 +126,19 @@ public class CreditServiceImpl implements CreditService {
     }
 
     @Override
-    public BigDecimal getActivationCost(String planName) {
-        if (planName == null)
-            return BigDecimal.ZERO;
-        String upperPlan = planName.toUpperCase();
-        if (upperPlan.contains("LIFETIME") || upperPlan.contains("FOREVER")) {
-            return new BigDecimal("2.5");
+    public java.math.BigDecimal getActivationCost(String planName) {
+        if (planName == null || planName.trim().isEmpty()) {
+            throw new BadRequestException("Plan name must be provided");
         }
-        if (upperPlan.contains("ANNUAL") || upperPlan.contains("YEAR")) {
-            return new BigDecimal("1.0");
-        }
-        return BigDecimal.ZERO;
+
+        return planConfigRepository.findByName(planName)
+                .map(plan -> {
+                    if (!plan.isActive()) {
+                        throw new BadRequestException("The selected plan [" + planName + "] is currently inactive.");
+                    }
+                    return plan.getPrice();
+                })
+                .orElseThrow(() -> new ResourceNotFoundException("Unrecognized plan name: " + planName));
     }
 
     @Override
