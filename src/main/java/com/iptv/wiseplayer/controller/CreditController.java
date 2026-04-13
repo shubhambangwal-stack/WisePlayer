@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +22,6 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/reseller/credits")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('ROLE_RESELLER')")
 @Tag(name = "Reseller Credit API", description = "Endpoints for Reseller Credit Management")
 public class CreditController {
 
