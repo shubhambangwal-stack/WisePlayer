@@ -5,19 +5,27 @@ import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
 import com.iptv.wiseplayer.dto.request.ResellerActivationRequestDto;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
+import com.iptv.wiseplayer.dto.request.CreditPurchaseRequest;
+import com.iptv.wiseplayer.dto.response.CheckoutResponse;
+import com.iptv.wiseplayer.dto.response.CreditTransactionResponse;
 import com.iptv.wiseplayer.dto.response.ResellerDashboardResponse;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.service.ResellerService;
+import com.iptv.wiseplayer.service.CreditService;
+import com.iptv.wiseplayer.service.PaymentService;
 import com.iptv.wiseplayer.domain.entity.Admin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @RestController
@@ -27,15 +35,41 @@ import java.util.UUID;
 public class SubResellerController {
 
     private final ResellerService resellerService;
+    private final CreditService creditService;
+    private final PaymentService paymentService;
     private final AdminRepository adminRepository;
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
 
     public SubResellerController(ResellerService resellerService,
+            CreditService creditService,
+            PaymentService paymentService,
             AdminRepository adminRepository,
             com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
         this.resellerService = resellerService;
+        this.creditService = creditService;
+        this.paymentService = paymentService;
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
+    }
+
+    @GetMapping("/credits/balance")
+    @Operation(summary = "Get Credit Balance", description = "Get the current credit balance for the logged-in sub-reseller")
+    public ResponseEntity<BigDecimal> getBalance() {
+        return ResponseEntity.ok(creditService.getBalance(getCurrentSubResellerId()));
+    }
+
+    @GetMapping("/credits/transactions")
+    @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in sub-reseller")
+    public ResponseEntity<Page<CreditTransactionResponse>> getTransactionHistory(
+            Pageable pageable) {
+        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentSubResellerId(), pageable));
+    }
+
+    @PostMapping("/credits/purchase")
+    @Operation(summary = "Purchase Credits", description = "Initiate a PayPal checkout session for purchasing credits")
+    public ResponseEntity<CheckoutResponse> purchaseCredits(@Valid @RequestBody CreditPurchaseRequest request) {
+        return ResponseEntity
+                .ok(paymentService.createCreditCheckoutSession(getCurrentSubResellerId(), request.getCreditAmount()));
     }
 
     @GetMapping("/dashboard")
