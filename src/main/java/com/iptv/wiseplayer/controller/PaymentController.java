@@ -3,7 +3,10 @@ package com.iptv.wiseplayer.controller;
 import com.iptv.wiseplayer.dto.request.CheckoutRequest;
 import com.iptv.wiseplayer.dto.response.CheckoutResponse;
 import com.iptv.wiseplayer.service.PaymentService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import java.net.URI;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +15,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequestMapping("/api/payment")
 @Tag(name = "Payment", description = "Endpoints for subscription payments and checkout sessions")
 public class PaymentController {
+
+    @Value("${paypal.frontend-url:https://wise-player.com}")
+    private String frontendUrl;
 
     private final PaymentService paymentService;
 
@@ -57,16 +63,26 @@ public class PaymentController {
 
     @Operation(summary = "PayPal Success Redirect", description = "Handles redirection from PayPal after successful approval.")
     @GetMapping("/paypal/success")
-    public ResponseEntity<String> paypalSuccess(@RequestParam("token") String orderId,
+    public ResponseEntity<Void> paypalSuccess(@RequestParam("token") String orderId,
             @RequestParam("PayerID") String payerId) {
-        paymentService.captureOrder(orderId.trim());
-        return ResponseEntity.ok("Payment successful and captured. You can close this window and return to the app.");
+        try {
+            paymentService.captureOrder(orderId.trim());
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(frontendUrl + "?paymentStatus=success"))
+                    .build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(frontendUrl + "?paymentStatus=error"))
+                    .build();
+        }
     }
 
     @Operation(summary = "PayPal Cancel Redirect", description = "Handles redirection from PayPal if the user cancels.")
     @GetMapping("/paypal/cancel")
-    public ResponseEntity<String> paypalCancel() {
-        return ResponseEntity.ok("Payment cancelled. You can close this window.");
+    public ResponseEntity<Void> paypalCancel() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(frontendUrl + "?paymentStatus=cancelled"))
+                .build();
     }
 
     @Operation(summary = "Get All Invoices", description = "Retrieves all detailed invoices for a specific device.")

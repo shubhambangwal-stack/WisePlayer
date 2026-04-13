@@ -26,6 +26,7 @@ paypal:
   cancel-url: ${APP_BASE_URL}/api/payment/paypal/cancel
   webhook-url: ${APP_BASE_URL}/api/payment/paypal/webhook
   webhook-id: ${PAYPAL_WEBHOOK_ID}
+  frontend-url: ${FRONTEND_URL:https://wise-player.com}
 
 server:
   port: ${SERVER_PORT}
