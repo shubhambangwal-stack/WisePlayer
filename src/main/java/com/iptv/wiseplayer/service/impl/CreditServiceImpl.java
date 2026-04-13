@@ -3,6 +3,7 @@ package com.iptv.wiseplayer.service.impl;
 import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.entity.CreditTransaction;
 import com.iptv.wiseplayer.domain.enums.CreditTransactionType;
+import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.exception.BadRequestException;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.AdminRepository;
@@ -182,15 +183,39 @@ public class CreditServiceImpl implements CreditService {
             throw new BadRequestException("Transfer amount must be greater than zero");
         }
 
+        if (fromId.equals(toId)) {
+            throw new BadRequestException("Self-transfer is not allowed");
+        }
+
         Admin sender = adminRepository.findById(fromId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sender reseller not found"));
+
+        if (!sender.isActive()) {
+            throw new BadRequestException("Sender account is inactive");
+        }
+
+        if (sender.getRole() != AdminRole.RESELLER) {
+            throw new BadRequestException("Only resellers can initiate credit transfers");
+        }
 
         if (sender.getCredits().compareTo(amount) < 0) {
             throw new BadRequestException("Insufficient credits for transfer. Available: " + sender.getCredits());
         }
 
         Admin receiver = adminRepository.findById(toId)
-                .orElseThrow(() -> new ResourceNotFoundException("Receiver reseller not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver sub-reseller not found"));
+
+        if (!receiver.isActive()) {
+            throw new BadRequestException("Receiver account is inactive");
+        }
+
+        if (receiver.getRole() != AdminRole.SUB_RESELLER) {
+            throw new BadRequestException("Credits can only be transferred to sub-resellers");
+        }
+
+        if (!fromId.equals(receiver.getParentId())) {
+            throw new BadRequestException("Permission denied: You can only transfer credits to your own sub-resellers");
+        }
 
         // Deduct from sender
         sender.setCredits(sender.getCredits().subtract(amount));

@@ -21,6 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/reseller/credits")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('ROLE_RESELLER')")
 @Tag(name = "Reseller Credit API", description = "Endpoints for Reseller Credit Management")
 public class CreditController {
 
