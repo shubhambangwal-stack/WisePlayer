@@ -62,6 +62,8 @@ app:
 springdoc:
   api-docs:
     enabled: false
+    path: /wp-internal-api-docs-v3
   swagger-ui:
     enabled: false
+    path: /wp-internal-docs.html
   show-actuator: false

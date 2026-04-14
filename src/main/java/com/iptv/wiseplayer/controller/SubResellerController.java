@@ -21,7 +21,6 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,7 +29,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/sub-reseller")
-@PreAuthorize("hasAuthority('ROLE_SUB_RESELLER')")
 @Tag(name = "Sub-Reseller API", description = "Endpoints for Sub-Reseller Management")
 public class SubResellerController {
 
