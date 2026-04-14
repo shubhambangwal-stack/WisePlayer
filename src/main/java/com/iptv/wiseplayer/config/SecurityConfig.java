@@ -82,7 +82,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/support/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         // Swagger UI (Protected & Obfuscated)
-                        .requestMatchers("/wp-internal-api-docs-v3/**", "/swagger-ui/**", "/wp-internal-docs.html")
+                        .requestMatchers("/wp-internal-api-docs-v3/**", "/wp-ui-assets/**", "/wp-internal-docs.html")
                         .hasAuthority("ROLE_SUPER_ADMIN")
 
                         // Admin Endpoints
