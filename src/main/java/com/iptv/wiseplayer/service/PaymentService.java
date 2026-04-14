@@ -15,7 +15,7 @@ public interface PaymentService {
 
     void handlePaypalWebhook(java.util.Map<String, Object> payload, java.util.Map<String, String> headers);
 
-    void captureOrder(String orderId);
+    com.iptv.wiseplayer.domain.entity.Payments captureOrder(String orderId);
 
     List<InvoiceResponse> getAllInvoicesByDevice(String deviceId);
 

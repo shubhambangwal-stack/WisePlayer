@@ -368,7 +368,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public void captureOrder(String orderId) {
+    public Payments captureOrder(String orderId) {
         if (orderId == null) {
             log.error("Capture failed: Order ID is null");
             throw new IllegalArgumentException("Order ID cannot be null");
@@ -402,7 +402,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
             log.info("Order {} already captured and processed successfully.", orderId);
-            return;
+            return payment;
         }
 
         String accessToken = getAccessToken();
@@ -454,6 +454,7 @@ public class PaymentServiceImpl implements PaymentService {
                 }
 
                 processSuccessfulPaypalPayment(orderId, captureId, fee);
+                return paymentRepository.findByPaypalOrderId(finalOrderId).orElse(payment);
             } else {
                 log.error("PayPal capture API returned non-success status: {}. Body: {}",
                         response.getStatusCode(), response.getBody());
@@ -461,8 +462,6 @@ public class PaymentServiceImpl implements PaymentService {
             }
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
             String body = e.getResponseBodyAsString();
-            // 422 ORDER_ALREADY_CAPTURED means a webhook already finalised this order;
-            // check the DB and complete if still PENDING rather than throwing.
             if (e.getStatusCode().value() == 422 && body.contains("ORDER_ALREADY_CAPTURED")) {
                 log.warn("PayPal order {} was already captured (422). Checking DB to complete if still PENDING.",
                         orderId);
@@ -474,7 +473,7 @@ public class PaymentServiceImpl implements PaymentService {
                                 finalOrderId);
                     }
                 });
-                return;
+                return paymentRepository.findByPaypalOrderId(finalOrderId).orElse(payment);
             }
             log.error("PayPal API Error during capture! Status: {}, Body: {}", e.getStatusCode(), body);
             throw new RuntimeException("PayPal API capture error: " + body, e);

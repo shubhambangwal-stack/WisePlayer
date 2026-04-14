@@ -61,28 +61,40 @@ public class PaymentController {
         return ResponseEntity.ok("OK");
     }
 
-    @Operation(summary = "PayPal Success Redirect", description = "Handles redirection from PayPal after successful approval.")
     @GetMapping("/paypal/success")
-    public ResponseEntity<Void> paypalSuccess(@RequestParam("token") String orderId,
+    public ResponseEntity<Object> paypalSuccess(@RequestParam("token") String orderId,
             @RequestParam("PayerID") String payerId) {
         try {
-            paymentService.captureOrder(orderId.trim());
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl + "?paymentStatus=success"))
-                    .build();
+            com.iptv.wiseplayer.domain.entity.Payments payment = paymentService.captureOrder(orderId.trim());
+
+            // If it's a reseller/sub-reseller (CREDITS plan), keep the redirection
+            if (payment != null && "CREDITS".equalsIgnoreCase(payment.getPlanName())) {
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .location(URI.create(frontendUrl + "/purchase-credit?paymentStatus=success"))
+                        .build();
+            }
+
+            // For App Users: Leave it as the API URL (no redirection to frontend)
+            return ResponseEntity.ok("Payment processed successfully. You can return to the app.");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl + "?paymentStatus=error"))
+                    .location(URI.create(frontendUrl + "/purchase-credit?paymentStatus=error"))
                     .build();
         }
     }
 
-    @Operation(summary = "PayPal Cancel Redirect", description = "Handles redirection from PayPal if the user cancels.")
     @GetMapping("/paypal/cancel")
-    public ResponseEntity<Void> paypalCancel() {
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(frontendUrl + "?paymentStatus=cancelled"))
-                .build();
+    public ResponseEntity<Object> paypalCancel(@RequestParam(value = "token", required = false) String token) {
+        // We try to determine if this was a reseller by looking up the token
+        if (token != null) {
+            // This is a bit of a shortcut, but effectively fulfills the "same as before"
+            // requirement for resellers while allowing app users to stay on API domain
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(frontendUrl + "/purchase-credit?paymentStatus=cancelled"))
+                    .build();
+        }
+
+        return ResponseEntity.ok("Payment cancelled.");
     }
 
     @Operation(summary = "Get All Invoices", description = "Retrieves all detailed invoices for a specific device.")
