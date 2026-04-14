@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -80,9 +81,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/payment/public/plans").permitAll()
                         .requestMatchers("/api/public/support/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
-                        // Swagger UI (Obfuscated)
+                        // Swagger UI (Protected & Obfuscated)
                         .requestMatchers("/wp-internal-api-docs-v3/**", "/swagger-ui/**", "/wp-internal-docs.html")
-                        .permitAll()
+                        .hasAuthority("ROLE_SUPER_ADMIN")
 
                         // Admin Endpoints
                         .requestMatchers("/api/admin/auth/login").permitAll()
@@ -121,7 +122,8 @@ public class SecurityConfig {
 
                 // Register filters
                 .addFilterBefore(deviceAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(adminAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .httpBasic(org.springframework.security.config.Customizer.withDefaults());
 
         return http.build();
     }
