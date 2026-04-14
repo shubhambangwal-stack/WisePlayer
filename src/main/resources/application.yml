@@ -66,4 +66,5 @@ springdoc:
   swagger-ui:
     enabled: false
     path: /wp-internal-docs.html
+    disable-swagger-default-url: true
   show-actuator: false
