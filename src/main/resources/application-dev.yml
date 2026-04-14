@@ -77,13 +77,11 @@ app:
 
 springdoc:
   api-docs:
-    enabled: true
-    path: /wp-internal-api-docs-v3
+    path: /wp-api-spec
   swagger-ui:
-    enabled: true
-    path: /wp-internal-docs.html
+    path: /wp-docs
     disable-swagger-default-url: true
-    config-url: /wp-internal-api-docs-v3/swagger-config
+    config-url: /wp-api-spec/swagger-config
   webjars:
-    prefix: /wp-ui-assets
+    prefix: /wp-docs-assets
   show-actuator: false
