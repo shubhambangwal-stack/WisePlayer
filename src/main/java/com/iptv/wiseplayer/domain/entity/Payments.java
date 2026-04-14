@@ -2,9 +2,6 @@ package com.iptv.wiseplayer.domain.entity;
 
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
