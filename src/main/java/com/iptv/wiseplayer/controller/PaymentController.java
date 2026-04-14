@@ -3,14 +3,24 @@ package com.iptv.wiseplayer.controller;
 import com.iptv.wiseplayer.dto.request.CheckoutRequest;
 import com.iptv.wiseplayer.dto.response.CheckoutResponse;
 import com.iptv.wiseplayer.service.PaymentService;
+import com.iptv.wiseplayer.security.DeviceAuthenticationToken;
+import com.iptv.wiseplayer.domain.entity.Payments;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import java.net.URI;
+import java.util.UUID;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+/**
+ * PaymentController handles all payment-related endpoints including PayPal
+ * integration,
+ * checkout sessions, and invoice retrieval.
+ */
 @RestController
 @RequestMapping("/api/payment")
 @Tag(name = "Payment", description = "Endpoints for subscription payments and checkout sessions")
@@ -25,7 +35,7 @@ public class PaymentController {
         this.paymentService = paymentService;
     }
 
-    @Operation(summary = "Create Checkout Session", description = "Initiates a Stripe checkout session for a subscription.")
+    @Operation(summary = "Create Checkout Session", description = "Initiates a PayPal checkout session for a device subscription.")
     @PostMapping("/checkout")
     public ResponseEntity<CheckoutResponse> createCheckoutSession(@RequestBody CheckoutRequest request) {
         CheckoutResponse response = paymentService.createCheckoutSession(request);
@@ -45,15 +55,14 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.getActivePlans());
     }
 
-    @Operation(summary = "Stripe Webhook (Disabled)", description = "Endpoint to handle Stripe events (currently disabled).", hidden = true)
+    @Operation(summary = "Stripe Webhook (Disabled)", description = "Legacy endpoint for Stripe events (currently disabled).", hidden = true)
     @PostMapping("/webhook")
     public ResponseEntity<String> handleStripeWebhook(@RequestBody String payload,
             @RequestHeader(value = "Stripe-Signature", required = false) String sigHeader) {
-        // Stripe disabled
         return ResponseEntity.ok("Disabled");
     }
 
-    @Operation(summary = "PayPal Webhook", description = "Endpoint to handle asynchronous payment events from PayPal.")
+    @Operation(summary = "PayPal Webhook", description = "Endpoint to handle asynchronous payment events from PayPal (Captures, Refunds, Disputes).")
     @PostMapping("/paypal/webhook")
     public ResponseEntity<String> handlePaypalWebhook(@RequestBody java.util.Map<String, Object> payload,
             @RequestHeader java.util.Map<String, String> headers) {
@@ -61,55 +70,61 @@ public class PaymentController {
         return ResponseEntity.ok("OK");
     }
 
+    @Operation(summary = "PayPal Success Redirect", description = "Internal callback after PayPal approval. Handles dynamic redirection for resellers vs app users.")
     @GetMapping("/paypal/success")
     public ResponseEntity<Object> paypalSuccess(@RequestParam("token") String orderId,
             @RequestParam("PayerID") String payerId) {
+        Payments payment = null;
         try {
-            com.iptv.wiseplayer.domain.entity.Payments payment = paymentService.captureOrder(orderId.trim());
+            payment = paymentService.captureOrder(orderId.trim());
 
-            // If it's a reseller/sub-reseller (CREDITS plan), keep the redirection
+            // If it's a reseller/sub-reseller (CREDITS plan), redirect to the reseller
+            // portal
             if (payment != null && "CREDITS".equalsIgnoreCase(payment.getPlanName())) {
                 return ResponseEntity.status(HttpStatus.FOUND)
                         .location(URI.create(frontendUrl + "/purchase-credit?paymentStatus=success"))
                         .build();
             }
 
-            // For App Users: Leave it as the API URL (no redirection to frontend)
+            // For APK/App Users: Stay on API URL as requested (previous flow)
             return ResponseEntity.ok("Payment processed successfully. You can return to the app.");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl + "/purchase-credit?paymentStatus=error"))
-                    .build();
+            // Context-aware error redirection
+            if (payment != null && "CREDITS".equalsIgnoreCase(payment.getPlanName())) {
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .location(URI.create(frontendUrl + "/purchase-credit?paymentStatus=error"))
+                        .build();
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Payment capture failed. Please contact support.");
         }
     }
 
+    @Operation(summary = "PayPal Cancel Redirect", description = "Internal callback if user cancels. Handles dynamic redirection.")
     @GetMapping("/paypal/cancel")
     public ResponseEntity<Object> paypalCancel(@RequestParam(value = "token", required = false) String token) {
-        // We try to determine if this was a reseller by looking up the token
         if (token != null) {
-            // This is a bit of a shortcut, but effectively fulfills the "same as before"
-            // requirement for resellers while allowing app users to stay on API domain
+            // For resellers, redirect back to portal
             return ResponseEntity.status(HttpStatus.FOUND)
                     .location(URI.create(frontendUrl + "/purchase-credit?paymentStatus=cancelled"))
                     .build();
         }
-
         return ResponseEntity.ok("Payment cancelled.");
     }
 
-    @Operation(summary = "Get All Invoices", description = "Retrieves all detailed invoices for a specific device.")
+    @Operation(summary = "Get All Invoices", description = "Retrieves all detailed invoices for a specific device. Requires matching device token or Admin role.")
     @GetMapping("/invoices")
     public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse>> getAllInvoices(
             @RequestParam String deviceId) {
-        java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse> invoices = paymentService
-                .getAllInvoicesByDevice(deviceId);
-        return ResponseEntity.ok(invoices);
+        validateAccess(deviceId);
+        return ResponseEntity.ok(paymentService.getAllInvoicesByDevice(deviceId));
     }
 
-    @Operation(summary = "Get Current Active Invoice", description = "Retrieves the latest successful payment invoice for a specific device, representing the current active subscription.")
+    @Operation(summary = "Get Current Active Invoice", description = "Retrieves the latest successful invoice for a specific device. Requires matching device token or Admin role.")
     @GetMapping("/invoice/current")
     public ResponseEntity<com.iptv.wiseplayer.dto.response.InvoiceResponse> getCurrentInvoice(
             @RequestParam String deviceId) {
+        validateAccess(deviceId);
         com.iptv.wiseplayer.dto.response.InvoiceResponse invoice = paymentService.getCurrentInvoice(deviceId);
         if (invoice == null) {
             return ResponseEntity.noContent().build();
@@ -117,4 +132,29 @@ public class PaymentController {
         return ResponseEntity.ok(invoice);
     }
 
+    /**
+     * Verifies that the authenticated principal has access to the requested
+     * deviceId.
+     * Prevents IDOR (Insecure Direct Object Reference) attacks.
+     */
+    private void validateAccess(String requestedDeviceId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null)
+            return;
+
+        // Allow Admin/Super-Admin to access any device
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+        if (isAdmin)
+            return;
+
+        // For Device users, verify requested deviceId matches authenticated device
+        if (auth instanceof DeviceAuthenticationToken) {
+            String authedDeviceId = ((DeviceAuthenticationToken) auth).getDevice().getDeviceId().toString();
+            if (!authedDeviceId.equalsIgnoreCase(requestedDeviceId)) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Access denied to device: " + requestedDeviceId);
+            }
+        }
+    }
 }

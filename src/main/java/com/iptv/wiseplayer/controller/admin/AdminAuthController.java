@@ -1,17 +1,12 @@
 package com.iptv.wiseplayer.controller.admin;
 
 import com.iptv.wiseplayer.dto.request.AdminLoginRequest;
-import com.iptv.wiseplayer.dto.request.CreateAdminRequest;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.service.AdminAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/auth")

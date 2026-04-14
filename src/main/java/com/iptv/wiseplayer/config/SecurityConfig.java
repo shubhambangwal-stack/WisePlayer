@@ -80,9 +80,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/payment/public/plans").permitAll()
                         .requestMatchers("/api/public/support/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
-                        // Swagger UI
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
-                        .hasAuthority("ROLE_SUPER_ADMIN")
+                        // Swagger UI (Obfuscated)
+                        .requestMatchers("/wp-internal-api-docs-v3/**", "/swagger-ui/**", "/wp-internal-docs.html")
+                        .permitAll()
 
                         // Admin Endpoints
                         .requestMatchers("/api/admin/auth/login").permitAll()
