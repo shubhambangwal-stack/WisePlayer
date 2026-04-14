@@ -83,4 +83,7 @@ springdoc:
     enabled: true
     path: /wp-internal-docs.html
     disable-swagger-default-url: true
+    config-url: /wp-internal-api-docs-v3/swagger-config
+  webjars:
+    prefix: /wp-ui-assets
   show-actuator: false

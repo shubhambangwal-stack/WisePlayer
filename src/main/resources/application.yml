@@ -57,14 +57,15 @@ app:
     allow-credentials: true
 
 
-    # Refresh tokens are managed internally (not exposed in API)
+  # Refresh tokens are managed internally (not exposed in API)
 
 springdoc:
   api-docs:
-    enabled: false
     path: /wp-internal-api-docs-v3
   swagger-ui:
-    enabled: false
     path: /wp-internal-docs.html
     disable-swagger-default-url: true
+    config-url: /wp-internal-api-docs-v3/swagger-config
+  webjars:
+    prefix: /wp-ui-assets
   show-actuator: false

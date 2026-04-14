@@ -61,6 +61,7 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
                 path.startsWith("/api/admin/auth/login") ||
                 path.startsWith("/wp-internal-api-docs-v3") ||
                 path.startsWith("/wp-internal-docs.html") ||
+                path.startsWith("/wp-ui-assets") ||
                 path.startsWith("/swagger-ui");
     }
 
