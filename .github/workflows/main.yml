@@ -6,7 +6,26 @@ on:
       - main
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # If Maven project
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Run Tests
+        run: mvn test
+
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -22,5 +41,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-             cd /opt/wiseplayer/backend 
-             ./deploy.sh
+            cd /opt/wiseplayer/backend 
+            ./deploy.sh
