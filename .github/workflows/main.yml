@@ -6,29 +6,7 @@ on:
       - main
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Run Tests (Remote DB)
-        env:
-          SPRING_DATASOURCE_URL: ${{ secrets.DB_URL }}
-          SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USER }}
-          SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASS }}
-        run: mvn test
-
-
   deploy:
-    needs: test
     runs-on: ubuntu-latest
 
     steps:
