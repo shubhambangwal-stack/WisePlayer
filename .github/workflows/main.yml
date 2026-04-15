@@ -13,14 +13,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # If Maven project
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Run Tests
+      - name: Run Tests (Remote DB)
+        env:
+          SPRING_DATASOURCE_URL: ${{ secrets.DB_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USER }}
+          SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASS }}
         run: mvn test
 
 
@@ -41,5 +44,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            cd /opt/wiseplayer/backend 
+            cd /opt/wiseplayer/backend
             ./deploy.sh
