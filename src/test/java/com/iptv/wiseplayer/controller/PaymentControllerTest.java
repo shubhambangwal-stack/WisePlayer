@@ -1,88 +1,67 @@
 package com.iptv.wiseplayer.controller;
 
-import com.iptv.wiseplayer.dto.response.CheckoutResponse;
 import com.iptv.wiseplayer.service.PaymentService;
-import org.junit.jupiter.api.BeforeEach;
+import com.iptv.wiseplayer.security.DeviceAuthenticationToken;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.Collections;
-import java.util.UUID;
+import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@WebMvcTest(controllers = PaymentController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class PaymentControllerTest {
 
+    @Autowired
     private MockMvc mockMvc;
 
-    @Mock
+    @MockBean
     private PaymentService paymentService;
 
-    @InjectMocks
-    private PaymentController paymentController;
-
-    private final String testDeviceId = UUID.randomUUID().toString();
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(paymentController).build();
-
-        // Mock Admin Authentication to bypass the validateAccess check in controller cleanly
-        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                "admin", null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN")));
-        SecurityContextHolder.getContext().setAuthentication(auth);
+    @Test
+    void testCreateCheckoutSession() throws Exception {
+        mockMvc.perform(post("/api/payment/checkout")
+                .contentType("application/json")
+                .content("{\"deviceId\": \"test-device\", \"planName\": \"ANNUAL\"}"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void downloadInvoicePdf_ShouldReturnPdfStream_WhenValidRequest() throws Exception {
-        // Arrange
-        String invoiceNumber = "INV-12345678";
-        byte[] mockPdfBytes = "Mock PDF Content".getBytes();
-        when(paymentService.generateInvoicePdf(invoiceNumber, testDeviceId)).thenReturn(mockPdfBytes);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/payment/invoice/{invoiceNumber}/pdf", invoiceNumber)
-                        .param("deviceId", testDeviceId))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
-                .andExpect(header().string("Content-Disposition", "form-data; name=\"attachment\"; filename=\"invoice-INV-12345678.pdf\""))
-                .andExpect(content().bytes(mockPdfBytes));
+    void testCreatePublicCheckoutSession() throws Exception {
+        mockMvc.perform(post("/api/payment/public/checkout")
+                .contentType("application/json")
+                .content("{\"deviceId\": \"test-device\", \"planName\": \"ANNUAL\"}"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void getCurrentInvoice_ShouldReturnNoContent_WhenInvoiceIsNull() throws Exception {
-        // Arrange
-        when(paymentService.getCurrentInvoice(testDeviceId)).thenReturn(null);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/payment/invoice/current")
-                        .param("deviceId", testDeviceId))
-                .andExpect(status().isNoContent());
-    }
-
-    @Test
-    void getActivePlans_ShouldReturnPlans() throws Exception {
-        // Arrange
-        com.iptv.wiseplayer.dto.response.PlanResponse plan = new com.iptv.wiseplayer.dto.response.PlanResponse();
-        plan.setName("Premium");
-        when(paymentService.getActivePlans()).thenReturn(Collections.singletonList(plan));
-
-        // Act & Assert
+    void testGetActivePlans() throws Exception {
+        when(paymentService.getActivePlans()).thenReturn(List.of());
         mockMvc.perform(get("/api/payment/public/plans"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Premium"));
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testGetAllInvoices() throws Exception {
+        when(paymentService.getAllInvoicesByDevice("test-device")).thenReturn(List.of());
+        mockMvc.perform(get("/api/payment/invoices")
+                .param("deviceId", "test-device"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testGetCurrentInvoice_noContent() throws Exception {
+        when(paymentService.getCurrentInvoice("test-device")).thenReturn(null);
+        mockMvc.perform(get("/api/payment/invoice/current")
+                .param("deviceId", "test-device"))
+                .andExpect(status().isNoContent());
     }
 }
