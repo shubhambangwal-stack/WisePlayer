@@ -53,7 +53,7 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
                 path.startsWith("/api/device/register") ||
                 path.startsWith("/api/device/validate") ||
                 path.startsWith("/api/device/refresh") ||
-                path.startsWith("/api/device/key") ||
+                (path.equals("/api/device/key") && "POST".equalsIgnoreCase(request.getMethod())) ||
                 path.startsWith("/api/device/activate") ||
                 path.startsWith("/api/playlist/public/") ||
                 path.startsWith("/api/reseller/login") ||
