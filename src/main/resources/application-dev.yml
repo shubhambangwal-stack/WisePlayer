@@ -39,7 +39,7 @@ paypal:
   return-url: https://api.wise-player.com/api/payment/paypal/success
   cancel-url: https://api.wise-player.com/api/payment/paypal/cancel
   webhook-url: https://api.wise-player.com/api/payment/paypal/webhook
-  webhook-id: 4ET3670297788543D
+  webhook-id: 3XS653129K3752636
 
 server:
   port: 8080

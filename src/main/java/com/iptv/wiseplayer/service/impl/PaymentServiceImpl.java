@@ -24,6 +24,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.io.ByteArrayOutputStream;
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+import com.lowagie.text.Element;
 
 /**
  * PaymentServiceImpl — plan details are resolved from
@@ -748,5 +759,127 @@ public class PaymentServiceImpl implements PaymentService {
         return planConfigRepository.findByName(planName)
                 .map(cfg -> cfg.getDescription() != null ? cfg.getDescription() : cfg.getName())
                 .orElse(planName);
+    }
+
+    @Override
+    public byte[] generateInvoicePdf(String invoiceNumber, String deviceId) {
+        log.info("Generating PDF for invoice: {} for device: {}", invoiceNumber, deviceId);
+        UUID resolvedDeviceId = deviceService.resolveDeviceId(deviceId);
+
+        // Extract ID from invoice Number INV-XXXXXXX
+        String idPrefix = invoiceNumber.substring(4);
+        
+        java.util.List<Payments> allPayments = paymentRepository.findAllByDeviceIdOrderByCreatedAtDesc(resolvedDeviceId);
+        Payments targetPayment = null;
+        for (Payments p : allPayments) {
+            if (p.getId().toString().toUpperCase().startsWith(idPrefix.toUpperCase())) {
+                targetPayment = p;
+                break;
+            }
+        }
+
+        if (targetPayment == null) {
+             throw new ResourceNotFoundException("Invoice not found or does not belong to this device.");
+        }
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            // Fonts
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20);
+            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
+            Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 12);
+
+            // Title
+            Paragraph title = new Paragraph("INVOICE", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            title.setSpacingAfter(20f);
+            document.add(title);
+
+            // Company & Invoice Info
+            PdfPTable infoTable = new PdfPTable(2);
+            infoTable.setWidthPercentage(100);
+            infoTable.setSpacingAfter(20f);
+
+            PdfPCell companyCell = new PdfPCell(new Phrase("WisePlayer IPTV", titleFont));
+            companyCell.setBorder(PdfPCell.NO_BORDER);
+            infoTable.addCell(companyCell);
+
+            PdfPCell invoiceDetailsCell = new PdfPCell();
+            invoiceDetailsCell.setBorder(PdfPCell.NO_BORDER);
+            invoiceDetailsCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            invoiceDetailsCell.addElement(new Paragraph("Invoice Number: " + invoiceNumber, normalFont));
+            invoiceDetailsCell.addElement(new Paragraph("Date: " + targetPayment.getCreatedAt().toLocalDate(), normalFont));
+            invoiceDetailsCell.addElement(new Paragraph("Status: " + targetPayment.getStatus(), normalFont));
+            infoTable.addCell(invoiceDetailsCell);
+            document.add(infoTable);
+
+            // Customer Info
+            document.add(new Paragraph("Billed To:", headerFont));
+            document.add(new Paragraph("Device ID: " + targetPayment.getDeviceId(), normalFont));
+            document.add(new Paragraph("Payment Method: PayPal", normalFont));
+            if (targetPayment.getPaypalOrderId() != null) {
+                document.add(new Paragraph("Transaction ID: " + targetPayment.getPaypalOrderId(), normalFont));
+            }
+            document.add(new Paragraph(" ")); // blank line
+
+            // Item Table
+            PdfPTable table = new PdfPTable(3);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[]{60, 20, 20});
+            table.setSpacingBefore(20f);
+
+            PdfPCell c1 = new PdfPCell(new Phrase("Description", headerFont));
+            c1.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c1.setPadding(8f);
+            table.addCell(c1);
+
+            PdfPCell c2 = new PdfPCell(new Phrase("Currency", headerFont));
+            c2.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c2.setPadding(8f);
+            table.addCell(c2);
+
+            PdfPCell c3 = new PdfPCell(new Phrase("Amount", headerFont));
+            c3.setHorizontalAlignment(Element.ALIGN_CENTER);
+            c3.setPadding(8f);
+            table.addCell(c3);
+
+            table.setHeaderRows(1);
+
+            // Item Row
+            String planDesc = getPlanDisplayName(targetPayment.getPlanName());
+            PdfPCell cell1 = new PdfPCell(new Phrase("Subscription Plan - " + planDesc, normalFont));
+            cell1.setPadding(8f);
+            cell1.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            table.addCell(cell1);
+
+            PdfPCell cell2 = new PdfPCell(new Phrase("EUR", normalFont));
+            cell2.setPadding(8f);
+            cell2.setHorizontalAlignment(Element.ALIGN_CENTER);
+            cell2.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            table.addCell(cell2);
+
+            PdfPCell cell3 = new PdfPCell(new Phrase(targetPayment.getAmount().toString(), normalFont));
+            cell3.setPadding(8f);
+            cell3.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            cell3.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            table.addCell(cell3);
+
+            document.add(table);
+
+            // Totals
+            Paragraph totals = new Paragraph("Total: " + targetPayment.getAmount().toString() + " EUR", titleFont);
+            totals.setAlignment(Element.ALIGN_RIGHT);
+            totals.setSpacingBefore(20f);
+            document.add(totals);
+
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            log.error("Error generating PDF", e);
+            throw new RuntimeException("Could not generate invoice PDF", e);
+        }
     }
 }

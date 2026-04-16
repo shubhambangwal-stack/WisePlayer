@@ -132,6 +132,22 @@ public class PaymentController {
         return ResponseEntity.ok(invoice);
     }
 
+    @Operation(summary = "Download Invoice PDF", description = "Generates and downloads a PDF for a specific invoice.")
+    @GetMapping("/invoice/{invoiceNumber}/pdf")
+    public ResponseEntity<byte[]> downloadInvoicePdf(
+            @PathVariable String invoiceNumber,
+            @RequestParam String deviceId) {
+        validateAccess(deviceId);
+        byte[] pdfBytes = paymentService.generateInvoicePdf(invoiceNumber, deviceId);
+        
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "invoice-" + invoiceNumber + ".pdf");
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+        
+        return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
     /**
      * Verifies that the authenticated principal has access to the requested
      * deviceId.
