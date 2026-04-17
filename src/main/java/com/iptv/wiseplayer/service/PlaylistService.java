@@ -7,13 +7,12 @@ import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import java.util.UUID;
 
 public interface PlaylistService {
-    void saveXtreamPlaylist(UUID deviceId, XtreamPlaylistRequest request);
+    PlaylistResponse saveXtreamPlaylist(UUID deviceId, XtreamPlaylistRequest request);
 
-    void saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request);
+    PlaylistResponse saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request);
 
-    void savePublicM3uPlaylist(String deviceId, M3uPlaylistRequest request);
+    PlaylistResponse savePublicM3uPlaylist(String deviceId, M3uPlaylistRequest request);
 
     java.util.List<PlaylistResponse> getPlaylists(UUID deviceId);
-
-    void validatePlaylist(UUID deviceId, Object request);
 }
+

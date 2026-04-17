@@ -33,15 +33,21 @@ public class PlaylistController {
     @Operation(summary = "Save Xtream Playlist", description = "Validates and saves a new Xtream Codes playlist.")
     @PostMapping("/xtream")
     public ResponseEntity<?> saveXtreamPlaylist(@RequestBody XtreamPlaylistRequest request) {
-        playlistService.saveXtreamPlaylist(deviceContext.getCurrentDeviceId(), request);
-        return ResponseEntity.ok(Map.of("success", true, "message", "Xtream playlist saved successfully"));
+        PlaylistResponse response = playlistService.saveXtreamPlaylist(deviceContext.getCurrentDeviceId(), request);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Xtream playlist validated and saved successfully",
+                "data", response));
     }
 
     @Operation(summary = "Save M3U Playlist", description = "Validates and saves a new M3U playlist URL.")
     @PostMapping("/m3u")
     public ResponseEntity<?> saveM3uPlaylist(@RequestBody M3uPlaylistRequest request) {
-        playlistService.saveM3uPlaylist(deviceContext.getCurrentDeviceId(), request);
-        return ResponseEntity.ok(Map.of("success", true, "message", "M3U playlist saved successfully"));
+        PlaylistResponse response = playlistService.saveM3uPlaylist(deviceContext.getCurrentDeviceId(), request);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "M3U playlist validated and saved successfully",
+                "data", response));
     }
 
     @Operation(summary = "Save Public M3U Playlist", description = "Public endpoint for website users to save M3U playlists.")
@@ -49,8 +55,11 @@ public class PlaylistController {
     public ResponseEntity<?> savePublicM3uPlaylist(
             @PathVariable String deviceId,
             @RequestBody M3uPlaylistRequest request) {
-        playlistService.savePublicM3uPlaylist(deviceId, request);
-        return ResponseEntity.ok(Map.of("success", true, "message", "M3U playlist saved effectively"));
+        PlaylistResponse response = playlistService.savePublicM3uPlaylist(deviceId, request);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "M3U playlist validated and uploaded successfully",
+                "data", response));
     }
 
     @Operation(summary = "Get All Playlists", description = "Retrieves all saved playlists for the authenticated device.")
@@ -60,25 +69,4 @@ public class PlaylistController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Validate Playlist", description = "Validates playlist credentials without saving.")
-    @PostMapping("/validate")
-    public ResponseEntity<?> validatePlaylist(@RequestBody Map<String, Object> payload) {
-        String type = (String) payload.get("type");
-        if ("XTREAM".equalsIgnoreCase(type)) {
-            com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request = new com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest();
-            request.setName((String) payload.get("name"));
-            request.setServerUrl((String) payload.get("serverUrl"));
-            request.setUsername((String) payload.get("username"));
-            request.setPassword((String) payload.get("password"));
-            playlistService.validatePlaylist(deviceContext.getCurrentDeviceId(), request);
-        } else if ("M3U".equalsIgnoreCase(type)) {
-            com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request = new com.iptv.wiseplayer.dto.request.M3uPlaylistRequest();
-            request.setName((String) payload.get("name"));
-            request.setM3uUrl((String) payload.get("m3uUrl"));
-            playlistService.validatePlaylist(deviceContext.getCurrentDeviceId(), request);
-        } else {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Invalid playlist type"));
-        }
-        return ResponseEntity.ok(Map.of("success", true, "message", "Playlist validated and saved successfully"));
-    }
 }

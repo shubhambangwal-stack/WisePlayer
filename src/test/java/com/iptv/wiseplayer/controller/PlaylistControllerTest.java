@@ -48,11 +48,4 @@ class PlaylistControllerTest {
                 .andExpect(status().isOk());
     }
 
-    @Test
-    void testValidatePlaylist() throws Exception {
-        mockMvc.perform(post("/api/playlist/validate")
-                .contentType("application/json")
-                .content("{\"type\": \"M3U\", \"name\": \"test\"}"))
-                .andExpect(status().isOk());
-    }
 }
