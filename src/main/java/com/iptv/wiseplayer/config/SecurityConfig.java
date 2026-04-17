@@ -1,7 +1,9 @@
 package com.iptv.wiseplayer.config;
 
-import com.iptv.wiseplayer.security.DeviceAuthenticationFilter;
 import com.iptv.wiseplayer.security.AdminAuthenticationFilter;
+import com.iptv.wiseplayer.security.AdminTokenUtil;
+import com.iptv.wiseplayer.security.DeviceAuthenticationFilter;
+import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,22 +18,42 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(SecurityProperties.class)
 @org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    private final DeviceAuthenticationFilter deviceAuthenticationFilter;
-    private final AdminAuthenticationFilter adminAuthenticationFilter;
     private final SecurityProperties securityProperties;
+    private final com.iptv.wiseplayer.repository.DeviceRepository deviceRepository;
+    private final DeviceTokenUtil deviceTokenUtil;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-    public SecurityConfig(DeviceAuthenticationFilter deviceAuthenticationFilter,
-            AdminAuthenticationFilter adminAuthenticationFilter,
-            SecurityProperties securityProperties) {
-        this.deviceAuthenticationFilter = deviceAuthenticationFilter;
-        this.adminAuthenticationFilter = adminAuthenticationFilter;
+    public SecurityConfig(SecurityProperties securityProperties,
+            com.iptv.wiseplayer.repository.DeviceRepository deviceRepository,
+            DeviceTokenUtil deviceTokenUtil,
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.securityProperties = securityProperties;
+        this.deviceRepository = deviceRepository;
+        this.deviceTokenUtil = deviceTokenUtil;
+        this.objectMapper = objectMapper;
+    }
+
+    @Bean
+    public AdminTokenUtil adminTokenUtil() {
+        return new AdminTokenUtil(securityProperties);
+    }
+
+    @Bean
+    public AdminAuthenticationFilter adminAuthenticationFilter() {
+        return new AdminAuthenticationFilter(adminTokenUtil(), objectMapper);
+    }
+
+    @Bean
+    public DeviceAuthenticationFilter deviceAuthenticationFilter() {
+        return new DeviceAuthenticationFilter(deviceTokenUtil, deviceRepository, objectMapper);
     }
 
     @Bean
@@ -54,7 +76,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+            DeviceAuthenticationFilter deviceAuthenticationFilter,
+            AdminAuthenticationFilter adminAuthenticationFilter) throws Exception {
         http
                 // Enable CORS using the configured source
                 // .cors(cors -> cors.configurationSource(corsConfigurationSource()))

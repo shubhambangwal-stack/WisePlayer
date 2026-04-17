@@ -9,7 +9,6 @@ import java.util.List;
  * Type-safe configuration properties for application security.
  * Binds properties prefixed with 'app.security' from application files.
  */
-@Configuration
 @ConfigurationProperties(prefix = "app.security")
 public class SecurityProperties {
 
