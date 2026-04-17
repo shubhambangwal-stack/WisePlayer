@@ -1,7 +1,7 @@
 package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.security.DeviceContext;
-import com.iptv.wiseplayer.service.iptv.LiveTvService;
+import com.iptv.wiseplayer.service.LiveTvService;
 import com.iptv.wiseplayer.service.iptv.XtreamStreamResolver;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
