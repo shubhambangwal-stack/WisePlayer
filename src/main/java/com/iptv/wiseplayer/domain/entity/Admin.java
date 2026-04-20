@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -60,10 +61,34 @@ public class Admin {
     private UUID creatorId;
 
     @Column(name = "credits", precision = 10, scale = 2, nullable = false)
-    private java.math.BigDecimal credits = java.math.BigDecimal.ZERO;
+    private BigDecimal credits = BigDecimal.ZERO;
 
     @Column(name = "partner_level", length = 20)
     private String partnerLevel = "SILVER";
+
+    // Manual accessors as fallback for environment issues
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+    public AdminRole getRole() { return role; }
+    public void setRole(AdminRole role) { this.role = role; }
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public UUID getParentId() { return parentId; }
+    public void setParentId(UUID parentId) { this.parentId = parentId; }
+    public BigDecimal getCredits() { return credits; }
+    public void setCredits(BigDecimal credits) { this.credits = credits; }
+    public String getPartnerLevel() { return partnerLevel; }
+    public void setPartnerLevel(String partnerLevel) { this.partnerLevel = partnerLevel; }
 
     public boolean isSuperAdmin() {
         return AdminRole.SUPER_ADMIN.equals(this.role);
