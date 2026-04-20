@@ -18,10 +18,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class AdminPlanService {
 
     private final PlanConfigRepository planConfigRepository;
+
+    public AdminPlanService(PlanConfigRepository planConfigRepository) {
+        this.planConfigRepository = planConfigRepository;
+    }
 
     @Transactional
     public PlanResponse createPlan(PlanRequest request) {

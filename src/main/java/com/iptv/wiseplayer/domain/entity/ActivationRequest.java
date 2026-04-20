@@ -1,20 +1,15 @@
 package com.iptv.wiseplayer.domain.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "activation_requests")
-@Getter
-@Setter
-@NoArgsConstructor
 public class ActivationRequest {
 
     @Id
@@ -41,7 +36,7 @@ public class ActivationRequest {
     private String status; // PENDING, APPROVED, REJECTED
 
     @Column(name = "credits_used", precision = 10, scale = 2)
-    private java.math.BigDecimal creditsUsed;
+    private BigDecimal creditsUsed;
 
     @Column(name = "admin_notes", length = 500)
     private String adminNotes;
@@ -59,4 +54,45 @@ public class ActivationRequest {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public ActivationRequest() {}
+
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public UUID getResellerId() { return resellerId; }
+    public void setResellerId(UUID resellerId) { this.resellerId = resellerId; }
+
+    public UUID getDeviceId() { return deviceId; }
+    public void setDeviceId(UUID deviceId) { this.deviceId = deviceId; }
+
+    public String getPlanName() { return planName; }
+    public void setPlanName(String planName) { this.planName = planName; }
+
+    public Double getAmount() { return amount; }
+    public void setAmount(Double amount) { this.amount = amount; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public BigDecimal getCreditsUsed() { return creditsUsed; }
+    public void setCreditsUsed(BigDecimal creditsUsed) { this.creditsUsed = creditsUsed; }
+
+    public String getAdminNotes() { return adminNotes; }
+    public void setAdminNotes(String adminNotes) { this.adminNotes = adminNotes; }
+
+    public UUID getReviewedBy() { return reviewedBy; }
+    public void setReviewedBy(UUID reviewedBy) { this.reviewedBy = reviewedBy; }
+
+    public LocalDateTime getReviewedAt() { return reviewedAt; }
+    public void setReviewedAt(LocalDateTime reviewedAt) { this.reviewedAt = reviewedAt; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

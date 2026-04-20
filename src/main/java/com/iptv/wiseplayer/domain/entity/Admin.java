@@ -2,9 +2,6 @@ package com.iptv.wiseplayer.domain.entity;
 
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -17,9 +14,6 @@ import java.util.UUID;
         @Index(name = "idx_admin_username", columnList = "username"),
         @Index(name = "idx_admin_email", columnList = "email")
 })
-@Getter
-@Setter
-@NoArgsConstructor
 public class Admin {
 
     @Id
@@ -66,7 +60,8 @@ public class Admin {
     @Column(name = "partner_level", length = 20)
     private String partnerLevel = "SILVER";
 
-    // Manual accessors as fallback for environment issues
+    public Admin() {}
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public String getEmail() { return email; }
@@ -85,6 +80,8 @@ public class Admin {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public UUID getParentId() { return parentId; }
     public void setParentId(UUID parentId) { this.parentId = parentId; }
+    public UUID getCreatorId() { return creatorId; }
+    public void setCreatorId(UUID creatorId) { this.creatorId = creatorId; }
     public BigDecimal getCredits() { return credits; }
     public void setCredits(BigDecimal credits) { this.credits = credits; }
     public String getPartnerLevel() { return partnerLevel; }

@@ -19,13 +19,20 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/reseller/credits")
-@RequiredArgsConstructor
 @Tag(name = "Reseller Credit API", description = "Endpoints for Reseller Credit Management")
 public class CreditController {
 
     private final CreditService creditService;
     private final PaymentService paymentService;
     private final AdminRepository adminRepository;
+
+    public CreditController(CreditService creditService,
+                            PaymentService paymentService,
+                            AdminRepository adminRepository) {
+        this.creditService = creditService;
+        this.paymentService = paymentService;
+        this.adminRepository = adminRepository;
+    }
 
     @GetMapping("/balance")
     @Operation(summary = "Get Credit Balance", description = "Get the current credit balance for the logged-in reseller")

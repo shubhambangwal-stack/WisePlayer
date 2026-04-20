@@ -10,7 +10,8 @@ import com.iptv.wiseplayer.repository.AdminAuditLogRepository;
 import com.iptv.wiseplayer.repository.AdminInviteRepository;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,8 +23,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-@Slf4j
 public class AdminManagementService {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminManagementService.class);
 
     private final AdminRepository adminRepository;
     private final AdminInviteRepository adminInviteRepository;

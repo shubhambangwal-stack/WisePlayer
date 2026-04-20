@@ -25,7 +25,8 @@ import com.iptv.wiseplayer.repository.ActivationRequestRepository;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.ResellerService;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,8 +35,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@Slf4j
 public class ResellerServiceImpl implements ResellerService {
+
+    private static final Logger log = LoggerFactory.getLogger(ResellerServiceImpl.class);
 
     private final DeviceRepository deviceRepository;
     private final AdminRepository adminRepository;

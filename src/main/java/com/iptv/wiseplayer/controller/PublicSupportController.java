@@ -12,11 +12,14 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/public/support")
-@RequiredArgsConstructor
 @Tag(name = "Public Support", description = "Endpoints for public users to submit support tickets")
 public class PublicSupportController {
 
     private final SupportService supportService;
+
+    public PublicSupportController(SupportService supportService) {
+        this.supportService = supportService;
+    }
 
     @PostMapping(value = "/ticket", consumes = { "multipart/form-data" })
     @Operation(summary = "Submit a Support Ticket", description = "Submits a new support ticket with optional attachment")

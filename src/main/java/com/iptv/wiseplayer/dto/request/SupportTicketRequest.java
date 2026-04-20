@@ -2,10 +2,8 @@ package com.iptv.wiseplayer.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
 import org.springframework.web.multipart.MultipartFile;
 
-@Data
 public class SupportTicketRequest {
 
     @NotBlank(message = "First name is required")
@@ -28,4 +26,25 @@ public class SupportTicketRequest {
     private String message;
 
     private MultipartFile attachment;
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getMacAddress() { return macAddress; }
+    public void setMacAddress(String macAddress) { this.macAddress = macAddress; }
+
+    public String getInquiryType() { return inquiryType; }
+    public void setInquiryType(String inquiryType) { this.inquiryType = inquiryType; }
+
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+
+    public MultipartFile getAttachment() { return attachment; }
+    public void setAttachment(MultipartFile attachment) { this.attachment = attachment; }
 }

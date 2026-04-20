@@ -18,11 +18,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/plans")
-@RequiredArgsConstructor
 @Tag(name = "Admin Plan Management", description = "Endpoints for managing subscription plans")
 public class AdminPlanController {
 
     private final AdminPlanService adminPlanService;
+
+    public AdminPlanController(AdminPlanService adminPlanService) {
+        this.adminPlanService = adminPlanService;
+    }
 
     @Operation(summary = "Create Plan", description = "Creates a new subscription plan. Only accessible by ADMIN/SUPER_ADMIN.")
     @PostMapping

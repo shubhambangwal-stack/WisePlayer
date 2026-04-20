@@ -16,11 +16,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/activation-requests")
-@RequiredArgsConstructor
 @Tag(name = "Admin Activation Request Management", description = "Endpoints for reviewing reseller activation requests")
 public class AdminActivationRequestController {
 
     private final AdminActivationRequestService adminActivationRequestService;
+
+    public AdminActivationRequestController(AdminActivationRequestService adminActivationRequestService) {
+        this.adminActivationRequestService = adminActivationRequestService;
+    }
 
     @Operation(summary = "List All Activation Requests", description = "Retrieves a paginated list of activation requests, optionally filtered by status.")
     @GetMapping

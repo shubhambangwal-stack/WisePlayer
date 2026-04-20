@@ -16,11 +16,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/support/tickets")
-@RequiredArgsConstructor
 @Tag(name = "Admin Support Management", description = "Endpoints for admins to manage support tickets")
 public class AdminSupportController {
 
     private final SupportService supportService;
+
+    public AdminSupportController(SupportService supportService) {
+        this.supportService = supportService;
+    }
 
     @GetMapping
     @Operation(summary = "List All Support Tickets", description = "Retrieves a paginated list of support tickets")
