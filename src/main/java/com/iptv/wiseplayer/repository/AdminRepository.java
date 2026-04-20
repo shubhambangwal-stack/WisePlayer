@@ -24,4 +24,5 @@ public interface AdminRepository extends JpaRepository<Admin, UUID> {
     Page<Admin> findAllByRoleIn(List<AdminRole> roles, Pageable pageable);
 
     List<Admin> findAllByRoleIn(List<AdminRole> roles);
+    org.springframework.data.domain.Page<Admin> findAllByParentId(java.util.UUID parentId, org.springframework.data.domain.Pageable pageable);
 }

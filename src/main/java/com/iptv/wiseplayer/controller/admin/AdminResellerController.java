@@ -48,4 +48,27 @@ public class AdminResellerController {
         adminResellerService.toggleResellerStatus(id);
         return ResponseEntity.ok(Map.of("success", true, "message", "Reseller status toggled successfully"));
     }
+
+    @Operation(summary = "Get Reseller Stats", description = "Retrieves KPI statistics for a reseller.")
+    @GetMapping("/{id}/stats")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.ResellerStatsResponse> getResellerStats(@PathVariable UUID id) {
+        return ResponseEntity.ok(adminResellerService.getResellerStats(id));
+    }
+
+    @Operation(summary = "Get Reseller Analytics", description = "Retrieves time-series data for activations and revenue.")
+    @GetMapping("/{id}/analytics")
+    public ResponseEntity<List<com.iptv.wiseplayer.dto.response.ResellerAnalyticsResponse>> getResellerAnalytics(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "WEEK") String period,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate) {
+        return ResponseEntity.ok(adminResellerService.getResellerAnalytics(id, period, startDate));
+    }
+
+    @Operation(summary = "Get Sub-Resellers", description = "List sub-resellers managed by this reseller.")
+    @GetMapping("/{id}/sub-resellers")
+    public ResponseEntity<Page<com.iptv.wiseplayer.dto.response.SubResellerResponse>> getSubResellers(
+            @PathVariable UUID id,
+            Pageable pageable) {
+        return ResponseEntity.ok(adminResellerService.getSubResellers(id, pageable));
+    }
 }

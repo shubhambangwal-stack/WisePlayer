@@ -33,4 +33,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     long countByStatus(SubscriptionStatus status);
 
     long countByStatusAndStartDateBetween(SubscriptionStatus status, LocalDateTime from, LocalDateTime to);
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(s) FROM Subscription s WHERE s.status = 'ACTIVE' AND s.deviceId IN (SELECT d.deviceId FROM Device d WHERE d.resellerId = :resellerId)")
+    long countActiveByResellerId(@org.springframework.data.repository.query.Param("resellerId") java.util.UUID resellerId);
 }

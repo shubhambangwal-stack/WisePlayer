@@ -26,4 +26,7 @@ public interface ActivationRequestRepository extends JpaRepository<ActivationReq
     long countByStatus(String status);
 
     java.util.Optional<ActivationRequest> findTopByDeviceIdOrderByCreatedAtDesc(UUID deviceId);
+
+    java.util.List<ActivationRequest> findAllByResellerIdAndStatusAndCreatedAtBetween(
+            UUID resellerId, String status, java.time.LocalDateTime start, java.time.LocalDateTime end);
 }

@@ -23,11 +23,126 @@ public class AdminResellerService {
     private final AdminRepository adminRepository;
     private final DeviceRepository deviceRepository;
     private final com.iptv.wiseplayer.repository.CreditTransactionRepository creditTransactionRepository;
+    private final com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository;
+    private final com.iptv.wiseplayer.repository.PaymentRepository paymentRepository;
+    private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
 
     public Page<ResellerResponse> getAllResellers(Pageable pageable) {
         List<AdminRole> roles = Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER);
         return adminRepository.findAllByRoleIn(roles, pageable)
                 .map(this::convertToResponse);
+    }
+
+    public com.iptv.wiseplayer.dto.response.ResellerStatsResponse getResellerStats(UUID id) {
+        Admin admin = adminRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
+
+        long totalUsers = deviceRepository.countByResellerId(id);
+        long activeSubs = subscriptionRepository.countActiveByResellerId(id);
+
+        // Growth calculation (this month vs last month)
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime startThisMonth = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+        java.time.LocalDateTime startLastMonth = startThisMonth.minusMonths(1);
+
+        long thisMonthActivations = activationRequestRepository.findAllByResellerIdAndStatusAndCreatedAtBetween(
+                id, "APPROVED", startThisMonth, now).size();
+        long lastMonthActivations = activationRequestRepository.findAllByResellerIdAndStatusAndCreatedAtBetween(
+                id, "APPROVED", startLastMonth, startThisMonth).size();
+
+        double growth = lastMonthActivations == 0 ? (thisMonthActivations > 0 ? 100.0 : 0.0)
+                : ((double) (thisMonthActivations - lastMonthActivations) / lastMonthActivations) * 100.0;
+
+        // Peak Activation Time
+        List<com.iptv.wiseplayer.domain.entity.ActivationRequest> allActivations = activationRequestRepository.findAllByResellerId(id);
+        String peakTime = calculatePeakActivationTime(allActivations);
+
+        return com.iptv.wiseplayer.dto.response.ResellerStatsResponse.builder()
+                .totalUsers(totalUsers)
+                .activeSubscriptions(activeSubs)
+                .growthPercentage(Math.round(growth * 10.0) / 10.0)
+                .remainingCredits(admin.getCredits())
+                .partnerLevel(admin.getPartnerLevel())
+                .peakActivationTime(peakTime)
+                .build();
+    }
+
+    public List<com.iptv.wiseplayer.dto.response.ResellerAnalyticsResponse> getResellerAnalytics(UUID id, String period, java.time.LocalDate startDate) {
+        java.time.LocalDateTime start = startDate.atStartOfDay();
+        java.time.LocalDateTime end;
+        
+        if ("WEEK".equalsIgnoreCase(period)) {
+            end = start.plusDays(7);
+        } else if ("MONTH".equalsIgnoreCase(period)) {
+            end = start.plusMonths(1);
+        } else {
+            end = start.plusDays(1);
+        }
+
+        List<com.iptv.wiseplayer.domain.entity.ActivationRequest> activations = activationRequestRepository
+                .findAllByResellerIdAndStatusAndCreatedAtBetween(id, "APPROVED", start, end);
+        
+        // Grouping logic for analytics
+        java.util.Map<java.time.LocalDate, Long> activationMap = activations.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        a -> a.getCreatedAt().toLocalDate(),
+                        java.util.stream.Collectors.counting()
+                ));
+
+        List<com.iptv.wiseplayer.dto.response.ResellerAnalyticsResponse> results = new java.util.ArrayList<>();
+        java.time.LocalDate current = startDate;
+        java.time.LocalDate stopDate = end.toLocalDate();
+
+        while (current.isBefore(stopDate) || current.equals(stopDate)) {
+            java.time.LocalDateTime dayStart = current.atStartOfDay();
+            java.time.LocalDateTime dayEnd = current.atTime(23, 59, 59);
+
+            java.math.BigDecimal revenue = paymentRepository.sumTotalRevenueByResellerIdAndStatusAndCreatedAtBetween(
+                    id, com.iptv.wiseplayer.domain.enums.PaymentStatus.SUCCESS, dayStart, dayEnd);
+
+            results.add(com.iptv.wiseplayer.dto.response.ResellerAnalyticsResponse.builder()
+                    .date(current)
+                    .activations(activationMap.getOrDefault(current, 0L))
+                    .revenue(revenue != null ? revenue : java.math.BigDecimal.ZERO)
+                    .build());
+            
+            current = current.plusDays(1);
+        }
+
+        return results;
+    }
+
+    public Page<com.iptv.wiseplayer.dto.response.SubResellerResponse> getSubResellers(UUID id, Pageable pageable) {
+        return adminRepository.findAllByParentId(id, pageable)
+                .map(sub -> com.iptv.wiseplayer.dto.response.SubResellerResponse.builder()
+                        .id(sub.getId())
+                        .username(sub.getUsername())
+                        .fullName(sub.getFullName())
+                        .activeUsers(deviceRepository.countByResellerId(sub.getId()))
+                        .status(sub.isActive() ? "ACTIVE" : "INACTIVE")
+                        .joinedAt(sub.getCreatedAt())
+                        .build());
+    }
+
+    private String calculatePeakActivationTime(List<com.iptv.wiseplayer.domain.entity.ActivationRequest> requests) {
+        if (requests.isEmpty()) return "N/A";
+        
+        int[] hours = new int[24];
+        for (com.iptv.wiseplayer.domain.entity.ActivationRequest req : requests) {
+            hours[req.getCreatedAt().getHour()]++;
+        }
+
+        int maxWindow = 0;
+        int peakHour = 0;
+        for (int i = 0; i < 22; i++) {
+            int window = hours[i] + hours[i+1] + hours[i+2];
+            if (window > maxWindow) {
+                maxWindow = window;
+                peakHour = i;
+            }
+        }
+
+        return String.format("%02d:00 - %02d:00", peakHour, (peakHour + 3) % 24);
     }
 
     public ResellerResponse getResellerById(UUID id) {
