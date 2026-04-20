@@ -38,4 +38,11 @@ public interface PaymentRepository extends JpaRepository<Payments, UUID> {
 
     long countByStatusAndCreatedAtBetween(com.iptv.wiseplayer.domain.enums.PaymentStatus status,
             java.time.LocalDateTime from, java.time.LocalDateTime to);
+
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM payments p WHERE p.resellerId = :resellerId AND p.status = :status AND p.createdAt >= :from AND p.createdAt <= :to")
+    java.math.BigDecimal sumTotalRevenueByResellerIdAndStatusAndCreatedAtBetween(
+            @Param("resellerId") java.util.UUID resellerId,
+            @Param("status") com.iptv.wiseplayer.domain.enums.PaymentStatus status,
+            @Param("from") java.time.LocalDateTime from,
+            @Param("to") java.time.LocalDateTime to);
 }

@@ -62,6 +62,9 @@ public class Admin {
     @Column(name = "credits", precision = 10, scale = 2, nullable = false)
     private java.math.BigDecimal credits = java.math.BigDecimal.ZERO;
 
+    @Column(name = "partner_level", length = 20)
+    private String partnerLevel = "SILVER";
+
     public boolean isSuperAdmin() {
         return AdminRole.SUPER_ADMIN.equals(this.role);
     }
