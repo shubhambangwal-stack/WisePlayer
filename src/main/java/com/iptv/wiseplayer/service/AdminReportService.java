@@ -17,7 +17,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class AdminReportService {
 
     private final PaymentRepository paymentRepository;
@@ -25,6 +24,18 @@ public class AdminReportService {
     private final SubscriptionRepository subscriptionRepository;
     private final AdminRepository adminRepository;
     private final ActivationRequestRepository activationRequestRepository;
+
+    public AdminReportService(PaymentRepository paymentRepository,
+                             DeviceRepository deviceRepository,
+                             SubscriptionRepository subscriptionRepository,
+                             AdminRepository adminRepository,
+                             ActivationRequestRepository activationRequestRepository) {
+        this.paymentRepository = paymentRepository;
+        this.deviceRepository = deviceRepository;
+        this.subscriptionRepository = subscriptionRepository;
+        this.adminRepository = adminRepository;
+        this.activationRequestRepository = activationRequestRepository;
+    }
 
     public Map<String, Object> getRevenueReport(LocalDateTime from, LocalDateTime to) {
         Map<String, Object> report = new HashMap<>();

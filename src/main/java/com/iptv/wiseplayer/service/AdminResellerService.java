@@ -6,7 +6,6 @@ import com.iptv.wiseplayer.dto.response.ResellerResponse;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,7 +16,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class AdminResellerService {
 
     private final AdminRepository adminRepository;
@@ -26,6 +24,20 @@ public class AdminResellerService {
     private final com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository;
     private final com.iptv.wiseplayer.repository.PaymentRepository paymentRepository;
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
+
+    public AdminResellerService(AdminRepository adminRepository,
+                               DeviceRepository deviceRepository,
+                               com.iptv.wiseplayer.repository.CreditTransactionRepository creditTransactionRepository,
+                               com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository,
+                               com.iptv.wiseplayer.repository.PaymentRepository paymentRepository,
+                               com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository) {
+        this.adminRepository = adminRepository;
+        this.deviceRepository = deviceRepository;
+        this.creditTransactionRepository = creditTransactionRepository;
+        this.activationRequestRepository = activationRequestRepository;
+        this.paymentRepository = paymentRepository;
+        this.subscriptionRepository = subscriptionRepository;
+    }
 
     public Page<ResellerResponse> getAllResellers(Pageable pageable) {
         List<AdminRole> roles = Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER);

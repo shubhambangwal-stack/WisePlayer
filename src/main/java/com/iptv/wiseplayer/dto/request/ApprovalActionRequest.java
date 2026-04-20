@@ -1,12 +1,19 @@
 package com.iptv.wiseplayer.dto.request;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class ApprovalActionRequest {
     private String adminNotes;
+
+    public ApprovalActionRequest() {}
+
+    public ApprovalActionRequest(String adminNotes) {
+        this.adminNotes = adminNotes;
+    }
+
+    public String getAdminNotes() {
+        return adminNotes;
+    }
+
+    public void setAdminNotes(String adminNotes) {
+        this.adminNotes = adminNotes;
+    }
 }

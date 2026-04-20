@@ -10,17 +10,23 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/resellers")
-@RequiredArgsConstructor
 @Tag(name = "Admin Reseller Management", description = "Endpoints for managing resellers and sub-resellers")
 public class AdminResellerController {
 
     private final AdminResellerService adminResellerService;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
+    public AdminResellerController(AdminResellerService adminResellerService,
+                                 org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
+        this.adminResellerService = adminResellerService;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Operation(summary = "List All Resellers", description = "Retrieves a paginated list of all resellers and sub-resellers.")
     @GetMapping

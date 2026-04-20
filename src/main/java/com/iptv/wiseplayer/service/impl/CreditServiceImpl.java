@@ -10,8 +10,6 @@ import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.CreditTransactionRepository;
 import com.iptv.wiseplayer.repository.PlanConfigRepository;
 import com.iptv.wiseplayer.service.CreditService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,13 +17,21 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class CreditServiceImpl implements CreditService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CreditServiceImpl.class);
 
     private final AdminRepository adminRepository;
     private final CreditTransactionRepository creditTransactionRepository;
     private final PlanConfigRepository planConfigRepository;
+
+    public CreditServiceImpl(AdminRepository adminRepository,
+                             CreditTransactionRepository creditTransactionRepository,
+                             PlanConfigRepository planConfigRepository) {
+        this.adminRepository = adminRepository;
+        this.creditTransactionRepository = creditTransactionRepository;
+        this.planConfigRepository = planConfigRepository;
+    }
 
     @Override
     @Transactional

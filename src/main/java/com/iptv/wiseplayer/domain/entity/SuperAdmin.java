@@ -1,9 +1,6 @@
 package com.iptv.wiseplayer.domain.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -12,9 +9,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "super_admins")
-@Getter
-@Setter
-@NoArgsConstructor
 public class SuperAdmin {
 
     @Id
@@ -26,7 +20,7 @@ public class SuperAdmin {
     private String username;
 
     @Column(name = "password", nullable = false, length = 100)
-    private String password; // Plain-text as requested
+    private String password;
 
     @Column(name = "full_name", length = 100)
     private String fullName;
@@ -38,4 +32,24 @@ public class SuperAdmin {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public SuperAdmin() {}
+
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

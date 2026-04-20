@@ -1,9 +1,6 @@
 package com.iptv.wiseplayer.domain.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -13,9 +10,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "subscription_plan_configs")
-@Getter
-@Setter
-@NoArgsConstructor
 public class SubscriptionPlanConfig {
 
     @Id
@@ -49,7 +43,8 @@ public class SubscriptionPlanConfig {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Manual accessors as fallback for environment issues
+    public SubscriptionPlanConfig() {}
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public String getName() { return name; }

@@ -17,11 +17,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/reports")
-@RequiredArgsConstructor
 @Tag(name = "Admin Reports", description = "Endpoints for enhanced system reports and analytics")
 public class AdminReportController {
 
     private final AdminReportService adminReportService;
+
+    public AdminReportController(AdminReportService adminReportService) {
+        this.adminReportService = adminReportService;
+    }
 
     @Operation(summary = "Revenue Report", description = "Retrieves revenue statistics for a given date range.")
     @GetMapping("/revenue")

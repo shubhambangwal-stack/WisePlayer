@@ -1,9 +1,6 @@
 package com.iptv.wiseplayer.domain.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -11,9 +8,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "admin_invites")
-@Getter
-@Setter
-@NoArgsConstructor
 public class AdminInvite {
 
     @Id
@@ -39,7 +33,8 @@ public class AdminInvite {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // Manual accessors as fallback for environment issues
+    public AdminInvite() {}
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getEmail() { return email; }

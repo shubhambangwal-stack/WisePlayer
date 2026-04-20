@@ -12,7 +12,6 @@ import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.PlanConfigRepository;
 import com.iptv.wiseplayer.repository.SuperAdminRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,7 +22,6 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class AdminActivationRequestService {
 
     private final ActivationRequestRepository activationRequestRepository;
@@ -33,6 +31,23 @@ public class AdminActivationRequestService {
     private final AdminSubscriptionService adminSubscriptionService;
     private final com.iptv.wiseplayer.service.CreditService creditService;
     private final PlanConfigRepository planConfigRepository;
+
+    public AdminActivationRequestService(
+            ActivationRequestRepository activationRequestRepository,
+            AdminRepository adminRepository,
+            SuperAdminRepository superAdminRepository,
+            DeviceRepository deviceRepository,
+            AdminSubscriptionService adminSubscriptionService,
+            com.iptv.wiseplayer.service.CreditService creditService,
+            PlanConfigRepository planConfigRepository) {
+        this.activationRequestRepository = activationRequestRepository;
+        this.adminRepository = adminRepository;
+        this.superAdminRepository = superAdminRepository;
+        this.deviceRepository = deviceRepository;
+        this.adminSubscriptionService = adminSubscriptionService;
+        this.creditService = creditService;
+        this.planConfigRepository = planConfigRepository;
+    }
 
     public Page<ActivationRequestResponse> getAllRequests(String status, Pageable pageable) {
         if (status != null && !status.isEmpty()) {
