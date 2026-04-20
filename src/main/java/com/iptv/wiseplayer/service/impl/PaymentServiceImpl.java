@@ -115,6 +115,12 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public CheckoutResponse createCheckoutSession(CheckoutRequest request) {
+        return createCheckoutSession(request, null);
+    }
+
+    @Override
+    @Transactional
+    public CheckoutResponse createCheckoutSession(CheckoutRequest request, String customReturnUrl) {
         // 1. Check if device already has a PAID subscription
         SubscriptionResponse subStatus = subscriptionService.getSubscriptionStatus(request.getDeviceId());
 
@@ -170,7 +176,7 @@ public class PaymentServiceImpl implements PaymentService {
         orderRequest.put("purchase_units", java.util.Collections.singletonList(purchaseUnit));
 
         java.util.Map<String, String> applicationContext = new java.util.HashMap<>();
-        applicationContext.put("return_url", paypalReturnUrl);
+        applicationContext.put("return_url", customReturnUrl != null ? customReturnUrl : paypalReturnUrl);
         applicationContext.put("cancel_url", paypalCancelUrl);
         applicationContext.put("landing_page", "BILLING");
         applicationContext.put("user_action", "PAY_NOW");

@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public interface PaymentService {
     CheckoutResponse createCheckoutSession(CheckoutRequest request);
+    CheckoutResponse createCheckoutSession(CheckoutRequest request, String customReturnUrl);
 
     void handleWebhook(String payload, String sigHeader);
 
