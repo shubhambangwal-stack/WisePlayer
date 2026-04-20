@@ -29,6 +29,9 @@ public class PaymentController {
     @Value("${paypal.frontend-url:https://wise-player.com}")
     private String frontendUrl;
 
+    @Value("${APP_BASE_URL}")
+    private String appBaseUrl;
+
     private final PaymentService paymentService;
 
     public PaymentController(PaymentService paymentService) {
@@ -45,7 +48,8 @@ public class PaymentController {
     @Operation(summary = "Create Public Checkout Session", description = "Initiates a PayPal checkout session for a subscription (Public access for web users).")
     @PostMapping("/public/checkout")
     public ResponseEntity<CheckoutResponse> createPublicCheckoutSession(@RequestBody CheckoutRequest request) {
-        CheckoutResponse response = paymentService.createCheckoutSession(request);
+        String publicReturnUrl = appBaseUrl + "/api/payment/paypal/public/success";
+        CheckoutResponse response = paymentService.createCheckoutSession(request, publicReturnUrl);
         return ResponseEntity.ok(response);
     }
 
@@ -100,6 +104,32 @@ public class PaymentController {
         }
     }
 
+    @Operation(summary = "PayPal Public Success Redirect", description = "Internal callback for public web checkouts. Redirects users back to the frontend with detailed info for the success dialog.")
+    @GetMapping("/paypal/public/success")
+    public ResponseEntity<Object> paypalPublicSuccess(@RequestParam("token") String orderId,
+            @RequestParam("PayerID") String payerId) {
+        try {
+            Payments payment = paymentService.captureOrder(orderId.trim());
+
+            // Construct invoice number similar to mapToInvoiceResponse logic
+            String invoiceNo = "INV-" + payment.getId().toString().substring(0, 8).toUpperCase();
+
+            // Append details as query params for the frontend to show the "Success" dialog
+            String redirectUrl = String.format("%s/home?paymentStatus=success&invoiceNo=%s&deviceId=%s",
+                    frontendUrl,
+                    invoiceNo,
+                    payment.getDeviceId());
+
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(redirectUrl))
+                    .build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(frontendUrl + "/home?paymentStatus=error"))
+                    .build();
+        }
+    }
+
     @Operation(summary = "PayPal Cancel Redirect", description = "Internal callback if user cancels. Handles dynamic redirection.")
     @GetMapping("/paypal/cancel")
     public ResponseEntity<Object> paypalCancel(@RequestParam(value = "token", required = false) String token) {
@@ -140,6 +170,21 @@ public class PaymentController {
         validateAccess(deviceId);
         byte[] pdfBytes = paymentService.generateInvoicePdf(invoiceNumber, deviceId);
         
+        return createPdfResponse(pdfBytes, invoiceNumber);
+    }
+
+    @Operation(summary = "Public Download Invoice PDF", description = "Publicly generates and downloads a PDF for a specific invoice using deviceId and invoiceNo.")
+    @GetMapping("/public/invoice/{invoiceNumber}/pdf")
+    public ResponseEntity<byte[]> publicDownloadInvoicePdf(
+            @PathVariable String invoiceNumber,
+            @RequestParam String deviceId) {
+        // No validateAccess(deviceId) here — the service already verifies the invoice belongs to the device.
+        byte[] pdfBytes = paymentService.generateInvoicePdf(invoiceNumber, deviceId);
+        
+        return createPdfResponse(pdfBytes, invoiceNumber);
+    }
+
+    private ResponseEntity<byte[]> createPdfResponse(byte[] pdfBytes, String invoiceNumber) {
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("attachment", "invoice-" + invoiceNumber + ".pdf");
