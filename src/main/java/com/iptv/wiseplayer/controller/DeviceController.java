@@ -12,6 +12,9 @@ import com.iptv.wiseplayer.dto.response.DeviceKeyStatusResponse;
 import com.iptv.wiseplayer.security.DeviceContext;
 import com.iptv.wiseplayer.service.DeviceKeyService;
 import com.iptv.wiseplayer.service.DeviceService;
+import com.iptv.wiseplayer.dto.response.ApiResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,9 +45,10 @@ public class DeviceController {
      */
     @Operation(summary = "Register Device", description = "Registers a new device using its unique identifier and metadata.")
     @PostMapping("/register")
-    public ResponseEntity<DeviceRegistrationResponse> registerDevice(@RequestBody DeviceRegistrationRequest request) {
+    public ResponseEntity<ApiResponse<DeviceRegistrationResponse>> registerDevice(@Valid @RequestBody DeviceRegistrationRequest request) {
         DeviceRegistrationResponse response = deviceService.registerDevice(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Device registered successfully", response));
     }
 
     /**
@@ -52,9 +56,9 @@ public class DeviceController {
      */
     @Operation(summary = "Validate Device", description = "Validates the device status on application launch to ensure it is authorized.")
     @PostMapping("/validate")
-    public ResponseEntity<DeviceValidationResponse> validateDevice(@RequestBody DeviceValidationRequest request) {
+    public ResponseEntity<ApiResponse<DeviceValidationResponse>> validateDevice(@Valid @RequestBody DeviceValidationRequest request) {
         DeviceValidationResponse response = deviceService.validateDevice(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Device validated successfully", response));
     }
 
     /**
@@ -62,9 +66,9 @@ public class DeviceController {
      */
     @Operation(summary = "Generate Activation Key", description = "Generates a temporary 6-digit numeric key for device activation.")
     @PostMapping("/key")
-    public ResponseEntity<DeviceKeyResponse> generateKey(@RequestBody DeviceKeyRequest request) {
+    public ResponseEntity<ApiResponse<DeviceKeyResponse>> generateKey(@Valid @RequestBody DeviceKeyRequest request) {
         DeviceKeyResponse response = deviceKeyService.generateDeviceKey(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Key generated successfully", response));
     }
 
     /**
@@ -72,9 +76,9 @@ public class DeviceController {
      */
     @Operation(summary = "Activate Device", description = "Activates a device using the provided 6-digit activation code.")
     @PostMapping("/activate")
-    public ResponseEntity<DeviceActivationResponse> activateDevice(@RequestBody DeviceActivationRequest request) {
+    public ResponseEntity<ApiResponse<DeviceActivationResponse>> activateDevice(@Valid @RequestBody DeviceActivationRequest request) {
         DeviceActivationResponse response = deviceKeyService.activateDevice(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Device activated successfully", response));
     }
 
     /**
@@ -83,17 +87,17 @@ public class DeviceController {
      */
     @Operation(summary = "Get Key Status", description = "Checks the status of the activation key for the authenticated device.")
     @GetMapping("/key/status")
-    public ResponseEntity<DeviceKeyStatusResponse> getKeyStatus() {
+    public ResponseEntity<ApiResponse<DeviceKeyStatusResponse>> getKeyStatus() {
         DeviceKeyStatusResponse response = deviceKeyService.getKeyStatus(deviceContext.getCurrentDeviceId());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Key status retrieved successfully", response));
     }
 
     @Operation(summary = "Refresh Token", description = "Refreshes the device access token using the hardware-linked secret.")
     @PostMapping("/refresh")
-    public ResponseEntity<DeviceValidationResponse> refreshToken(
+    public ResponseEntity<ApiResponse<DeviceValidationResponse>> refreshToken(
             @RequestHeader("X-Device-Secret") String deviceSecret,
             @RequestHeader("X-Device-Fingerprint") String fingerprint) {
         DeviceValidationResponse response = deviceService.refreshDeviceToken(deviceSecret, fingerprint);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Token refreshed successfully", response));
     }
 }

@@ -123,10 +123,21 @@ public class GlobalExceptionHandler {
                 return buildErrorResponse(HttpStatus.CONFLICT, message, request);
         }
 
+        @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+        public ResponseEntity<ErrorResponse> handleConstraintViolationException(jakarta.validation.ConstraintViolationException ex,
+                        HttpServletRequest request) {
+                String message = ex.getConstraintViolations().stream()
+                                .map(cv -> cv.getPropertyPath() + ": " + cv.getMessage())
+                                .collect(Collectors.joining(", "));
+                log.warn("Constraint Violation: {}", message);
+                return buildErrorResponse(HttpStatus.BAD_REQUEST, message, request);
+        }
+
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
                 log.error("Unexpected Error: ", ex);
-                return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+                String message = "An unexpected error occurred. Please contact support.";
+                return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, message, request);
         }
 
         private ResponseEntity<ErrorResponse> buildErrorResponse(HttpStatus status, String message,
