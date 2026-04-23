@@ -27,4 +27,5 @@ public interface PaymentService {
     List<com.iptv.wiseplayer.dto.response.PlanResponse> getActivePlans();
 
     byte[] generateInvoicePdf(String invoiceNumber, String deviceId);
+    String generateInvoiceNumber(java.util.UUID paymentId);
 }

@@ -1,11 +1,14 @@
 package com.iptv.wiseplayer.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+
 /**
  * Request DTO for device validation.
  * Contains fingerprint for verification.
  */
 public class DeviceValidationRequest {
 
+    @NotBlank(message = "Device fingerprint is required")
     private String fingerprint;
 
     // Constructors

@@ -15,6 +15,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.iptv.wiseplayer.dto.request.AdminInviteRequest;
+import com.iptv.wiseplayer.dto.request.AdminSetupRequest;
+import com.iptv.wiseplayer.dto.response.ApiResponse;
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/admin/management")
 @Tag(name = "Admin Management", description = "Endpoints for SUPER_ADMIN to manage admin accounts")
@@ -34,12 +39,9 @@ public class AdminManagementController {
 
     @Operation(summary = "Invite Admin", description = "Generates an invitation link for a new admin. Only accessible by SUPER_ADMIN.")
     @PostMapping("/invite")
-    public ResponseEntity<Map<String, Object>> inviteAdmin(@RequestBody Map<String, String> request,
+    public ResponseEntity<ApiResponse<Map<String, Object>>> inviteAdmin(@Valid @RequestBody AdminInviteRequest request,
             HttpServletRequest httpRequest) {
-        String email = request.get("email");
-        if (email == null || email.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Email is required"));
-        }
+        String email = request.getEmail();
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = (String) auth.getPrincipal();
@@ -67,41 +69,27 @@ public class AdminManagementController {
         String message = result.isNew() ? "Invitation generated successfully"
                 : "Invitation already sent. It is valid for " + result.minutesRemaining() + " more minutes.";
 
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", message,
+        Map<String, Object> data = Map.of(
                 "token", result.token(),
-                "inviteUrl", "/admin/setup?token=" + result.token()));
+                "inviteUrl", "/admin/setup?token=" + result.token());
+
+        return ResponseEntity.ok(ApiResponse.success(message, data));
     }
 
     @Operation(summary = "Verify Invite", description = "Verifies if an invitation token is valid.")
     @GetMapping("/invite/verify")
-    public ResponseEntity<Map<String, Object>> verifyInvite(@RequestParam String token) {
-        try {
-            adminManagementService.verifyInvite(token);
-            return ResponseEntity.ok(Map.of("success", true, "valid", true));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
-        }
+    public ResponseEntity<ApiResponse<Boolean>> verifyInvite(@RequestParam String token) {
+        adminManagementService.verifyInvite(token);
+        return ResponseEntity.ok(ApiResponse.success("Invitation is valid", true));
     }
 
     @Operation(summary = "Complete Setup", description = "Finalizes admin account creation with password and full name.")
     @PostMapping("/setup/complete")
-    public ResponseEntity<Map<String, Object>> completeSetup(@RequestBody Map<String, String> request,
+    public ResponseEntity<ApiResponse<String>> completeSetup(@Valid @RequestBody AdminSetupRequest request,
             HttpServletRequest httpRequest) {
-        String token = request.get("token");
-        String password = request.get("password");
-        String fullName = request.get("fullName");
+        
+        adminManagementService.completeSetup(request.getToken(), request.getPassword(), request.getFullName(), httpRequest);
 
-        if (token == null || password == null || fullName == null) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", "Token, password, and fullName are required"));
-        }
-
-        adminManagementService.completeSetup(token, password, fullName, httpRequest);
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Admin account created successfully. You can now login."));
+        return ResponseEntity.ok(ApiResponse.success("Admin account created successfully. You can now login."));
     }
 }

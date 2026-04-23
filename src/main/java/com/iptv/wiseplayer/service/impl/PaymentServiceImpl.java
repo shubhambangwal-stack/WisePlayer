@@ -51,7 +51,6 @@ public class PaymentServiceImpl implements PaymentService {
     private final DeviceService deviceService;
     private final SubscriptionService subscriptionService;
     private final PlanConfigRepository planConfigRepository;
-    private final org.springframework.web.client.RestTemplate restTemplate;
 
     @Value("${paypal.client-id}")
     private String paypalClientId;
@@ -72,18 +71,20 @@ public class PaymentServiceImpl implements PaymentService {
     private String paypalWebhookId;
 
     private final com.iptv.wiseplayer.service.CreditService creditService;
+    private final org.springframework.web.client.RestTemplate restTemplate;
 
     public PaymentServiceImpl(PaymentRepository paymentRepository,
             DeviceService deviceService,
             SubscriptionService subscriptionService,
             PlanConfigRepository planConfigRepository,
-            com.iptv.wiseplayer.service.CreditService creditService) {
+            com.iptv.wiseplayer.service.CreditService creditService,
+            org.springframework.web.client.RestTemplate restTemplate) {
         this.paymentRepository = paymentRepository;
         this.deviceService = deviceService;
         this.subscriptionService = subscriptionService;
         this.planConfigRepository = planConfigRepository;
         this.creditService = creditService;
-        this.restTemplate = new org.springframework.web.client.RestTemplate();
+        this.restTemplate = restTemplate;
     }
 
     private String getPaypalBaseUrl() {
@@ -734,9 +735,14 @@ public class PaymentServiceImpl implements PaymentService {
         return response;
     }
 
+    @Override
+    public String generateInvoiceNumber(UUID paymentId) {
+        return "INV-" + paymentId.toString().substring(0, 8).toUpperCase();
+    }
+
     private InvoiceResponse mapToInvoiceResponse(Payments payment) {
         InvoiceResponse response = new InvoiceResponse();
-        response.setInvoiceNumber("INV-" + payment.getId().toString().substring(0, 8).toUpperCase());
+        response.setInvoiceNumber(generateInvoiceNumber(payment.getId()));
         response.setPaymentId(payment.getId());
         response.setDeviceId(payment.getDeviceId());
         response.setTransactionDate(payment.getCreatedAt());
