@@ -50,9 +50,10 @@ public class AdminReportController {
         return ResponseEntity.ok(adminReportService.getSubscriptionReport(from, to));
     }
 
-    @Operation(summary = "Reseller Report", description = "Retrieves a summary report for all resellers.")
+    @Operation(summary = "Reseller Report", description = "Retrieves a paginated summary report for all resellers.")
     @GetMapping("/resellers")
-    public ResponseEntity<List<Map<String, Object>>> getResellerReport() {
-        return ResponseEntity.ok(adminReportService.getResellerReport());
+    public ResponseEntity<org.springframework.data.domain.Page<Map<String, Object>>> getResellerReport(
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(adminReportService.getResellerReport(pageable));
     }
 }

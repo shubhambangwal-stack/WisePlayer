@@ -90,6 +90,13 @@ public class SubResellerController {
         return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentSubResellerId(), pageable));
     }
 
+    @PutMapping("/users/{deviceId}/disable")
+    @Operation(summary = "Toggle User Status", description = "Toggle a specific device/user between active and inactive")
+    public ResponseEntity<Void> disableUser(@PathVariable UUID deviceId) {
+        resellerService.disableUser(getCurrentSubResellerId(), deviceId);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/activation-request")
     @Operation(summary = "Submit Activation Request", description = "Submit a request to activate a user/device subscription")
     public ResponseEntity<ActivationRequest> submitRequest(@Valid @RequestBody ResellerActivationRequestDto request) {
