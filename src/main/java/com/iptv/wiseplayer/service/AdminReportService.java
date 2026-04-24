@@ -57,20 +57,19 @@ public class AdminReportService {
         return report;
     }
 
-    public List<Map<String, Object>> getResellerReport() {
-        List<Admin> resellers = adminRepository.findAllByRoleIn(Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER));
-        List<Map<String, Object>> report = new ArrayList<>();
+    public org.springframework.data.domain.Page<Map<String, Object>> getResellerReport(org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<Admin> resellers = adminRepository.findAllByRoleIn(Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER), pageable);
 
-        for (Admin reseller : resellers) {
+        return resellers.map(reseller -> {
             Map<String, Object> resellerData = new HashMap<>();
             resellerData.put("id", reseller.getId());
             resellerData.put("username", reseller.getUsername());
             resellerData.put("fullName", reseller.getFullName());
+            resellerData.put("role", reseller.getRole());
             resellerData.put("totalUsers", deviceRepository.countByResellerId(reseller.getId()));
             resellerData.put("activeUsers", deviceRepository.countByResellerIdAndDeviceStatus(reseller.getId(), com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE));
             resellerData.put("pendingRequests", activationRequestRepository.countByResellerIdAndStatus(reseller.getId(), "PENDING"));
-            report.add(resellerData);
-        }
-        return report;
+            return resellerData;
+        });
     }
 }
