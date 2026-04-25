@@ -154,7 +154,10 @@ public class CreditServiceImpl implements CreditService {
                     if (!plan.isActive()) {
                         throw new BadRequestException("The selected plan [" + planName + "] is currently inactive.");
                     }
-                    return plan.getPrice();
+                    if (plan.getCredits() == null) {
+                        throw new BadRequestException("Plan [" + planName + "] does not have a credit cost configured for resellers.");
+                    }
+                    return plan.getCredits();
                 })
                 .orElseThrow(() -> new ResourceNotFoundException("Unrecognized plan name: " + planName));
     }

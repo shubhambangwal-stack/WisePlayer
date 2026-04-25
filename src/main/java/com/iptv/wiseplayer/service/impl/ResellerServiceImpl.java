@@ -3,6 +3,7 @@ package com.iptv.wiseplayer.service.impl;
 import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.entity.ActivationRequest;
+import java.math.BigDecimal;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionType;
@@ -273,20 +274,22 @@ public class ResellerServiceImpl implements ResellerService {
             }
 
             // Otherwise, update the existing record
+            BigDecimal cost = creditService.getActivationCost(planName);
             existing.setPlanName(planName);
-            existing.setAmount(requestDto.getAmount());
-            existing.setCurrency(requestDto.getCurrency());
+            existing.setAmount(cost.doubleValue());
+            existing.setCurrency("CREDITS");
             existing.setStatus(targetStatus);
             existing.setResellerId(resellerId);
             return activationRequestRepository.save(existing);
         }
 
+        BigDecimal cost = creditService.getActivationCost(planName);
         ActivationRequest request = new ActivationRequest();
         request.setResellerId(resellerId);
         request.setDeviceId(deviceId);
         request.setPlanName(planName);
-        request.setAmount(requestDto.getAmount());
-        request.setCurrency(requestDto.getCurrency());
+        request.setAmount(cost.doubleValue());
+        request.setCurrency("CREDITS");
         request.setStatus(targetStatus);
 
         ActivationRequest saved = activationRequestRepository.save(request);
@@ -294,7 +297,7 @@ public class ResellerServiceImpl implements ResellerService {
         // Deduct credits
         try {
             creditService.deductCredits(resellerId, planName, saved.getId());
-            saved.setCreditsUsed(creditService.getActivationCost(planName));
+            saved.setCreditsUsed(cost);
             return activationRequestRepository.save(saved);
         } catch (Exception e) {
             // If credit deduction fails, we should probably rollback or handle it

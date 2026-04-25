@@ -26,6 +26,9 @@ public class SubscriptionPlanConfig {
     @Column(name = "price", precision = 10, scale = 2, nullable = false)
     private BigDecimal price;
 
+    @Column(name = "credits", precision = 10, scale = 2)
+    private BigDecimal credits;
+
     @Column(name = "currency", nullable = false, length = 10)
     private String currency = "USD";
 
@@ -53,6 +56,8 @@ public class SubscriptionPlanConfig {
     public void setDurationDays(int durationDays) { this.durationDays = durationDays; }
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
+    public BigDecimal getCredits() { return credits; }
+    public void setCredits(BigDecimal credits) { this.credits = credits; }
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
     public String getDescription() { return description; }
