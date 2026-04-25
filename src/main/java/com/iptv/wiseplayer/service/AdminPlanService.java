@@ -36,6 +36,7 @@ public class AdminPlanService {
         plan.setName(request.getName());
         plan.setDurationDays(request.getDurationDays());
         plan.setPrice(request.getPrice());
+        plan.setCredits(request.getCredits());
         plan.setCurrency(request.getCurrency() != null ? request.getCurrency() : "USD");
         plan.setDescription(request.getDescription());
         plan.setActive(true);
@@ -61,6 +62,7 @@ public class AdminPlanService {
         plan.setName(request.getName());
         plan.setDurationDays(request.getDurationDays());
         plan.setPrice(request.getPrice());
+        plan.setCredits(request.getCredits());
         plan.setCurrency(request.getCurrency());
         plan.setDescription(request.getDescription());
 
@@ -81,6 +83,7 @@ public class AdminPlanService {
         response.setName(plan.getName());
         response.setDurationDays(plan.getDurationDays());
         response.setPrice(plan.getPrice());
+        response.setCredits(plan.getCredits());
         response.setCurrency(plan.getCurrency());
         response.setDescription(plan.getDescription());
         response.setActive(plan.isActive());
