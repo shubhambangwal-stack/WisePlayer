@@ -17,7 +17,6 @@ import java.util.UUID;
 
 import com.iptv.wiseplayer.dto.request.AdminInviteRequest;
 import com.iptv.wiseplayer.dto.request.AdminSetupRequest;
-import com.iptv.wiseplayer.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 
 @RestController
@@ -39,7 +38,7 @@ public class AdminManagementController {
 
     @Operation(summary = "Invite Admin", description = "Generates an invitation link for a new admin. Only accessible by SUPER_ADMIN.")
     @PostMapping("/invite")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> inviteAdmin(@Valid @RequestBody AdminInviteRequest request,
+    public ResponseEntity<Map<String, Object>> inviteAdmin(@Valid @RequestBody AdminInviteRequest request,
             HttpServletRequest httpRequest) {
         String email = request.getEmail();
 
@@ -66,30 +65,27 @@ public class AdminManagementController {
         AdminManagementService.InviteResult result = adminManagementService.inviteAdmin(email, inviterId, isSuperAdmin,
                 httpRequest);
 
-        String message = result.isNew() ? "Invitation generated successfully"
-                : "Invitation already sent. It is valid for " + result.minutesRemaining() + " more minutes.";
-
         Map<String, Object> data = Map.of(
                 "token", result.token(),
                 "inviteUrl", "/admin/setup?token=" + result.token());
 
-        return ResponseEntity.ok(ApiResponse.success(message, data));
+        return ResponseEntity.ok(data);
     }
 
     @Operation(summary = "Verify Invite", description = "Verifies if an invitation token is valid.")
     @GetMapping("/invite/verify")
-    public ResponseEntity<ApiResponse<Boolean>> verifyInvite(@RequestParam String token) {
+    public ResponseEntity<Boolean> verifyInvite(@RequestParam String token) {
         adminManagementService.verifyInvite(token);
-        return ResponseEntity.ok(ApiResponse.success("Invitation is valid", true));
+        return ResponseEntity.ok(true);
     }
 
     @Operation(summary = "Complete Setup", description = "Finalizes admin account creation with password and full name.")
     @PostMapping("/setup/complete")
-    public ResponseEntity<ApiResponse<String>> completeSetup(@Valid @RequestBody AdminSetupRequest request,
+    public ResponseEntity<String> completeSetup(@Valid @RequestBody AdminSetupRequest request,
             HttpServletRequest httpRequest) {
         
         adminManagementService.completeSetup(request.getToken(), request.getPassword(), request.getFullName(), httpRequest);
 
-        return ResponseEntity.ok(ApiResponse.success("Admin account created successfully. You can now login."));
+        return ResponseEntity.ok("Admin account created successfully. You can now login.");
     }
 }

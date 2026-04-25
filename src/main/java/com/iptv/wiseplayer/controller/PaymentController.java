@@ -2,7 +2,6 @@ package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.dto.request.CheckoutRequest;
 import com.iptv.wiseplayer.dto.response.CheckoutResponse;
-import com.iptv.wiseplayer.dto.response.ApiResponse;
 import com.iptv.wiseplayer.service.PaymentService;
 import com.iptv.wiseplayer.security.DeviceAuthenticationToken;
 import com.iptv.wiseplayer.domain.entity.Payments;
@@ -43,38 +42,38 @@ public class PaymentController {
 
     @Operation(summary = "Create Checkout Session", description = "Initiates a PayPal checkout session for a device subscription.")
     @PostMapping("/checkout")
-    public ResponseEntity<ApiResponse<CheckoutResponse>> createCheckoutSession(@Valid @RequestBody CheckoutRequest request) {
+    public ResponseEntity<CheckoutResponse> createCheckoutSession(@Valid @RequestBody CheckoutRequest request) {
         CheckoutResponse response = paymentService.createCheckoutSession(request);
-        return ResponseEntity.ok(ApiResponse.success("Checkout session created", response));
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Create Public Checkout Session", description = "Initiates a PayPal checkout session for a subscription (Public access for web users).")
     @PostMapping("/public/checkout")
-    public ResponseEntity<ApiResponse<CheckoutResponse>> createPublicCheckoutSession(@Valid @RequestBody CheckoutRequest request) {
+    public ResponseEntity<CheckoutResponse> createPublicCheckoutSession(@Valid @RequestBody CheckoutRequest request) {
         String publicReturnUrl = appBaseUrl + "/api/payment/paypal/public/success";
         CheckoutResponse response = paymentService.createCheckoutSession(request, publicReturnUrl);
-        return ResponseEntity.ok(ApiResponse.success("Public checkout session created", response));
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Get All Active Plans", description = "Retrieves a list of all active subscription plans for public access.")
     @GetMapping("/public/plans")
-    public ResponseEntity<ApiResponse<java.util.List<com.iptv.wiseplayer.dto.response.PlanResponse>>> getActivePlans() {
-        return ResponseEntity.ok(ApiResponse.success("Plans retrieved successfully", paymentService.getActivePlans()));
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.PlanResponse>> getActivePlans() {
+        return ResponseEntity.ok(paymentService.getActivePlans());
     }
 
     @Operation(summary = "Stripe Webhook (Disabled)", description = "Legacy endpoint for Stripe events (currently disabled).", hidden = true)
     @PostMapping("/webhook")
-    public ResponseEntity<ApiResponse<String>> handleStripeWebhook(@RequestBody String payload,
+    public ResponseEntity<String> handleStripeWebhook(@RequestBody String payload,
             @RequestHeader(value = "Stripe-Signature", required = false) String sigHeader) {
-        return ResponseEntity.ok(ApiResponse.success("Disabled"));
+        return ResponseEntity.ok("Disabled");
     }
 
     @Operation(summary = "PayPal Webhook", description = "Endpoint to handle asynchronous payment events from PayPal (Captures, Refunds, Disputes).")
     @PostMapping("/paypal/webhook")
-    public ResponseEntity<ApiResponse<String>> handlePaypalWebhook(@RequestBody java.util.Map<String, Object> payload,
+    public ResponseEntity<String> handlePaypalWebhook(@RequestBody java.util.Map<String, Object> payload,
             @RequestHeader java.util.Map<String, String> headers) {
         paymentService.handlePaypalWebhook(payload, headers);
-        return ResponseEntity.ok(ApiResponse.success("OK"));
+        return ResponseEntity.ok("OK");
     }
 
     @Operation(summary = "PayPal Success Redirect", description = "Internal callback after PayPal approval. Handles dynamic redirection for resellers vs app users.")
@@ -92,7 +91,7 @@ public class PaymentController {
         }
 
         // For APK/App Users: Stay on API URL as requested (previous flow)
-        return ResponseEntity.ok(ApiResponse.success("Payment processed successfully. You can return to the app."));
+        return ResponseEntity.ok("Payment processed successfully. You can return to the app.");
     }
 
     @Operation(summary = "PayPal Public Success Redirect", description = "Internal callback for public web checkouts. Redirects users back to the frontend with detailed info for the success dialog.")
@@ -129,22 +128,19 @@ public class PaymentController {
 
     @Operation(summary = "Get All Invoices", description = "Retrieves all detailed invoices for a specific device. Requires matching device token or Admin role.")
     @GetMapping("/invoices")
-    public ResponseEntity<ApiResponse<java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse>>> getAllInvoices(
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.InvoiceResponse>> getAllInvoices(
             @RequestParam String deviceId) {
         validateAccess(deviceId);
-        return ResponseEntity.ok(ApiResponse.success("Invoices retrieved successfully", paymentService.getAllInvoicesByDevice(deviceId)));
+        return ResponseEntity.ok(paymentService.getAllInvoicesByDevice(deviceId));
     }
 
     @Operation(summary = "Get Current Active Invoice", description = "Retrieves the latest successful invoice for a specific device. Requires matching device token or Admin role.")
     @GetMapping("/invoice/current")
-    public ResponseEntity<ApiResponse<com.iptv.wiseplayer.dto.response.InvoiceResponse>> getCurrentInvoice(
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.InvoiceResponse> getCurrentInvoice(
             @RequestParam String deviceId) {
         validateAccess(deviceId);
         com.iptv.wiseplayer.dto.response.InvoiceResponse invoice = paymentService.getCurrentInvoice(deviceId);
-        if (invoice == null) {
-            return ResponseEntity.ok(ApiResponse.success("No active invoice found"));
-        }
-        return ResponseEntity.ok(ApiResponse.success("Current invoice retrieved", invoice));
+        return ResponseEntity.ok(invoice);
     }
 
     @Operation(summary = "Download Invoice PDF", description = "Generates and downloads a PDF for a specific invoice.")
