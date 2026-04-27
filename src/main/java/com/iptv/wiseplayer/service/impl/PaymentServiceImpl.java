@@ -788,22 +788,34 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public byte[] generateInvoicePdf(String invoiceNumber, String deviceId) {
         log.info("Generating PDF for invoice: {} for device: {}", invoiceNumber, deviceId);
-        UUID resolvedDeviceId = deviceService.resolveDeviceId(deviceId);
 
-        // Extract ID from invoice Number INV-XXXXXXX
-        String idPrefix = invoiceNumber.substring(4);
-        
-        java.util.List<Payments> allPayments = paymentRepository.findAllByDeviceIdOrderByCreatedAtDesc(resolvedDeviceId);
+        // Extract ID prefix from invoice Number INV-XXXXXXX
+        String idPrefix = invoiceNumber.startsWith("INV-") ? invoiceNumber.substring(4) : invoiceNumber;
+
         Payments targetPayment = null;
-        for (Payments p : allPayments) {
-            if (p.getId().toString().toUpperCase().startsWith(idPrefix.toUpperCase())) {
-                targetPayment = p;
-                break;
+
+        // If deviceId is provided and valid, try to find by device first (security check)
+        if (deviceId != null && !deviceId.trim().isEmpty() && !"null".equalsIgnoreCase(deviceId)) {
+            UUID resolvedDeviceId = deviceService.resolveDeviceId(deviceId);
+            java.util.List<Payments> allPayments = paymentRepository.findAllByDeviceIdOrderByCreatedAtDesc(resolvedDeviceId);
+            for (Payments p : allPayments) {
+                if (p.getId().toString().toUpperCase().startsWith(idPrefix.toUpperCase())) {
+                    targetPayment = p;
+                    break;
+                }
+            }
+        }
+
+        // Fallback: search by prefix directly (for resellers or if device check was skipped)
+        if (targetPayment == null) {
+            java.util.List<Payments> paymentsByPrefix = paymentRepository.findByIdPrefix(idPrefix.toLowerCase());
+            if (!paymentsByPrefix.isEmpty()) {
+                targetPayment = paymentsByPrefix.get(0);
             }
         }
 
         if (targetPayment == null) {
-             throw new ResourceNotFoundException("Invoice not found or does not belong to this device.");
+            throw new ResourceNotFoundException("Invoice not found or access denied.");
         }
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -842,7 +854,13 @@ public class PaymentServiceImpl implements PaymentService {
 
             // Customer Info
             document.add(new Paragraph("Billed To:", headerFont));
-            document.add(new Paragraph("Device ID: " + targetPayment.getDeviceId(), normalFont));
+            if (targetPayment.getDeviceId() != null) {
+                document.add(new Paragraph("Device ID: " + targetPayment.getDeviceId(), normalFont));
+            } else if (targetPayment.getResellerId() != null) {
+                document.add(new Paragraph("Reseller ID: " + targetPayment.getResellerId(), normalFont));
+            } else {
+                document.add(new Paragraph("Customer: Generic", normalFont));
+            }
             document.add(new Paragraph("Payment Method: PayPal", normalFont));
             if (targetPayment.getPaypalOrderId() != null) {
                 document.add(new Paragraph("Transaction ID: " + targetPayment.getPaypalOrderId(), normalFont));
