@@ -23,19 +23,15 @@ public class AdminResellerController {
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     public AdminResellerController(AdminResellerService adminResellerService,
-            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
+                                 org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.adminResellerService = adminResellerService;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Operation(summary = "List All Resellers", description = "Retrieves a paginated list of all resellers and sub-resellers.")
     @GetMapping
-    public ResponseEntity<Page<ResellerResponse>> getAllResellers(
-            @RequestParam(required = false) String username,
-            @RequestParam(required = false) String email,
-            @RequestParam(required = false) String fullName,
-            Pageable pageable) {
-        return ResponseEntity.ok(adminResellerService.getAllResellers(username, email, fullName, pageable));
+    public ResponseEntity<Page<ResellerResponse>> getAllResellers(Pageable pageable) {
+        return ResponseEntity.ok(adminResellerService.getAllResellers(pageable));
     }
 
     @Operation(summary = "Get Reseller Details", description = "Retrieves detailed information for a specific reseller.")
@@ -47,8 +43,7 @@ public class AdminResellerController {
     @Operation(summary = "Update Reseller Details", description = "Updates a reseller's information. Only accessible by SUPER_ADMIN.")
     @PutMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ROLE_SUPER_ADMIN')")
-    public ResponseEntity<?> updateReseller(@PathVariable UUID id,
-            @RequestBody com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+    public ResponseEntity<?> updateReseller(@PathVariable UUID id, @RequestBody com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
         adminResellerService.updateReseller(id, request, passwordEncoder);
         return ResponseEntity.ok(Map.of("success", true, "message", "Reseller updated successfully"));
     }
@@ -62,8 +57,7 @@ public class AdminResellerController {
 
     @Operation(summary = "Get Reseller Stats", description = "Retrieves KPI statistics for a reseller.")
     @GetMapping("/{id}/stats")
-    public ResponseEntity<com.iptv.wiseplayer.dto.response.ResellerStatsResponse> getResellerStats(
-            @PathVariable UUID id) {
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.ResellerStatsResponse> getResellerStats(@PathVariable UUID id) {
         return ResponseEntity.ok(adminResellerService.getResellerStats(id));
     }
 
@@ -80,8 +74,7 @@ public class AdminResellerController {
     @GetMapping("/{id}/sub-resellers")
     public ResponseEntity<Page<com.iptv.wiseplayer.dto.response.SubResellerResponse>> getSubResellers(
             @PathVariable UUID id,
-            @RequestParam(required = false) String search,
             Pageable pageable) {
-        return ResponseEntity.ok(adminResellerService.getSubResellers(id, search, pageable));
+        return ResponseEntity.ok(adminResellerService.getSubResellers(id, pageable));
     }
 }
