@@ -26,7 +26,7 @@ public class SubscriptionPlanConfig {
     @Column(name = "price", precision = 10, scale = 2, nullable = false)
     private BigDecimal price;
 
-    @Column(name = "credits", precision = 10, scale = 2)
+    @Column(name = "credits", precision = 10, scale = 2, nullable = false)
     private BigDecimal credits;
 
     @Column(name = "currency", nullable = false, length = 10)

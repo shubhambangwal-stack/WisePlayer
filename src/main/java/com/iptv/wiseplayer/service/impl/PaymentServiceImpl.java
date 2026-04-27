@@ -218,6 +218,18 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public CheckoutResponse createCreditCheckoutSession(UUID resellerId, int creditAmount) {
+        if (creditAmount >= 1000) {
+            int bonus = 200;
+            int total = creditAmount + bonus;
+            String message = String.format(
+                    "For a bulk purchase of %d codes, you are eligible for %d bonus codes (Total: %d). " +
+                            "To complete this transaction and claim your bonus, please contact us through our WhatsApp channel.",
+                    creditAmount, bonus, total);
+            log.warn("Bulk credit purchase of {} codes blocked for reseller {}. Directing to WhatsApp.", creditAmount,
+                    resellerId);
+            throw new com.iptv.wiseplayer.exception.BadRequestException(message);
+        }
+
         BigDecimal unitPrice = creditService.calculateUnitPrice(creditAmount);
         BigDecimal totalAmount = unitPrice.multiply(BigDecimal.valueOf(creditAmount));
 
