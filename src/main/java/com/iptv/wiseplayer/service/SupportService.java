@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface SupportService {
     SupportTicketResponse createTicket(SupportTicketRequest request);
 
-    Page<SupportTicketResponse> getAllTickets(TicketStatus status, Pageable pageable);
+    Page<SupportTicketResponse> getAllTickets(TicketStatus status, String search, Pageable pageable);
 
     SupportTicketResponse getTicketById(UUID id);
 
