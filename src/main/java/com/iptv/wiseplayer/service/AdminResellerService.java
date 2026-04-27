@@ -39,9 +39,9 @@ public class AdminResellerService {
         this.subscriptionRepository = subscriptionRepository;
     }
 
-    public Page<ResellerResponse> getAllResellers(Pageable pageable) {
+    public Page<ResellerResponse> getAllResellers(String username, String email, String fullName, Pageable pageable) {
         List<AdminRole> roles = Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER);
-        return adminRepository.findAllByRoleIn(roles, pageable)
+        return adminRepository.searchResellersWithFilters(roles, username, email, fullName, pageable)
                 .map(this::convertToResponse);
     }
 
@@ -124,9 +124,15 @@ public class AdminResellerService {
         return results;
     }
 
-    public Page<com.iptv.wiseplayer.dto.response.SubResellerResponse> getSubResellers(UUID id, Pageable pageable) {
-        return adminRepository.findAllByParentId(id, pageable)
-                .map(sub -> com.iptv.wiseplayer.dto.response.SubResellerResponse.builder()
+    public Page<com.iptv.wiseplayer.dto.response.SubResellerResponse> getSubResellers(UUID id, String search, Pageable pageable) {
+        Page<Admin> subs;
+        if (search != null && !search.trim().isEmpty()) {
+            subs = adminRepository.searchSubResellers(id, search.trim(), pageable);
+        } else {
+            subs = adminRepository.findAllByParentId(id, pageable);
+        }
+        
+        return subs.map(sub -> com.iptv.wiseplayer.dto.response.SubResellerResponse.builder()
                         .id(sub.getId())
                         .username(sub.getUsername())
                         .fullName(sub.getFullName())
