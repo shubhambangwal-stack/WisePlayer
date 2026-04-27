@@ -45,4 +45,7 @@ public interface PaymentRepository extends JpaRepository<Payments, UUID> {
             @Param("status") com.iptv.wiseplayer.domain.enums.PaymentStatus status,
             @Param("from") java.time.LocalDateTime from,
             @Param("to") java.time.LocalDateTime to);
+
+    @Query(value = "SELECT * FROM payments p WHERE CAST(p.payment_id AS TEXT) LIKE :prefix%", nativeQuery = true)
+    List<Payments> findByIdPrefix(@Param("prefix") String prefix);
 }

@@ -82,11 +82,11 @@ public class PaymentController {
             @RequestParam("PayerID") String payerId) {
         Payments payment = paymentService.captureOrder(orderId.trim());
 
-        // If it's a reseller/sub-reseller (CREDITS plan), redirect to the reseller
-        // portal
+        // If it's a reseller/sub-reseller (CREDITS plan), redirect to the reseller portal
         if (payment != null && "CREDITS".equalsIgnoreCase(payment.getPlanName())) {
+            String invoiceNo = paymentService.generateInvoiceNumber(payment.getId());
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl + "/purchase-credit?paymentStatus=success"))
+                    .location(URI.create(String.format("%s/purchase-credit?paymentStatus=success&invoiceNo=%s", frontendUrl, invoiceNo)))
                     .build();
         }
 
@@ -143,22 +143,22 @@ public class PaymentController {
         return ResponseEntity.ok(invoice);
     }
 
-    @Operation(summary = "Download Invoice PDF", description = "Generates and downloads a PDF for a specific invoice.")
     @GetMapping("/invoice/{invoiceNumber}/pdf")
     public ResponseEntity<byte[]> downloadInvoicePdf(
             @PathVariable String invoiceNumber,
-            @RequestParam String deviceId) {
-        validateAccess(deviceId);
+            @RequestParam(required = false) String deviceId) {
+        if (deviceId != null && !deviceId.trim().isEmpty() && !"null".equalsIgnoreCase(deviceId)) {
+            validateAccess(deviceId);
+        }
         byte[] pdfBytes = paymentService.generateInvoicePdf(invoiceNumber, deviceId);
         
         return createPdfResponse(pdfBytes, invoiceNumber);
     }
 
-    @Operation(summary = "Public Download Invoice PDF", description = "Publicly generates and downloads a PDF for a specific invoice using deviceId and invoiceNo.")
     @GetMapping("/public/invoice/{invoiceNumber}/pdf")
     public ResponseEntity<byte[]> publicDownloadInvoicePdf(
             @PathVariable String invoiceNumber,
-            @RequestParam String deviceId) {
+            @RequestParam(required = false) String deviceId) {
         // No validateAccess(deviceId) here — the service already verifies the invoice belongs to the device.
         byte[] pdfBytes = paymentService.generateInvoicePdf(invoiceNumber, deviceId);
         
