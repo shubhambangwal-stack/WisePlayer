@@ -12,12 +12,4 @@ import java.util.UUID;
 @Repository
 public interface SupportTicketRepository extends JpaRepository<SupportTicket, UUID> {
     Page<SupportTicket> findByStatus(TicketStatus status, Pageable pageable);
-
-    @org.springframework.data.jpa.repository.Query("SELECT s FROM SupportTicket s WHERE " +
-           "(:status IS NULL OR s.status = :status) AND (" +
-           "LOWER(s.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(s.macAddress) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(s.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(s.lastName) LIKE LOWER(CONCAT('%', :search, '%')))")
-    Page<SupportTicket> searchTickets(TicketStatus status, String search, Pageable pageable);
 }

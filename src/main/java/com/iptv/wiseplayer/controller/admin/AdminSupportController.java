@@ -29,9 +29,8 @@ public class AdminSupportController {
     @Operation(summary = "List All Support Tickets", description = "Retrieves a paginated list of support tickets")
     public ResponseEntity<Page<SupportTicketResponse>> getAllTickets(
             @RequestParam(required = false) TicketStatus status,
-            @RequestParam(required = false) String search,
             Pageable pageable) {
-        return ResponseEntity.ok(supportService.getAllTickets(status, search, pageable));
+        return ResponseEntity.ok(supportService.getAllTickets(status, pageable));
     }
 
     @GetMapping("/{id}")

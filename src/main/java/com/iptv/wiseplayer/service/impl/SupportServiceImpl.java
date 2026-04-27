@@ -51,11 +51,7 @@ public class SupportServiceImpl implements SupportService {
     }
 
     @Override
-    public Page<SupportTicketResponse> getAllTickets(TicketStatus status, String search, Pageable pageable) {
-        if (search != null && !search.trim().isEmpty()) {
-            return supportTicketRepository.searchTickets(status, search.trim(), pageable)
-                    .map(this::convertToResponse);
-        }
+    public Page<SupportTicketResponse> getAllTickets(TicketStatus status, Pageable pageable) {
         if (status != null) {
             return supportTicketRepository.findByStatus(status, pageable)
                     .map(this::convertToResponse);
