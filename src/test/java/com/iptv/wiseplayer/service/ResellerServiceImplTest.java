@@ -1,0 +1,168 @@
+package com.iptv.wiseplayer.service;
+
+import com.iptv.wiseplayer.domain.entity.Admin;
+import com.iptv.wiseplayer.domain.entity.Device;
+import com.iptv.wiseplayer.domain.entity.ActivationRequest;
+import com.iptv.wiseplayer.domain.enums.AdminRole;
+import com.iptv.wiseplayer.domain.enums.DeviceStatus;
+import com.iptv.wiseplayer.domain.enums.SubscriptionType;
+import com.iptv.wiseplayer.dto.request.ResellerActivationRequestDto;
+import com.iptv.wiseplayer.dto.request.ResellerLoginRequest;
+import com.iptv.wiseplayer.exception.AuthenticationException;
+import com.iptv.wiseplayer.exception.BadRequestException;
+import com.iptv.wiseplayer.exception.ResourceNotFoundException;
+import com.iptv.wiseplayer.repository.AdminRepository;
+import com.iptv.wiseplayer.repository.DeviceRepository;
+import com.iptv.wiseplayer.repository.ActivationRequestRepository;
+import com.iptv.wiseplayer.repository.SubscriptionRepository;
+import com.iptv.wiseplayer.security.AdminTokenUtil;
+import com.iptv.wiseplayer.security.DeviceTokenUtil;
+import com.iptv.wiseplayer.service.impl.ResellerServiceImpl;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.math.BigDecimal;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+class ResellerServiceImplTest {
+
+    @Mock
+    private DeviceRepository deviceRepository;
+
+    @Mock
+    private AdminRepository adminRepository;
+
+    @Mock
+    private ActivationRequestRepository activationRequestRepository;
+
+    @Mock
+    private DeviceTokenUtil tokenUtil;
+
+    @Mock
+    private AdminTokenUtil adminTokenUtil;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private CreditService creditService;
+
+    @Mock
+    private SubscriptionRepository subscriptionRepository;
+
+    @InjectMocks
+    private ResellerServiceImpl resellerService;
+
+    private final UUID resellerId = UUID.randomUUID();
+    private final UUID deviceId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void login_ShouldReturnToken_WhenCredentialsAreValid() {
+        // Arrange
+        ResellerLoginRequest request = new ResellerLoginRequest();
+        request.setUsername("reseller");
+        request.setPassword("password");
+
+        Admin admin = new Admin();
+        admin.setUsername("reseller");
+        admin.setPasswordHash("hashed_password");
+        admin.setRole(AdminRole.RESELLER);
+        admin.setActive(true);
+
+        when(adminRepository.findByUsername("reseller")).thenReturn(Optional.of(admin));
+        when(passwordEncoder.matches("password", "hashed_password")).thenReturn(true);
+        when(adminTokenUtil.generateToken(anyString(), any())).thenReturn("mock_token");
+
+        // Act
+        var response = resellerService.login(request);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("mock_token", response.getToken());
+    }
+
+    @Test
+    void login_ShouldThrowException_WhenPasswordInvalid() {
+        // Arrange
+        ResellerLoginRequest request = new ResellerLoginRequest();
+        request.setUsername("reseller");
+        request.setPassword("wrong");
+
+        Admin admin = new Admin();
+        admin.setUsername("reseller");
+        admin.setPasswordHash("hashed_password");
+        admin.setRole(AdminRole.RESELLER);
+        admin.setActive(true);
+
+        when(adminRepository.findByUsername("reseller")).thenReturn(Optional.of(admin));
+        when(passwordEncoder.matches("wrong", "hashed_password")).thenReturn(false);
+
+        // Act & Assert
+        assertThrows(AuthenticationException.class, () -> resellerService.login(request));
+    }
+
+    @Test
+    void submitActivationRequest_ShouldSucceed_WhenValid() {
+        // Arrange
+        ResellerActivationRequestDto requestDto = new ResellerActivationRequestDto();
+        requestDto.setDeviceId(deviceId);
+        requestDto.setPlanName("ANNUAL");
+
+        Device device = new Device();
+        device.setDeviceId(deviceId);
+        device.setResellerId(resellerId);
+        when(deviceRepository.findByDeviceId(deviceId)).thenReturn(Optional.of(device));
+
+        when(subscriptionRepository.findByDeviceIdAndStatus(any(), any())).thenReturn(Optional.empty());
+        when(activationRequestRepository.findTopByDeviceIdOrderByCreatedAtDesc(deviceId)).thenReturn(Optional.empty());
+        
+        when(creditService.getActivationCost("ANNUAL")).thenReturn(BigDecimal.TEN);
+
+        ActivationRequest savedRequest = new ActivationRequest();
+        savedRequest.setId(UUID.randomUUID());
+        when(activationRequestRepository.save(any(ActivationRequest.class))).thenReturn(savedRequest);
+
+        // Act
+        var result = resellerService.submitActivationRequest(resellerId, requestDto);
+
+        // Assert
+        assertNotNull(result);
+        verify(creditService).deductCredits(eq(resellerId), eq("ANNUAL"), any());
+        verify(activationRequestRepository, atLeastOnce()).save(any(ActivationRequest.class));
+    }
+
+    @Test
+    void submitActivationRequest_ShouldThrowException_WhenDuplicatePending() {
+        // Arrange
+        ResellerActivationRequestDto requestDto = new ResellerActivationRequestDto();
+        requestDto.setDeviceId(deviceId);
+        requestDto.setPlanName("ANNUAL");
+
+        Device device = new Device();
+        device.setDeviceId(deviceId);
+        device.setResellerId(resellerId);
+        when(deviceRepository.findByDeviceId(deviceId)).thenReturn(Optional.of(device));
+
+        ActivationRequest existing = new ActivationRequest();
+        existing.setStatus("PENDING");
+        existing.setPlanName("ANNUAL");
+        when(activationRequestRepository.findTopByDeviceIdOrderByCreatedAtDesc(deviceId)).thenReturn(Optional.of(existing));
+
+        // Act & Assert
+        assertThrows(BadRequestException.class, () -> resellerService.submitActivationRequest(resellerId, requestDto));
+    }
+}

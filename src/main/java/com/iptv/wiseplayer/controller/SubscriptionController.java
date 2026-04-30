@@ -17,9 +17,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
+    private final com.iptv.wiseplayer.security.DeviceContext deviceContext;
 
-    public SubscriptionController(SubscriptionService subscriptionService) {
+    public SubscriptionController(SubscriptionService subscriptionService, 
+                                com.iptv.wiseplayer.security.DeviceContext deviceContext) {
         this.subscriptionService = subscriptionService;
+        this.deviceContext = deviceContext;
     }
 
     /**
@@ -31,6 +34,10 @@ public class SubscriptionController {
     @PostMapping("/activate")
     public ResponseEntity<SubscriptionResponse> activateSubscription(
             @RequestBody SubscriptionActivationRequest request) {
+        // Validate IDOR for devices
+        if (!deviceContext.getCurrentDeviceId().toString().equals(request.getDeviceId())) {
+             throw new com.iptv.wiseplayer.exception.AccessDeniedException("You can only activate subscriptions for your own device.");
+        }
         SubscriptionResponse response = subscriptionService.activateSubscription(request);
         return ResponseEntity.ok(response);
     }
@@ -41,7 +48,10 @@ public class SubscriptionController {
     @Operation(summary = "Get Subscription Status", description = "Retrieves the current subscription status for a device.")
     @GetMapping("/status")
     public ResponseEntity<SubscriptionResponse> getSubscriptionStatus(@RequestParam String deviceId) {
-        // Note: Accepting deviceId as query parameter for easier GET access
+        // Validate IDOR
+        if (!deviceContext.getCurrentDeviceId().toString().equals(deviceId)) {
+            throw new com.iptv.wiseplayer.exception.AccessDeniedException("You can only view subscription status for your own device.");
+        }
         SubscriptionResponse response = subscriptionService.getSubscriptionStatus(deviceId);
         return ResponseEntity.ok(response);
     }

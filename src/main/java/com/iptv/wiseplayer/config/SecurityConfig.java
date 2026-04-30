@@ -105,8 +105,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/payment/public/plans").permitAll()
                         .requestMatchers("/api/public/support/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
-                        // Swagger UI (Protected & Obfuscated)
-                        .requestMatchers("/wp-api-spec/**", "/wp-docs-assets/**", "/wp-docs/**")
+                        // Monitoring & Docs (Protected & Obfuscated)
+                        .requestMatchers("/wp-api-spec/**", "/wp-docs-assets/**", "/wp-docs/**", "/wp-monitor/**")
                         .hasAuthority("ROLE_SUPER_ADMIN")
 
                         // Admin Endpoints

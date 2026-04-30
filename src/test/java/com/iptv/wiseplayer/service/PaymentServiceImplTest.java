@@ -39,6 +39,9 @@ class PaymentServiceImplTest {
     @Mock
     private com.iptv.wiseplayer.service.CreditService creditService;
 
+    @Mock
+    private org.springframework.web.client.RestTemplate restTemplate;
+
     @InjectMocks
     private PaymentServiceImpl paymentService;
 
@@ -79,6 +82,68 @@ class PaymentServiceImplTest {
     }
 
     @Test
+    void createCheckoutSession_ShouldReturnApproveUrl_WhenSuccessful() {
+        // Arrange
+        CheckoutRequest request = new CheckoutRequest();
+        request.setDeviceId(testDeviceId.toString());
+        request.setPlanName("ANNUAL");
+
+        SubscriptionResponse subStatus = new SubscriptionResponse();
+        subStatus.setType(SubscriptionType.TRIAL);
+        when(subscriptionService.getSubscriptionStatus(anyString())).thenReturn(subStatus);
+
+        SubscriptionPlanConfig planConfig = new SubscriptionPlanConfig();
+        planConfig.setName("ANNUAL");
+        planConfig.setPrice(new BigDecimal("19.99"));
+        planConfig.setCurrency("EUR");
+        when(planConfigRepository.findByName("ANNUAL")).thenReturn(java.util.Optional.of(planConfig));
+
+        when(deviceService.resolveDeviceId(anyString())).thenReturn(testDeviceId);
+
+        Payments savedPayment = new Payments();
+        savedPayment.setId(UUID.randomUUID());
+        when(paymentRepository.save(any(Payments.class))).thenReturn(savedPayment);
+
+        // Mock OAuth Token Response
+        java.util.Map<String, Object> tokenResponse = new java.util.HashMap<>();
+        tokenResponse.put("access_token", "test-token");
+        when(restTemplate.postForEntity(anyString(), any(), any())).thenReturn(org.springframework.http.ResponseEntity.ok(tokenResponse));
+
+        // Mock Create Order Response
+        java.util.Map<String, Object> orderResponse = new java.util.HashMap<>();
+        orderResponse.put("id", "ORDER-123");
+        java.util.List<java.util.Map<String, String>> links = new java.util.ArrayList<>();
+        java.util.Map<String, String> approveLink = new java.util.HashMap<>();
+        approveLink.put("rel", "approve");
+        approveLink.put("href", "http://approve.url");
+        links.add(approveLink);
+        orderResponse.put("links", links);
+        when(restTemplate.postForEntity(anyString(), any(), any())).thenReturn(org.springframework.http.ResponseEntity.ok(orderResponse));
+
+        // Act
+        CheckoutResponse response = paymentService.createCheckoutSession(request);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("http://approve.url", response.getApproveUrl());
+        assertEquals("ORDER-123", response.getOrderId());
+    }
+
+    @Test
+    void createCheckoutSession_ShouldThrowException_WhenAlreadyHasLifetimeSubscription() {
+        // Arrange
+        CheckoutRequest request = new CheckoutRequest();
+        request.setDeviceId(testDeviceId.toString());
+
+        SubscriptionResponse subStatus = new SubscriptionResponse();
+        subStatus.setType(SubscriptionType.PAID_LIFETIME);
+        when(subscriptionService.getSubscriptionStatus(anyString())).thenReturn(subStatus);
+
+        // Act & Assert
+        assertThrows(IllegalStateException.class, () -> paymentService.createCheckoutSession(request));
+    }
+
+    @Test
     void generateInvoicePdf_ShouldThrowException_WhenInvoiceNotFound() {
         // Arrange
         String invoiceNumber = "INV-NOTEXIST";
@@ -93,5 +158,49 @@ class PaymentServiceImplTest {
         });
 
         assertEquals("Invoice not found or does not belong to this device.", exception.getMessage());
+    }
+
+    @Test
+    void captureOrder_ShouldReturnPayment_WhenSuccessful() {
+        // Arrange
+        String orderId = "ORDER-123";
+        Payments payment = new Payments();
+        payment.setId(testPaymentId);
+        payment.setPaypalOrderId(orderId);
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setDeviceId(testDeviceId);
+        payment.setPlanName("ANNUAL");
+
+        when(paymentRepository.findByPaypalOrderId(orderId)).thenReturn(java.util.Optional.of(payment));
+        
+        // Mock OAuth Token
+        java.util.Map<String, Object> tokenResponse = new java.util.HashMap<>();
+        tokenResponse.put("access_token", "test-token");
+        when(restTemplate.postForEntity(anyString(), any(), any())).thenReturn(org.springframework.http.ResponseEntity.ok(tokenResponse));
+
+        // Mock Capture API
+        java.util.Map<String, Object> captureResponse = new java.util.HashMap<>();
+        java.util.List<java.util.Map<String, Object>> purchaseUnits = new java.util.ArrayList<>();
+        java.util.Map<String, Object> pu = new java.util.HashMap<>();
+        java.util.Map<String, Object> payments = new java.util.HashMap<>();
+        java.util.List<java.util.Map<String, Object>> captures = new java.util.ArrayList<>();
+        java.util.Map<String, Object> c = new java.util.HashMap<>();
+        c.put("id", "CAPTURE-123");
+        captures.add(c);
+        payments.put("captures", captures);
+        pu.put("payments", payments);
+        purchaseUnits.add(pu);
+        captureResponse.put("purchase_units", purchaseUnits);
+        
+        when(restTemplate.postForEntity(anyString(), any(), any())).thenReturn(org.springframework.http.ResponseEntity.ok(captureResponse));
+        when(paymentRepository.findByPaypalOrderId(orderId)).thenReturn(java.util.Optional.of(payment));
+
+        // Act
+        Payments result = paymentService.captureOrder(orderId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(PaymentStatus.SUCCESS, result.getStatus());
+        assertEquals("CAPTURE-123", result.getPaypalCaptureId());
     }
 }
