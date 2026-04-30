@@ -50,7 +50,7 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
         // Only filter admin, reseller, monitoring and documentation API paths
         return !(path.startsWith("/api/admin") || path.startsWith("/api/reseller")
                 || path.startsWith("/api/sub-reseller")
-                || path.startsWith("/wp-monitor")
+                || path.startsWith("/api/admin/wp-monitor")
                 || path.startsWith("/wp-docs")
                 || path.startsWith("/wp-api-spec"));
     }

@@ -106,7 +106,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/support/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         // Monitoring & Docs (Protected & Obfuscated)
-                        .requestMatchers("/wp-api-spec/**", "/wp-docs-assets/**", "/wp-docs/**", "/wp-monitor/**")
+                        .requestMatchers("/wp-api-spec/**", "/wp-docs-assets/**", "/wp-docs/**", "/api/admin/wp-monitor/**")
                         .hasAuthority("ROLE_SUPER_ADMIN")
 
                         // Admin Endpoints
