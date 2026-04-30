@@ -1,13 +1,28 @@
 package com.iptv.wiseplayer.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 
 public class PlanRequest {
+    @NotBlank(message = "Plan name is required")
     private String name;
+
+    @Positive(message = "Duration must be positive")
     private int durationDays;
+
+    @NotNull(message = "Price is required")
+    @Positive(message = "Price must be positive")
     private BigDecimal price;
+
+    @NotNull(message = "Credits value is required")
+    @Positive(message = "Credits must be positive")
     private BigDecimal credits;
+
+    @NotBlank(message = "Currency is required")
     private String currency;
+
     private String description;
 
     public PlanRequest() {}

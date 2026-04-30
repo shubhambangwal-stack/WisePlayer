@@ -14,9 +14,6 @@ spring:
     hibernate:
       ddl-auto: validate
 
-# stripe:
-#   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
-#   webhook-secret: whsec_a38a24c1241cc5914d67c43cf526b7b050783c0a5b7c2c9d8a5619d7c9df91fa
 
 paypal:
   mode: ${PAYPAL_MODE:sandbox}
@@ -38,8 +35,7 @@ app:
       - ${SECURITY_TOKEN_SECRET_2}
       - ${SECURITY_TOKEN_SECRET_3}
     token-ttl-minutes: ${TOKEN_TTL_MINUTES}
-    allowed-origins:
-      - "*"
+    allowed-origins: ${ALLOWED_ORIGINS:https://wise-player.com,https://admin.wise-player.com}
     allowed-methods:
       - GET
       - POST
@@ -69,3 +65,22 @@ springdoc:
   webjars:
     prefix: /wp-docs-assets
   show-actuator: false
+
+management:
+  endpoints:
+    enabled-by-default: false
+    web:
+      exposure:
+        include: "health,info"
+      base-path: /wp-monitor
+  endpoint:
+    health:
+      enabled: true
+      show-details: never
+    info:
+      enabled: true
+  info:
+    java:
+      enabled: false
+    os:
+      enabled: false

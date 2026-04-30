@@ -38,14 +38,14 @@ public class AdminAuthService {
         String loginUsername = request.getUsername();
         log.info("Attempting login for username: '{}'", loginUsername);
 
-        // 1. Try SuperAdmin (Plain-text)
+        // 1. Try SuperAdmin
         Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository
                 .findByUsername(loginUsername);
 
         if (superAdminOpt.isPresent()) {
             com.iptv.wiseplayer.domain.entity.SuperAdmin superAdmin = superAdminOpt.get();
             log.info("Found SuperAdmin record for username: '{}'", loginUsername);
-            if (superAdmin.getPassword().equals(request.getPassword())) {
+            if (passwordEncoder.matches(request.getPassword(), superAdmin.getPassword())) {
                 String token = adminTokenUtil.generateToken(superAdmin.getUsername(), AdminRole.SUPER_ADMIN);
                 return new AdminAuthResponse(true, token, null, superAdmin.getUsername(), superAdmin.getFullName(),
                         AdminRole.SUPER_ADMIN.name());

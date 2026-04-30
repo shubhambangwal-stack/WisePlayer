@@ -16,8 +16,8 @@ spring:
   mail:
     host: ${SMTP_HOST:smtp.gmail.com}
     port: ${SMTP_PORT:587}
-    username: sbangwal75@gmail.com
-    password: ikshmsatxlsxhzre
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
     properties:
       mail:
         smtp:
@@ -34,12 +34,12 @@ spring:
 
 paypal:
   mode: ${PAYPAL_MODE:sandbox}
-  client-id: AY9l6yf2rSFI9Bry73axYx5J5LPPI46WmwbOJuge29clm3eiBcI-ciS3tceOc5iUZNkL9lexoyGEIMWB
-  client-secret: EAp7ehGeQnxFqLavMTOFcQNDQrBYx06AHvAk0GweKLOADV_2EMR7Bhw2AgEhpGIUTqjOZOnPXJxevzTO
-  return-url: https://api.wise-player.com/api/payment/paypal/success
-  cancel-url: https://api.wise-player.com/api/payment/paypal/cancel
-  webhook-url: https://api.wise-player.com/api/payment/paypal/webhook
-  webhook-id: 3XS653129K3752636
+  client-id: ${PAYPAL_CLIENT_ID}
+  client-secret: ${PAYPAL_CLIENT_SECRET}
+  return-url: ${APP_BASE_URL}/api/payment/paypal/success
+  cancel-url: ${APP_BASE_URL}/api/payment/paypal/cancel
+  webhook-url: ${APP_BASE_URL}/api/payment/paypal/webhook
+  webhook-id: ${PAYPAL_WEBHOOK_ID}
 
 server:
   port: 8080

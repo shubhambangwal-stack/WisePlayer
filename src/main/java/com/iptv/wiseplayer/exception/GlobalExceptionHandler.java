@@ -116,9 +116,9 @@ public class GlobalExceptionHandler {
         public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(DataIntegrityViolationException ex,
                         HttpServletRequest request) {
                 log.warn("Data Integrity Violation: {}", ex.getMessage());
-                String message = "Resource already exists or database constraint violation";
+                String message = "A database constraint violation occurred.";
                 if (ex.getRootCause() != null && ex.getRootCause().getMessage().contains("duplicate key")) {
-                        message = "A resource with this identifier already exists (e.g., email or name)";
+                        message = "A resource with this information already exists in our system.";
                 }
                 return buildErrorResponse(HttpStatus.CONFLICT, message, request);
         }

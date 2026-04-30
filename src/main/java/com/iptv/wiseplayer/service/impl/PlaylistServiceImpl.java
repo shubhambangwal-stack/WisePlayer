@@ -206,11 +206,24 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     private void validateM3uUrl(String urlString) {
         try {
-            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) new java.net.URL(urlString).openConnection();
+            java.net.URL url = new java.net.URL(urlString);
+            String host = url.getHost();
+
+            // SSRF Protection: Prevent connecting to localhost or internal network
+            java.net.InetAddress[] addresses = java.net.InetAddress.getAllByName(host);
+            for (java.net.InetAddress addr : addresses) {
+                if (addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress()
+                        || addr.isAnyLocalAddress()) {
+                    log.error("SSRF attempt blocked: {} resolved to internal IP {}", urlString, addr.getHostAddress());
+                    throw new BadRequestException("Invalid URL: Access to internal network is restricted");
+                }
+            }
+
+            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
             connection.setRequestMethod("HEAD");
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(5000);
-            connection.setRequestProperty("User-Agent", "okhttp/4.9.0");
+            connection.setRequestProperty("User-Agent", "WisePlayer/1.0");
             int responseCode = connection.getResponseCode();
             if (responseCode < 200 || responseCode >= 400) {
                 if (responseCode == 405 || responseCode == 403) {
@@ -220,6 +233,9 @@ public class PlaylistServiceImpl implements PlaylistService {
                 log.error("M3U validation failed with status {} for URL: {}", responseCode, urlString);
                 throw new BadRequestException("Invalid M3U URL or server is unreachable. HTTP Status: " + responseCode);
             }
+        } catch (java.net.UnknownHostException e) {
+            log.error("Unknown host for M3U URL: {}", urlString);
+            throw new BadRequestException("Invalid M3U URL: Host not found");
         } catch (java.net.MalformedURLException e) {
             log.error("Malformed M3U URL: {}", urlString);
             throw new BadRequestException("Invalid M3U URL format");
