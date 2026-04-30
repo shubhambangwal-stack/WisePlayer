@@ -43,7 +43,8 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/api/reseller/login") ||
                 path.equals("/api/reseller/register") ||
                 path.equals("/api/admin/management/invite/verify") ||
-                path.equals("/api/admin/management/setup/complete")) {
+                path.equals("/api/admin/management/setup/complete") ||
+                path.equals("/api/admin/wp-monitor/health")) {
             return true;
         }
 
