@@ -3,9 +3,9 @@ spring:
     name: wiseplayer
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/wiseplayer
-    username: postgres
-    password: postgres
+    url: ${DEV_DATABASE_URL:jdbc:postgresql://localhost:5432/wiseplayer}
+    username: ${DEV_DATABASE_USERNAME:postgres}
+    password: ${DEV_DATABASE_PASSWORD:postgres}
   jpa:
     generate-ddl: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -28,9 +28,6 @@ spring:
         debug: false
 
 
-# stripe:
-#   api-key: sk_test_51SrELLKoTg2r16RAqUHZ3nO6nX5dSzLqdSpxdMddQAD1EAMjp6pnznkgnI29D5FM4pPM8T6Tta0HVHRSevKNBneA00oHy5mYFC
-#   webhook-secret: whsec_a38a24c1241cc5914d67c43cf526b7b050783c0a5b7c2c9d8a5619d7c9df91fa
 
 paypal:
   mode: ${PAYPAL_MODE:sandbox}
