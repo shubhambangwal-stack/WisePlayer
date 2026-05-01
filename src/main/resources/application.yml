@@ -72,7 +72,7 @@ management:
     web:
       exposure:
         include: "health,info"
-      base-path: /api/admin/wp-monitor
+      base-path: /wp-admin-monitor
     info:
       enabled: true
   info:

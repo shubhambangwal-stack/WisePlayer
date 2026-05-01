@@ -44,14 +44,14 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/api/reseller/register") ||
                 path.equals("/api/admin/management/invite/verify") ||
                 path.equals("/api/admin/management/setup/complete") ||
-                path.equals("/api/admin/wp-monitor/health")) {
+                path.equals("/wp-admin-monitor/health")) {
             return true;
         }
 
         // Only filter admin, reseller, monitoring and documentation API paths
         return !(path.startsWith("/api/admin") || path.startsWith("/api/reseller")
                 || path.startsWith("/api/sub-reseller")
-                || path.startsWith("/api/admin/wp-monitor")
+                || path.startsWith("/wp-admin-monitor")
                 || path.startsWith("/wp-docs")
                 || path.startsWith("/wp-api-spec"));
     }
