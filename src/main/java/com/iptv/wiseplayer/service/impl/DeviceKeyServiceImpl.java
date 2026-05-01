@@ -9,6 +9,8 @@ import com.iptv.wiseplayer.dto.request.DeviceKeyRequest;
 import com.iptv.wiseplayer.dto.response.DeviceActivationResponse;
 import com.iptv.wiseplayer.dto.response.DeviceKeyResponse;
 import com.iptv.wiseplayer.dto.response.DeviceKeyStatusResponse;
+import com.iptv.wiseplayer.dto.response.SubscriptionResponse;
+import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 import com.iptv.wiseplayer.exception.DeviceNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceAuditRepository;
 import com.iptv.wiseplayer.repository.DeviceKeyRepository;
@@ -128,20 +130,35 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
             return new DeviceActivationResponse(false, "Invalid activation code.", device.getDeviceStatus());
         }
 
-        // 5. Activate Device and Start Trial
+        // 5. Activate Device and Check Existing Subscription
         DeviceStatus oldStatus = device.getDeviceStatus();
-        LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
+        SubscriptionResponse subStatus = subscriptionService.getSubscriptionStatus(device.getDeviceId().toString());
 
-        // Start the trial via SubscriptionService (which also updates device status to
-        // ACTIVE)
+        if (subStatus.getStatus() == SubscriptionStatus.ACTIVE || 
+           (subStatus.getStatus() == SubscriptionStatus.TRIAL && subStatus.getEndDate() != null && subStatus.getEndDate().isAfter(LocalDateTime.now()))) {
+            
+            // Device is already active. Do not allow duplicate activation.
+            deviceKeyRepository.delete(deviceKey);
+            return new DeviceActivationResponse(false, "Device already has an active subscription.", device.getDeviceStatus());
+            
+        } else if (subStatus.getStatus() == SubscriptionStatus.EXPIRED || 
+                  (subStatus.getStatus() == SubscriptionStatus.TRIAL && subStatus.getEndDate() != null && subStatus.getEndDate().isBefore(LocalDateTime.now()))) {
+            
+            // Trial or previous subscription has expired. Do NOT initiate a new trial.
+            deviceKeyRepository.delete(deviceKey);
+            return new DeviceActivationResponse(false, "Free trial has already been used or subscription expired. Please purchase a plan.", device.getDeviceStatus());
+        }
+
+        // 6. No active or expired subscription found, safe to start the 7-day trial
+        LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
         subscriptionService.initializeTrial(device.getDeviceId(), expiresAt);
 
         // Audit Logging
         DeviceAuditLog auditLog = new DeviceAuditLog(device.getDeviceId(), oldStatus, DeviceStatus.ACTIVE,
-                "ACTIVATION", "Device activated via 6-digit code. 2-minute trial started.");
+                "ACTIVATION", "Device activated via 6-digit code. 7-day trial started.");
         auditRepository.save(auditLog);
 
-        // 6. Delete used key
+        // 7. Delete used key
         deviceKeyRepository.delete(deviceKey);
 
         return new DeviceActivationResponse(true, "Device activated successfully", DeviceStatus.ACTIVE);

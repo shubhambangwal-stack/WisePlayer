@@ -106,8 +106,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/support/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         // Monitoring & Docs (Health is public, others are restricted)
-                        .requestMatchers("/api/admin/wp-monitor/health").permitAll()
-                        .requestMatchers("/wp-api-spec/**", "/wp-docs-assets/**", "/wp-docs/**", "/api/admin/wp-monitor/**")
+                        .requestMatchers("/wp-admin-monitor/health").permitAll()
+                        .requestMatchers("/wp-api-spec/**", "/wp-docs-assets/**", "/wp-docs/**", "/wp-admin-monitor/**")
                         .hasAuthority("ROLE_SUPER_ADMIN")
 
                         // Admin Endpoints
