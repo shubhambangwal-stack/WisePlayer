@@ -79,4 +79,39 @@ public class AdminAuthService {
         return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(), admin.getFullName(),
                 admin.getRole().name());
     }
+
+    public void changePassword(String username, com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {
+        log.info("Attempting to change password for username: '{}'", username);
+
+        // 1. Check SuperAdmin
+        Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository.findByUsername(username);
+        if (superAdminOpt.isPresent()) {
+            com.iptv.wiseplayer.domain.entity.SuperAdmin superAdmin = superAdminOpt.get();
+            if (!passwordEncoder.matches(request.getCurrentPassword(), superAdmin.getPassword())) {
+                log.warn("Password change failed for SuperAdmin '{}': incorrect current password", username);
+                throw new AuthenticationException("Current password is incorrect");
+            }
+            superAdmin.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            superAdminRepository.save(superAdmin);
+            log.info("Password changed successfully for SuperAdmin: '{}'", username);
+            return;
+        }
+
+        // 2. Check Admin
+        Optional<Admin> adminOpt = adminRepository.findByUsername(username);
+        if (adminOpt.isPresent()) {
+            Admin admin = adminOpt.get();
+            if (!passwordEncoder.matches(request.getCurrentPassword(), admin.getPasswordHash())) {
+                log.warn("Password change failed for Admin '{}': incorrect current password", username);
+                throw new AuthenticationException("Current password is incorrect");
+            }
+            admin.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            adminRepository.save(admin);
+            log.info("Password changed successfully for Admin: '{}'", username);
+            return;
+        }
+
+        log.error("Password change failed: user not found with username: '{}'", username);
+        throw new com.iptv.wiseplayer.exception.ResourceNotFoundException("User not found");
+    }
 }
