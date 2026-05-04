@@ -56,6 +56,9 @@ public class Payments {
     @Column(name = "plan", nullable = false, length = 100)
     private String planName;
 
+    @Column(name = "currency", nullable = false, length = 10)
+    private String currency = "EUR";
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -177,5 +180,13 @@ public class Payments {
 
     public void setCreditAmount(Integer creditAmount) {
         this.creditAmount = creditAmount;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 }

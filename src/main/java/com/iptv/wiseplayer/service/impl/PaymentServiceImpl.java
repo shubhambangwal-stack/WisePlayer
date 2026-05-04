@@ -165,6 +165,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.PENDING);
         payment.setAmount(amount);
         payment.setPlanName(planConfig.getName());
+        payment.setCurrency(planConfig.getCurrency());
         payment = paymentRepository.save(payment);
 
         purchaseUnit.put("reference_id", payment.getId().toString());
@@ -249,6 +250,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setAmount(totalAmount);
         payment.setPlanName(CREDITS_PLAN); // sentinel — no plan config entry needed
         payment.setCreditAmount(creditAmount);
+        payment.setCurrency("EUR");
         payment = paymentRepository.save(payment);
 
         purchaseUnit.put("reference_id", payment.getId().toString());
@@ -678,12 +680,15 @@ public class PaymentServiceImpl implements PaymentService {
             authHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
             authHeaders.setBearerAuth(accessToken);
 
+            java.util.Map<String, String> lowerCaseHeaders = new java.util.HashMap<>();
+            headers.forEach((k, v) -> lowerCaseHeaders.put(k.toLowerCase(), v));
+
             java.util.Map<String, Object> verificationRequest = new java.util.HashMap<>();
-            verificationRequest.put("auth_algo", headers.get("paypal-auth-algo"));
-            verificationRequest.put("cert_url", headers.get("paypal-cert-url"));
-            verificationRequest.put("transmission_id", headers.get("paypal-transmission-id"));
-            verificationRequest.put("transmission_sig", headers.get("paypal-transmission-sig"));
-            verificationRequest.put("transmission_time", headers.get("paypal-transmission-time"));
+            verificationRequest.put("auth_algo", lowerCaseHeaders.get("paypal-auth-algo"));
+            verificationRequest.put("cert_url", lowerCaseHeaders.get("paypal-cert-url"));
+            verificationRequest.put("transmission_id", lowerCaseHeaders.get("paypal-transmission-id"));
+            verificationRequest.put("transmission_sig", lowerCaseHeaders.get("paypal-transmission-sig"));
+            verificationRequest.put("transmission_time", lowerCaseHeaders.get("paypal-transmission-time"));
             verificationRequest.put("webhook_id", paypalWebhookId);
             verificationRequest.put("webhook_event", payload);
 
@@ -762,7 +767,7 @@ public class PaymentServiceImpl implements PaymentService {
         response.setPlanName(payment.getPlanName());
         response.setPlanDisplayName(getPlanDisplayName(payment.getPlanName()));
         response.setAmount(payment.getAmount());
-        response.setCurrency("EUR");
+        response.setCurrency(payment.getCurrency() != null ? payment.getCurrency() : "EUR");
         response.setPaymentMethod("PayPal");
         response.setPaypalOrderId(payment.getPaypalOrderId());
         response.setPaypalCaptureId(payment.getPaypalCaptureId());
