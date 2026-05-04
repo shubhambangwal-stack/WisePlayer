@@ -71,8 +71,8 @@ public class PaymentController {
     @Operation(summary = "PayPal Webhook", description = "Endpoint to handle asynchronous payment events from PayPal (Captures, Refunds, Disputes).")
     @PostMapping("/paypal/webhook")
     public ResponseEntity<String> handlePaypalWebhook(@RequestBody java.util.Map<String, Object> payload,
-            @RequestHeader java.util.Map<String, String> headers) {
-        paymentService.handlePaypalWebhook(payload, headers);
+            @RequestHeader org.springframework.http.HttpHeaders headers) {
+        paymentService.handlePaypalWebhook(payload, headers.toSingleValueMap());
         return ResponseEntity.ok("OK");
     }
 
