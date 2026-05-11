@@ -309,9 +309,16 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
-            UUID resellerId, org.springframework.data.domain.Pageable pageable) {
-        return activationRequestRepository.findAllByResellerId(resellerId, pageable)
-                .map(request -> {
+            UUID resellerId, String status, org.springframework.data.domain.Pageable pageable) {
+        
+        org.springframework.data.domain.Page<ActivationRequest> requestsPage;
+        if (status != null && !status.trim().isEmpty()) {
+            requestsPage = activationRequestRepository.findAllByResellerIdAndStatus(resellerId, status.toUpperCase(), pageable);
+        } else {
+            requestsPage = activationRequestRepository.findAllByResellerId(resellerId, pageable);
+        }
+        
+        return requestsPage.map(request -> {
                     com.iptv.wiseplayer.dto.response.ActivationRequestResponse response = new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();
                     response.setId(request.getId());
                     response.setResellerId(request.getResellerId());

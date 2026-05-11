@@ -135,8 +135,9 @@ public class ResellerController {
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
+            @RequestParam(required = false) String status,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), status, pageable));
     }
 
     private UUID getCurrentResellerId() {
