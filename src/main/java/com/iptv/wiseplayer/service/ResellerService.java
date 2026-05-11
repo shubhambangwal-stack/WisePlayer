@@ -42,5 +42,5 @@ public interface ResellerService {
     ActivationRequest submitActivationRequest(UUID resellerId, ResellerActivationRequestDto request);
 
     org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
-            UUID resellerId, org.springframework.data.domain.Pageable pageable);
+            UUID resellerId, String status, org.springframework.data.domain.Pageable pageable);
 }

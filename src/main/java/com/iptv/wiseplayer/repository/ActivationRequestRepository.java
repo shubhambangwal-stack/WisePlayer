@@ -14,6 +14,9 @@ public interface ActivationRequestRepository extends JpaRepository<ActivationReq
     org.springframework.data.domain.Page<ActivationRequest> findAllByResellerId(UUID resellerId,
             org.springframework.data.domain.Pageable pageable);
 
+    org.springframework.data.domain.Page<ActivationRequest> findAllByResellerIdAndStatus(UUID resellerId,
+            String status, org.springframework.data.domain.Pageable pageable);
+
     long countByResellerIdAndStatus(UUID resellerId, String status);
 
     boolean existsByDeviceIdAndStatus(UUID deviceId, String status);

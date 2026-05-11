@@ -106,8 +106,9 @@ public class SubResellerController {
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this sub-reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
+            @RequestParam(required = false) String status,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentSubResellerId(), pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentSubResellerId(), status, pageable));
     }
 
     private UUID getCurrentSubResellerId() {
