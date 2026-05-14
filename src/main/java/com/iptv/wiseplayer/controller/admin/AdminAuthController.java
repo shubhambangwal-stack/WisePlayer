@@ -2,6 +2,8 @@ package com.iptv.wiseplayer.controller.admin;
 
 import com.iptv.wiseplayer.dto.request.AdminLoginRequest;
 import com.iptv.wiseplayer.dto.request.ChangePasswordRequest;
+import com.iptv.wiseplayer.dto.request.ForgotPasswordRequest;
+import com.iptv.wiseplayer.dto.request.ResetPasswordRequest;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.service.AdminAuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,6 +44,30 @@ public class AdminAuthController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", "Password changed successfully");
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Forgot Password", description = "Initiates a password reset process by sending an email with a reset link.")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, Object>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        adminAuthService.initiatePasswordReset(request.getEmail());
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "If an account exists with this email, a password reset link has been sent.");
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Reset Password", description = "Resets the password using a valid reset token.")
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, Object>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        adminAuthService.resetPassword(request);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Password has been reset successfully.");
         
         return ResponseEntity.ok(response);
     }

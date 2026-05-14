@@ -53,6 +53,27 @@ public class EmailService {
         }
     }
 
+    public void sendPasswordResetEmail(String toEmail, String resetLink) {
+        try {
+            log.info("Sending password reset email to: {}", toEmail);
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
+                    StandardCharsets.UTF_8.name());
+
+            String htmlContent = createResetPasswordHtml(resetLink);
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Password Reset Request - WisePlayer Admin");
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("Password reset email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Error sending password reset email to {}: {}", toEmail, e.getMessage(), e);
+        }
+    }
+
     private String createInvitationHtml(String inviteLink) {
         log.info("Passing invite link to HTML generator: [{}]", inviteLink);
         return """
@@ -93,5 +114,46 @@ public class EmailService {
                 </html>
                 """
                 .formatted(inviteLink);
+    }
+
+    private String createResetPasswordHtml(String resetLink) {
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f0f; color: #ffffff; padding: 20px; }
+                        .container { max-width: 600px; margin: 0 auto; background-color: #1a1a1a; padding: 40px; border-radius: 12px; border: 1px solid #333; }
+                        .logo { color: #e50914; font-size: 28px; font-weight: bold; margin-bottom: 20px; text-align: center; }
+                        .title { font-size: 24px; font-weight: 600; margin-bottom: 20px; text-align: center; color: #00d4ff; }
+                        .content { line-height: 1.6; color: #cccccc; margin-bottom: 30px; }
+                        .button-container { text-align: center; }
+                        .button { background-color: #00d4ff; color: #000000; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; transition: background-color 0.3s; }
+                        .footer { margin-top: 40px; font-size: 12px; color: #666; text-align: center; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="logo">WisePlayer</div>
+                        <div class="title">Reset Your Password</div>
+                        <div class="content">
+                            <p>Hello,</p>
+                            <p>We received a request to reset the password for your WisePlayer Admin account.</p>
+                            <p>To proceed with the password reset, please click the button below:</p>
+                        </div>
+                        <div class="button-container">
+                            <a href="%s" class="button">Reset Password</a>
+                        </div>
+                        <div class="content">
+                            <p>This link will expire in 1 hour. If you did not request a password reset, please ignore this email.</p>
+                        </div>
+                        <div class="footer">
+                            &copy; 2024 WisePlayer. All rights reserved.
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                .formatted(resetLink);
     }
 }

@@ -12,4 +12,6 @@ public interface SuperAdminRepository extends JpaRepository<SuperAdmin, UUID> {
     Optional<SuperAdmin> findByUsername(String username);
 
     Optional<SuperAdmin> findByFullName(String fullName);
+    Optional<SuperAdmin> findByEmail(String email);
+    boolean existsByEmail(String email);
 }
