@@ -3,16 +3,21 @@ package com.iptv.wiseplayer.service;
 import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.dto.request.AdminLoginRequest;
+import com.iptv.wiseplayer.dto.request.ResetPasswordRequest;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.exception.AuthenticationException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.SuperAdminRepository;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
+import com.iptv.wiseplayer.domain.entity.PasswordResetToken;
+import com.iptv.wiseplayer.repository.PasswordResetTokenRepository;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AdminAuthService {
@@ -23,15 +28,24 @@ public class AdminAuthService {
     private final SuperAdminRepository superAdminRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminTokenUtil adminTokenUtil;
+    private final PasswordResetTokenRepository tokenRepository;
+    private final EmailService emailService;
+
+    @Value("${app.security.admin-frontend-url}")
+    private String adminFrontendUrl;
 
     public AdminAuthService(AdminRepository adminRepository,
             SuperAdminRepository superAdminRepository,
             PasswordEncoder passwordEncoder,
-            AdminTokenUtil adminTokenUtil) {
+            AdminTokenUtil adminTokenUtil,
+            PasswordResetTokenRepository tokenRepository,
+            EmailService emailService) {
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
         this.passwordEncoder = passwordEncoder;
         this.adminTokenUtil = adminTokenUtil;
+        this.tokenRepository = tokenRepository;
+        this.emailService = emailService;
     }
 
     public AdminAuthResponse login(AdminLoginRequest request) {
@@ -113,5 +127,70 @@ public class AdminAuthService {
 
         log.error("Password change failed: user not found with username: '{}'", username);
         throw new com.iptv.wiseplayer.exception.ResourceNotFoundException("User not found");
+    }
+
+    @Transactional
+    public void initiatePasswordReset(String email) {
+        log.info("Initiating password reset for email: '{}'", email);
+
+        // 1. Verify user exists (either Admin or SuperAdmin)
+        boolean exists = adminRepository.existsByEmail(email) || superAdminRepository.existsByEmail(email);
+        
+        if (!exists) {
+            log.warn("Password reset requested for non-existent email: '{}'", email);
+            throw new com.iptv.wiseplayer.exception.ResourceNotFoundException("User not found with this email");
+        }
+
+        // 2. Generate and save token
+        tokenRepository.deleteByEmail(email);
+        String token = java.util.UUID.randomUUID().toString();
+        PasswordResetToken resetToken = new PasswordResetToken(
+                token, email, java.time.LocalDateTime.now().plusHours(1));
+        tokenRepository.save(resetToken);
+
+        // 3. Send email
+        String resetLink = adminFrontendUrl + "/reset-password?token=" + token;
+        emailService.sendPasswordResetEmail(email, resetLink);
+        log.info("Password reset email sent to: '{}'", email);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        log.info("Attempting to reset password with token");
+
+        PasswordResetToken token = tokenRepository.findByToken(request.getToken())
+                .orElseThrow(() -> new AuthenticationException("Invalid or expired token"));
+
+        if (token.isExpired()) {
+            tokenRepository.delete(token);
+            throw new AuthenticationException("Token has expired");
+        }
+
+        String email = token.getEmail();
+        String encodedPassword = passwordEncoder.encode(request.getNewPassword());
+
+        // Update SuperAdmin if exists
+        Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository.findByEmail(email);
+        if (superAdminOpt.isPresent()) {
+            com.iptv.wiseplayer.domain.entity.SuperAdmin superAdmin = superAdminOpt.get();
+            superAdmin.setPassword(encodedPassword);
+            superAdminRepository.save(superAdmin);
+            tokenRepository.delete(token);
+            log.info("Password reset successful for SuperAdmin with email: '{}'", email);
+            return;
+        }
+
+        // Update Admin if exists
+        Optional<Admin> adminOpt = adminRepository.findByEmail(email);
+        if (adminOpt.isPresent()) {
+            Admin admin = adminOpt.get();
+            admin.setPasswordHash(encodedPassword);
+            adminRepository.save(admin);
+            tokenRepository.delete(token);
+            log.info("Password reset successful for Admin with email: '{}'", email);
+            return;
+        }
+
+        throw new com.iptv.wiseplayer.exception.ResourceNotFoundException("User not found for the provided token");
     }
 }

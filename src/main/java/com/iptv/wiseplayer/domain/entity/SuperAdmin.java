@@ -22,6 +22,9 @@ public class SuperAdmin {
     @Column(name = "password", nullable = false, length = 100)
     private String password;
 
+    @Column(name = "email", unique = true, length = 100)
+    private String email;
+
     @Column(name = "full_name", length = 100)
     private String fullName;
 
@@ -46,6 +49,9 @@ public class SuperAdmin {
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
