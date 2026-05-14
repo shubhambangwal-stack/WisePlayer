@@ -40,6 +40,8 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
 
         // Skip filtering for public auth endpoints
         if (path.equals("/api/admin/auth/login") ||
+                path.equals("/api/admin/auth/forgot-password") ||
+                path.equals("/api/admin/auth/reset-password") ||
                 path.equals("/api/reseller/login") ||
                 path.equals("/api/reseller/register") ||
                 path.equals("/api/admin/management/invite/verify") ||
