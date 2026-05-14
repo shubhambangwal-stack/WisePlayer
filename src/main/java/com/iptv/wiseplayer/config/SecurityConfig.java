@@ -112,6 +112,8 @@ public class SecurityConfig {
 
                         // Admin Endpoints
                         .requestMatchers("/api/admin/auth/login").permitAll()
+                        .requestMatchers("/api/admin/auth/forgot-password").permitAll()
+                        .requestMatchers("/api/admin/auth/reset-password").permitAll()
                         .requestMatchers("/api/admin/management/invite/verify").permitAll()
                         .requestMatchers("/api/admin/management/setup/complete").permitAll()
                         .requestMatchers("/api/admin/management/**").hasAuthority("ROLE_SUPER_ADMIN")
