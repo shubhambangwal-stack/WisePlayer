@@ -9,6 +9,7 @@ import com.iptv.wiseplayer.exception.ResourceAlreadyExistsException;
 import com.iptv.wiseplayer.repository.AdminAuditLogRepository;
 import com.iptv.wiseplayer.repository.AdminInviteRepository;
 import com.iptv.wiseplayer.repository.AdminRepository;
+import com.iptv.wiseplayer.repository.SuperAdminRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,7 @@ public class AdminManagementService {
     private static final Logger log = LoggerFactory.getLogger(AdminManagementService.class);
 
     private final AdminRepository adminRepository;
+    private final SuperAdminRepository superAdminRepository;
     private final AdminInviteRepository adminInviteRepository;
     private final AdminAuditLogRepository adminAuditLogRepository;
     private final PasswordEncoder passwordEncoder;
@@ -37,11 +39,13 @@ public class AdminManagementService {
     private String baseUrl;
 
     public AdminManagementService(AdminRepository adminRepository,
+            SuperAdminRepository superAdminRepository,
             AdminInviteRepository adminInviteRepository,
             AdminAuditLogRepository adminAuditLogRepository,
             PasswordEncoder passwordEncoder,
             EmailService emailService) {
         this.adminRepository = adminRepository;
+        this.superAdminRepository = superAdminRepository;
         this.adminInviteRepository = adminInviteRepository;
         this.adminAuditLogRepository = adminAuditLogRepository;
         this.passwordEncoder = passwordEncoder;
@@ -57,8 +61,8 @@ public class AdminManagementService {
             throw new AccessDeniedException("Only SUPER_ADMIN can invite new admins");
         }
 
-        if (adminRepository.findByEmail(email).isPresent()) {
-            throw new ResourceAlreadyExistsException("Admin with this email already exists");
+        if (adminRepository.findByEmail(email).isPresent() || superAdminRepository.findByEmail(email).isPresent()) {
+            throw new ResourceAlreadyExistsException("User with this email already exists (Admin or Super Admin)");
         }
 
         Optional<AdminInvite> existingInvite = adminInviteRepository.findByEmail(email);
