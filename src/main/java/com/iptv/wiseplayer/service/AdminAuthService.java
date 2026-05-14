@@ -61,7 +61,7 @@ public class AdminAuthService {
             log.info("Found SuperAdmin record for username: '{}'", loginUsername);
             if (passwordEncoder.matches(request.getPassword(), superAdmin.getPassword())) {
                 String token = adminTokenUtil.generateToken(superAdmin.getUsername(), AdminRole.SUPER_ADMIN);
-                return new AdminAuthResponse(true, token, null, superAdmin.getUsername(), superAdmin.getFullName(),
+                return new AdminAuthResponse(true, token, superAdmin.getEmail(), superAdmin.getUsername(), superAdmin.getFullName(),
                         AdminRole.SUPER_ADMIN.name());
             } else {
                 log.warn("Password mismatch for SuperAdmin: '{}'", loginUsername);
@@ -134,9 +134,10 @@ public class AdminAuthService {
         log.info("Initiating password reset for email: '{}'", email);
 
         // 1. Verify user exists (either Admin or SuperAdmin)
-        boolean exists = adminRepository.existsByEmail(email) || superAdminRepository.existsByEmail(email);
+        boolean isSuperAdmin = superAdminRepository.existsByEmail(email);
+        boolean isAdmin = adminRepository.existsByEmail(email);
         
-        if (!exists) {
+        if (!isSuperAdmin && !isAdmin) {
             log.warn("Password reset requested for non-existent email: '{}'", email);
             throw new com.iptv.wiseplayer.exception.ResourceNotFoundException("User not found with this email");
         }

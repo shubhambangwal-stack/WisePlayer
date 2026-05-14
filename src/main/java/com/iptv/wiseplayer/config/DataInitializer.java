@@ -18,39 +18,45 @@ public class DataInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
-   @Bean
-   public CommandLineRunner initData(SuperAdminRepository superRepo, AdminRepository adminRepo,
-           PasswordEncoder encoder) {
-       return args -> {
-           // Seed SuperAdmin
-           if (superRepo.count() == 0) {
-               SuperAdmin superAdmin = new SuperAdmin();
-               superAdmin.setUsername("superadmin");
-               superAdmin.setPassword(encoder.encode("password123"));
-               superAdmin.setFullName("Default Super Admin");
-               superRepo.save(superAdmin);
-               log.info("Default SuperAdmin seeded: superadmin / password123 (hashed)");
+    @Bean
+    public CommandLineRunner initData(SuperAdminRepository superRepo, AdminRepository adminRepo,
+            PasswordEncoder encoder) {
+        return args -> {
+            // Seed SuperAdmin
+            if (superRepo.count() == 0) {
+                SuperAdmin superAdmin = new SuperAdmin();
+                superAdmin.setUsername("superadmin");
+                superAdmin.setPassword(encoder.encode("password123"));
+                superAdmin.setEmail("superadmin@wiseplayer.com");
+                superAdmin.setFullName("Default Super Admin");
+                superRepo.save(superAdmin);
+                log.info("Default SuperAdmin seeded: superadmin / password123 (hashed)");
 
-               // Also seed 'admin' for convenience
-               SuperAdmin adminUser = new SuperAdmin();
-               adminUser.setUsername("admin");
-               adminUser.setPassword(encoder.encode("admin123"));
-               adminUser.setFullName("Admin User");
-               superRepo.save(adminUser);
-               log.info("Admin User seeded: admin / admin123 (hashed)");
-           }
+                // Seed a regular Admin
+                if (adminRepo.findByUsername("admin").isEmpty()) {
+                    Admin adminUser = new Admin();
+                    adminUser.setUsername("admin");
+                    adminUser.setPasswordHash(encoder.encode("admin123"));
+                    adminUser.setEmail("admin@wiseplayer.com");
+                    adminUser.setFullName("Admin User");
+                    adminUser.setRole(AdminRole.ADMIN);
+                    adminUser.setActive(true);
+                    adminRepo.save(adminUser);
+                    log.info("Regular Admin seeded: admin / admin123 (hashed)");
+                }
+            }
 
-           // Seed a Test Reseller
-           if (adminRepo.findByEmail("reseller@test.com").isEmpty()) {
-               Admin reseller = new Admin();
-               reseller.setEmail("reseller@test.com");
-               reseller.setUsername("Test Reseller");
-               reseller.setPasswordHash(encoder.encode("password123"));
-               reseller.setRole(AdminRole.RESELLER);
-               reseller.setActive(true);
-               adminRepo.save(reseller);
-               log.info("Test Reseller seeded: reseller@test.com / password123");
-           }
-       };
-   }
+            // Seed a Test Reseller
+            if (adminRepo.findByEmail("reseller@test.com").isEmpty()) {
+                Admin reseller = new Admin();
+                reseller.setEmail("reseller@test.com");
+                reseller.setUsername("Test Reseller");
+                reseller.setPasswordHash(encoder.encode("password123"));
+                reseller.setRole(AdminRole.RESELLER);
+                reseller.setActive(true);
+                adminRepo.save(reseller);
+                log.info("Test Reseller seeded: reseller@test.com / password123");
+            }
+        };
+    }
 }
