@@ -97,7 +97,7 @@ class AdminReportServiceTest {
         reseller.setRole(AdminRole.RESELLER);
 
         Page<Admin> resellerPage = new PageImpl<>(Collections.singletonList(reseller));
-        when(adminRepository.findAllByRoleIn(any(), any())).thenReturn(resellerPage);
+        when(adminRepository.findAllByRoleIn(eq(Collections.singletonList(AdminRole.RESELLER)), any())).thenReturn(resellerPage);
         
         when(deviceRepository.countByResellerId(resellerId)).thenReturn(10L);
         when(deviceRepository.countByResellerIdAndDeviceStatus(eq(resellerId), any())).thenReturn(8L);

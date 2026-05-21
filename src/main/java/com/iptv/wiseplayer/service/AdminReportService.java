@@ -58,7 +58,7 @@ public class AdminReportService {
     }
 
     public org.springframework.data.domain.Page<Map<String, Object>> getResellerReport(org.springframework.data.domain.Pageable pageable) {
-        org.springframework.data.domain.Page<Admin> resellers = adminRepository.findAllByRoleIn(Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER), pageable);
+        org.springframework.data.domain.Page<Admin> resellers = adminRepository.findAllByRoleIn(Collections.singletonList(AdminRole.RESELLER), pageable);
 
         return resellers.map(reseller -> {
             Map<String, Object> resellerData = new HashMap<>();
