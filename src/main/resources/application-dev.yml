@@ -48,7 +48,7 @@ app:
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXYy
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXZz
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXXx
-    token-ttl-minutes: 25
+    token-ttl-minutes: 1
     allowed-origins:
       - "http://localhost:3000"
       - "http://localhost:5173"
