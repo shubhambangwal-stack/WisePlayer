@@ -51,7 +51,7 @@ app:
       - ${SECURITY_TOKEN_SECRET_1}
       - ${SECURITY_TOKEN_SECRET_2}
       - ${SECURITY_TOKEN_SECRET_3}
-    token-ttl-minutes: ${TOKEN_TTL_MINUTES}
+    token-ttl-minutes: ${TOKEN_TTL_MINUTES:1}
     admin-frontend-url: ${ADMIN_FRONTEND_URL:https://admin.wise-player.com}
     allowed-origins: ${ALLOWED_ORIGINS:https://wise-player.com,https://admin.wise-player.com}
     allowed-methods:

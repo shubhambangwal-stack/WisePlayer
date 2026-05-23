@@ -34,7 +34,7 @@ public class AdminTokenUtil {
     }
 
     public String generateToken(String username, AdminRole role) {
-        long expiryMillis = System.currentTimeMillis() + (24 * 60 * 60 * 1000); // 24 hours
+        long expiryMillis = System.currentTimeMillis() + (60 * 1000); // 1 minute
 
         return Jwts.builder()
                 .setSubject(username)
