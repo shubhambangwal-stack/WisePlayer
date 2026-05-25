@@ -10,6 +10,8 @@ import java.util.UUID;
 @Repository
 public interface PlaylistRepository extends JpaRepository<Playlist, UUID> {
     java.util.List<Playlist> findByDeviceId(UUID deviceId);
+    
+    void deleteAllByDeviceId(UUID deviceId);
 
     void deleteByDeviceIdAndName(UUID deviceId, String name);
 }

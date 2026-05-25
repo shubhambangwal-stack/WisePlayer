@@ -36,6 +36,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     Optional<Subscription> findByDeviceIdAndStatus(UUID deviceId, SubscriptionStatus status);
 
     Optional<Subscription> findByDeviceId(UUID deviceId);
+    
+    void deleteAllByDeviceId(UUID deviceId);
 
     /**
      * Find expired subscriptions that are still marked as ACTIVE or TRIAL.

@@ -5,6 +5,11 @@ import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.dto.response.AdminDeviceResponse;
 import com.iptv.wiseplayer.repository.DeviceRepository;
+import com.iptv.wiseplayer.repository.SubscriptionRepository;
+import com.iptv.wiseplayer.repository.PaymentRepository;
+import com.iptv.wiseplayer.repository.ActivationRequestRepository;
+import com.iptv.wiseplayer.repository.PlaylistRepository;
+import com.iptv.wiseplayer.repository.DeviceAuditRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,9 +24,24 @@ import java.util.UUID;
 public class AdminDeviceService {
 
     private final DeviceRepository deviceRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final PaymentRepository paymentRepository;
+    private final ActivationRequestRepository activationRequestRepository;
+    private final PlaylistRepository playlistRepository;
+    private final DeviceAuditRepository deviceAuditRepository;
 
-    public AdminDeviceService(DeviceRepository deviceRepository) {
+    public AdminDeviceService(DeviceRepository deviceRepository,
+                              SubscriptionRepository subscriptionRepository,
+                              PaymentRepository paymentRepository,
+                              ActivationRequestRepository activationRequestRepository,
+                              PlaylistRepository playlistRepository,
+                              DeviceAuditRepository deviceAuditRepository) {
         this.deviceRepository = deviceRepository;
+        this.subscriptionRepository = subscriptionRepository;
+        this.paymentRepository = paymentRepository;
+        this.activationRequestRepository = activationRequestRepository;
+        this.playlistRepository = playlistRepository;
+        this.deviceAuditRepository = deviceAuditRepository;
     }
 
     public Page<AdminDeviceResponse> getAllDevices(
@@ -45,6 +65,20 @@ public class AdminDeviceService {
         Device device = findDeviceByIdentifier(idOrMac);
         device.setDeviceStatus(status);
         deviceRepository.save(device);
+    }
+
+    @Transactional
+    public void deleteDeviceCompletely(String idOrMac) {
+        Device device = findDeviceByIdentifier(idOrMac);
+        UUID deviceId = device.getDeviceId();
+
+        deviceAuditRepository.deleteAllByDeviceId(deviceId);
+        playlistRepository.deleteAllByDeviceId(deviceId);
+        paymentRepository.deleteAllByDeviceId(deviceId);
+        subscriptionRepository.deleteAllByDeviceId(deviceId);
+        activationRequestRepository.deleteAllByDeviceId(deviceId);
+
+        deviceRepository.delete(device);
     }
 
     private Device findDeviceByIdentifier(String identifier) {

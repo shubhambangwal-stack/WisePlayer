@@ -49,4 +49,11 @@ public class AdminDeviceController {
         adminDeviceService.updateDeviceStatus(id, status);
         return ResponseEntity.ok(Map.of("success", true, "message", "Device status updated to " + status));
     }
+
+    @Operation(summary = "Delete Device Completely", description = "Permanently deletes a device and all its associated records.")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteDeviceCompletely(@PathVariable String id) {
+        adminDeviceService.deleteDeviceCompletely(id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Device completely deleted."));
+    }
 }
