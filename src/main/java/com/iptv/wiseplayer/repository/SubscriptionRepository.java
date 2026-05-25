@@ -2,8 +2,11 @@ package com.iptv.wiseplayer.repository;
 
 import com.iptv.wiseplayer.domain.entity.Subscription;
 import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -16,6 +19,16 @@ import java.util.UUID;
  */
 @Repository
 public interface SubscriptionRepository extends JpaRepository<Subscription, UUID> {
+
+    @Query("SELECT s FROM Subscription s WHERE " +
+           "(:deviceId IS NULL OR :deviceId = '' OR CAST(s.deviceId AS string) LIKE LOWER(CONCAT('%', :deviceId, '%'))) AND " +
+           "(:plan IS NULL OR :plan = '' OR LOWER(s.planName) LIKE LOWER(CONCAT('%', :plan, '%'))) AND " +
+           "(:status IS NULL OR s.status = :status)")
+    Page<Subscription> searchSubscriptions(
+            @Param("deviceId") String deviceId,
+            @Param("plan") String plan,
+            @Param("status") SubscriptionStatus status,
+            Pageable pageable);
 
     /**
      * Find active subscription for a device.

@@ -5,6 +5,8 @@ import com.iptv.wiseplayer.domain.enums.AdminRole;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -13,6 +15,17 @@ import java.util.UUID;
 
 @Repository
 public interface AdminRepository extends JpaRepository<Admin, UUID> {
+    @Query("SELECT a FROM Admin a WHERE a.role IN :roles AND " +
+           "(:username IS NULL OR :username = '' OR LOWER(a.username) LIKE LOWER(CONCAT('%', :username, '%'))) AND " +
+           "(:fullName IS NULL OR :fullName = '' OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :fullName, '%'))) AND " +
+           "(:email IS NULL OR :email = '' OR LOWER(a.email) LIKE LOWER(CONCAT('%', :email, '%')))")
+    Page<Admin> searchResellers(
+            @Param("roles") List<AdminRole> roles,
+            @Param("username") String username,
+            @Param("fullName") String fullName,
+            @Param("email") String email,
+            Pageable pageable);
+
     Optional<Admin> findByEmail(String email);
     boolean existsByEmail(String email);
 

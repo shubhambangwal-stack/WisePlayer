@@ -30,8 +30,12 @@ public class AdminResellerController {
 
     @Operation(summary = "List All Resellers", description = "Retrieves a paginated list of all resellers and sub-resellers.")
     @GetMapping
-    public ResponseEntity<Page<ResellerResponse>> getAllResellers(Pageable pageable) {
-        return ResponseEntity.ok(adminResellerService.getAllResellers(pageable));
+    public ResponseEntity<Page<ResellerResponse>> getAllResellers(
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String fullName,
+            @RequestParam(required = false) String email,
+            Pageable pageable) {
+        return ResponseEntity.ok(adminResellerService.getAllResellers(username, fullName, email, pageable));
     }
 
     @Operation(summary = "Get Reseller Details", description = "Retrieves detailed information for a specific reseller.")

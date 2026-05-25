@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 
+import com.iptv.wiseplayer.domain.enums.SubscriptionType;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,6 +21,20 @@ import java.util.UUID;
  */
 @Repository
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
+
+        @Query("SELECT d FROM Device d WHERE " +
+                        "(:deviceId IS NULL OR :deviceId = '' OR CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :deviceId, '%'))) AND " +
+                        "(:status IS NULL OR d.deviceStatus = :status) AND " +
+                        "(:subscription IS NULL OR d.subscriptionType = :subscription) AND " +
+                        "(:model IS NULL OR :model = '' OR LOWER(d.deviceModel) LIKE LOWER(CONCAT('%', :model, '%'))) AND " +
+                        "(:platform IS NULL OR :platform = '' OR LOWER(d.platform) LIKE LOWER(CONCAT('%', :platform, '%')))")
+        Page<Device> searchDevices(
+                        @Param("deviceId") String deviceId,
+                        @Param("status") DeviceStatus status,
+                        @Param("subscription") SubscriptionType subscription,
+                        @Param("model") String model,
+                        @Param("platform") String platform,
+                        Pageable pageable);
 
         /**
          * Find device by fingerprint hash.

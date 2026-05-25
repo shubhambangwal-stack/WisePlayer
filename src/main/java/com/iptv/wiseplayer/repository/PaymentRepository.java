@@ -24,6 +24,16 @@ public interface PaymentRepository extends JpaRepository<Payments, UUID> {
 
     List<Payments> findAllByDeviceIdOrderByCreatedAtDesc(UUID deviceId);
 
+    @Query("SELECT p FROM payments p WHERE " +
+           "(:paymentId IS NULL OR :paymentId = '' OR CAST(p.id AS string) LIKE LOWER(CONCAT('%', :paymentId, '%'))) AND " +
+           "(:deviceId IS NULL OR :deviceId = '' OR CAST(p.deviceId AS string) LIKE LOWER(CONCAT('%', :deviceId, '%'))) AND " +
+           "(:status IS NULL OR p.status = :status)")
+    Page<Payments> searchPayments(
+            @Param("paymentId") String paymentId,
+            @Param("deviceId") String deviceId,
+            @Param("status") PaymentStatus status,
+            Pageable pageable);
+
     Optional<Payments> findTopByDeviceIdAndStatusOrderByCreatedAtDesc(UUID deviceId,
             com.iptv.wiseplayer.domain.enums.PaymentStatus status);
 

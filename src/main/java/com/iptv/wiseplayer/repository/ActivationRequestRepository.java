@@ -1,7 +1,11 @@
 package com.iptv.wiseplayer.repository;
 
 import com.iptv.wiseplayer.domain.entity.ActivationRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -9,6 +13,16 @@ import java.util.UUID;
 
 @Repository
 public interface ActivationRequestRepository extends JpaRepository<ActivationRequest, UUID> {
+    @Query("SELECT r FROM ActivationRequest r WHERE " +
+           "(:status IS NULL OR :status = '' OR LOWER(r.status) = LOWER(:status)) AND " +
+           "(:deviceId IS NULL OR :deviceId = '' OR CAST(r.deviceId AS string) LIKE LOWER(CONCAT('%', :deviceId, '%'))) AND " +
+           "(:planName IS NULL OR :planName = '' OR LOWER(r.planName) LIKE LOWER(CONCAT('%', :planName, '%')))")
+    Page<ActivationRequest> searchActivationRequests(
+            @Param("status") String status,
+            @Param("deviceId") String deviceId,
+            @Param("planName") String planName,
+            Pageable pageable);
+
     List<ActivationRequest> findAllByResellerId(UUID resellerId);
 
     org.springframework.data.domain.Page<ActivationRequest> findAllByResellerId(UUID resellerId,

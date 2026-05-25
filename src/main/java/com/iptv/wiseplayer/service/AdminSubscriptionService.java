@@ -34,8 +34,12 @@ public class AdminSubscriptionService {
         this.deviceRepository = deviceRepository;
     }
 
-    public Page<AdminSubscriptionResponse> getAllSubscriptions(Pageable pageable) {
-        return subscriptionRepository.findAll(pageable).map(this::convertToResponse);
+    public Page<AdminSubscriptionResponse> getAllSubscriptions(
+            String deviceId,
+            String plan,
+            SubscriptionStatus status,
+            Pageable pageable) {
+        return subscriptionRepository.searchSubscriptions(deviceId, plan, status, pageable).map(this::convertToResponse);
     }
 
     @Transactional
