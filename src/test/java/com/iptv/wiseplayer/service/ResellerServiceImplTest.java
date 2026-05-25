@@ -165,4 +165,20 @@ class ResellerServiceImplTest {
         // Act & Assert
         assertThrows(BadRequestException.class, () -> resellerService.submitActivationRequest(resellerId, requestDto));
     }
+
+    @Test
+    void getResellerUsers_ShouldInvokeSearchResellerUsers() {
+        // Arrange
+        org.springframework.data.domain.Pageable pageable = mock(org.springframework.data.domain.Pageable.class);
+        org.springframework.data.domain.Page<Device> expectedPage = mock(org.springframework.data.domain.Page.class);
+        when(deviceRepository.searchResellerUsers(eq(resellerId), eq(DeviceStatus.ACTIVE), eq("Samsung"), eq(pageable)))
+                .thenReturn(expectedPage);
+
+        // Act
+        var result = resellerService.getResellerUsers(resellerId, "Samsung", DeviceStatus.ACTIVE, pageable);
+
+        // Assert
+        assertSame(expectedPage, result);
+        verify(deviceRepository).searchResellerUsers(resellerId, DeviceStatus.ACTIVE, "Samsung", pageable);
+    }
 }

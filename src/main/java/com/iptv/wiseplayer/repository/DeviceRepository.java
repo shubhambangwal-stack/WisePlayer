@@ -4,6 +4,12 @@ import com.iptv.wiseplayer.domain.entity.Device;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import com.iptv.wiseplayer.domain.enums.DeviceStatus;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -56,8 +62,19 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
         java.util.List<Device> findAllByResellerId(UUID resellerId);
 
-        org.springframework.data.domain.Page<Device> findAllByResellerId(UUID resellerId,
-                        org.springframework.data.domain.Pageable pageable);
+        Page<Device> findAllByResellerId(UUID resellerId, Pageable pageable);
+
+        @Query("SELECT d FROM Device d WHERE d.resellerId = :resellerId " +
+                        "AND (:status IS NULL OR d.deviceStatus = :status) " +
+                        "AND (:search IS NULL OR :search = '' " +
+                        "OR LOWER(d.deviceModel) LIKE LOWER(CONCAT('%', :search, '%')) " +
+                        "OR LOWER(d.platform) LIKE LOWER(CONCAT('%', :search, '%')) " +
+                        "OR CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :search, '%')))")
+        Page<Device> searchResellerUsers(
+                        @Param("resellerId") UUID resellerId,
+                        @Param("status") DeviceStatus status,
+                        @Param("search") String search,
+                        Pageable pageable);
 
         long countByRegisteredAtBetween(java.time.LocalDateTime from, java.time.LocalDateTime to);
 

@@ -8,20 +8,19 @@ import java.util.UUID;
 public class XtreamStreamResolver {
 
     private final SecureCredentialStore credentialStore;
-    private final XtreamAuthService authService;
 
     public enum StreamType {
         LIVE, VOD
     }
 
-    public XtreamStreamResolver(SecureCredentialStore credentialStore, XtreamAuthService authService) {
+    public XtreamStreamResolver(SecureCredentialStore credentialStore) {
         this.credentialStore = credentialStore;
-        this.authService = authService;
     }
 
     public String resolveStreamUrl(UUID playlistId, int streamId, StreamType type) {
-        // Enforce play permission by checking auth first
-        authService.checkAuth(playlistId);
+        // Note: authentication is enforced by Spring Security before this point.
+        // Making a live auth call here would reject legitimate channel switches
+        // because the upstream provider still counts the previous stream as active.
 
         SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
 

@@ -4,7 +4,10 @@ import com.iptv.wiseplayer.domain.entity.Playlist;
 import com.iptv.wiseplayer.domain.enums.PlaylistType;
 import com.iptv.wiseplayer.dto.iptv.XtreamAuthResponse;
 import com.iptv.wiseplayer.dto.iptv.XtreamUserInfo;
+import com.iptv.wiseplayer.exception.AccountStatusException;
 import com.iptv.wiseplayer.repository.PlaylistRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -12,6 +15,8 @@ import java.util.UUID;
 
 @Service
 public class XtreamAuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(XtreamAuthService.class);
 
     private final XtreamClient xtreamClient;
     private final SecureCredentialStore credentialStore;
@@ -43,9 +48,10 @@ public class XtreamAuthService {
     }
 
     private void validateUserInfo(XtreamUserInfo userInfo) {
-        // Check status
-        if (!"Active".equalsIgnoreCase(userInfo.getStatus())) {
-            throw new RuntimeException("Account is " + userInfo.getStatus());
+        // Check status — guard against null/missing status field from provider
+        String status = userInfo.getStatus();
+        if (status == null || status.isBlank() || !"Active".equalsIgnoreCase(status)) {
+            throw new AccountStatusException(status);
         }
 
         // Check expiry
@@ -56,19 +62,25 @@ public class XtreamAuthService {
                     throw new RuntimeException("Account expired on " + Instant.ofEpochSecond(expTimestamp));
                 }
             } catch (NumberFormatException e) {
-                // Handle non-numeric exp_date if necessary
+                // Non-numeric exp_date — skip expiry check
             }
         }
 
-        // Check connection limits
+        // Check connection limits — we intentionally do NOT throw here.
+        // The upstream provider already enforces this at the stream (.ts) level.
+        // Throwing here would lock users out of the app (browsing, EPG, settings)
+        // even when they haven't started a stream yet, and would also incorrectly
+        // block users during the brief stale-connection window after a stream ends.
         try {
             int active = Integer.parseInt(userInfo.getActiveCons());
             int max = Integer.parseInt(userInfo.getMaxConnections());
             if (max > 0 && active >= max) {
-                throw new RuntimeException("Maximum connection limit reached (" + active + "/" + max + ")");
+                log.warn("Upstream connection limit reached ({}/{}) for user '{}'. "
+                        + "Stream playback will be rejected by the provider server.",
+                        active, max, userInfo.getUsername());
             }
         } catch (NumberFormatException e) {
-            // Handle parsing errors
+            // Non-numeric connection counts — skip limit check
         }
     }
 }

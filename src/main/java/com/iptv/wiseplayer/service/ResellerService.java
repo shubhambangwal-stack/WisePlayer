@@ -25,6 +25,8 @@ public interface ResellerService {
     DeviceRegistrationResponse createEndUser(UUID resellerId, DeviceRegistrationRequest request);
 
     org.springframework.data.domain.Page<Device> getResellerUsers(UUID resellerId,
+            String search,
+            com.iptv.wiseplayer.domain.enums.DeviceStatus status,
             org.springframework.data.domain.Pageable pageable);
 
     void disableUser(UUID resellerId, UUID deviceId);

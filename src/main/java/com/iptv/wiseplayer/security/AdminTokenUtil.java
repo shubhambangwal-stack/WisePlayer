@@ -4,7 +4,6 @@ import com.iptv.wiseplayer.config.SecurityProperties;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
@@ -34,24 +33,25 @@ public class AdminTokenUtil {
     }
 
     public String generateToken(String username, AdminRole role) {
-        long expiryMillis = System.currentTimeMillis() + (60 * 1000); // 1 minute
+        Date issuedAt = new Date();
+        Date expiration = new Date(issuedAt.getTime() + (60 * 1000L)); // 1 minute
 
         return Jwts.builder()
-                .setSubject(username)
+                .subject(username)
                 .claim("role", role.name())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(expiryMillis))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .issuedAt(issuedAt)
+                .expiration(expiration)
+                .signWith(getSigningKey())
                 .compact();
     }
 
     public String[] verifyAndExtract(String token) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token)
+                    .getPayload();
 
             String username = claims.getSubject();
             String role = claims.get("role", String.class);
