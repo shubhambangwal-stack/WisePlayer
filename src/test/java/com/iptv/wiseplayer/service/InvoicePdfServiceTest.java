@@ -20,7 +20,7 @@ public class InvoicePdfServiceTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 LocalDateTime.now(),
-                com.iptv.wiseplayer.domain.enums.PaymentStatus.COMPLETED,
+                com.iptv.wiseplayer.domain.enums.PaymentStatus.SUCCESS,
                 "MONTHLY",
                 "Monthly Plan",
                 new BigDecimal("10.00"),
