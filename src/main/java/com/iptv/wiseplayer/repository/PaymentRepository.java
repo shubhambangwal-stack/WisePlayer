@@ -2,6 +2,8 @@ package com.iptv.wiseplayer.repository;
 
 import com.iptv.wiseplayer.domain.entity.Payments;
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
