@@ -12,6 +12,7 @@ public class AdminSubscriptionResponse {
     private SubscriptionStatus status;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
+    private String macAddress;
 
     public UUID getSubscriptionId() { return subscriptionId; }
     public void setSubscriptionId(UUID subscriptionId) { this.subscriptionId = subscriptionId; }
@@ -30,4 +31,7 @@ public class AdminSubscriptionResponse {
 
     public LocalDateTime getEndDate() { return endDate; }
     public void setEndDate(LocalDateTime endDate) { this.endDate = endDate; }
+
+    public String getMacAddress() { return macAddress; }
+    public void setMacAddress(String macAddress) { this.macAddress = macAddress; }
 }

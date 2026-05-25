@@ -17,6 +17,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.iptv.wiseplayer.util.EncryptionUtil;
+
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -31,6 +33,7 @@ public class AdminActivationRequestService {
     private final AdminSubscriptionService adminSubscriptionService;
     private final com.iptv.wiseplayer.service.CreditService creditService;
     private final PlanConfigRepository planConfigRepository;
+    private final EncryptionUtil encryptionUtil;
 
     public AdminActivationRequestService(
             ActivationRequestRepository activationRequestRepository,
@@ -39,7 +42,8 @@ public class AdminActivationRequestService {
             DeviceRepository deviceRepository,
             AdminSubscriptionService adminSubscriptionService,
             com.iptv.wiseplayer.service.CreditService creditService,
-            PlanConfigRepository planConfigRepository) {
+            PlanConfigRepository planConfigRepository,
+            EncryptionUtil encryptionUtil) {
         this.activationRequestRepository = activationRequestRepository;
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
@@ -47,7 +51,9 @@ public class AdminActivationRequestService {
         this.adminSubscriptionService = adminSubscriptionService;
         this.creditService = creditService;
         this.planConfigRepository = planConfigRepository;
+        this.encryptionUtil = encryptionUtil;
     }
+
 
     public Page<ActivationRequestResponse> getAllRequests(
             String status,
@@ -128,8 +134,17 @@ public class AdminActivationRequestService {
 
         response.setDeviceId(request.getDeviceId());
         deviceRepository.findByDeviceId(request.getDeviceId())
-                .map(d -> d.getDeviceStatus().name())
-                .ifPresent(response::setDeviceStatus);
+                .ifPresent(d -> {
+                    response.setDeviceStatus(d.getDeviceStatus().name());
+                    if (d.getEncryptedMac() != null) {
+                        try {
+                            response.setMacAddress(encryptionUtil.decrypt(d.getEncryptedMac()));
+                        } catch (Exception e) {
+                            response.setMacAddress("N/A");
+                        }
+                    }
+                });
+
 
         response.setPlanName(request.getPlanName());
         response.setAmount(request.getAmount());
