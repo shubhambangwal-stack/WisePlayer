@@ -23,6 +23,8 @@ public interface ActivationRequestRepository extends JpaRepository<ActivationReq
             @Param("planName") String planName,
             Pageable pageable);
 
+    void deleteAllByDeviceId(UUID deviceId);
+
     List<ActivationRequest> findAllByResellerId(UUID resellerId);
 
     org.springframework.data.domain.Page<ActivationRequest> findAllByResellerId(UUID resellerId,

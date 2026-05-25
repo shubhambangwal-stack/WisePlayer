@@ -25,6 +25,8 @@ public interface PaymentRepository extends JpaRepository<Payments, UUID> {
     Optional<Payments> findByStripeEventId(String eventId);
 
     List<Payments> findAllByDeviceIdOrderByCreatedAtDesc(UUID deviceId);
+    
+    void deleteAllByDeviceId(UUID deviceId);
 
     @Query("SELECT p FROM payments p WHERE " +
            "(:paymentId IS NULL OR :paymentId = '' OR CAST(p.id AS string) LIKE LOWER(CONCAT('%', :paymentId, '%'))) AND " +

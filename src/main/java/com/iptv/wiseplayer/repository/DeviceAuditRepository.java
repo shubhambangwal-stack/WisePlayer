@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface DeviceAuditRepository extends JpaRepository<DeviceAuditLog, Long> {
     List<DeviceAuditLog> findByDeviceIdOrderByTimestampDesc(UUID deviceId);
+    
+    void deleteAllByDeviceId(UUID deviceId);
 }
