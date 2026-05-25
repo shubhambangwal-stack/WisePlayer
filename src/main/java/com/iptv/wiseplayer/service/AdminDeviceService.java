@@ -1,5 +1,6 @@
 package com.iptv.wiseplayer.service;
 
+import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.dto.response.AdminDeviceResponse;
@@ -23,8 +24,15 @@ public class AdminDeviceService {
         this.deviceRepository = deviceRepository;
     }
 
-    public Page<AdminDeviceResponse> getAllDevices(Pageable pageable) {
-        return deviceRepository.findAll(pageable).map(this::convertToResponse);
+    public Page<AdminDeviceResponse> getAllDevices(
+            String deviceId,
+            DeviceStatus status,
+            SubscriptionType subscription,
+            String model,
+            String platform,
+            Pageable pageable) {
+        return deviceRepository.searchDevices(deviceId, status, subscription, model, platform, pageable)
+                .map(this::convertToResponse);
     }
 
     public AdminDeviceResponse getDeviceByIdOrMac(String idOrMac) {

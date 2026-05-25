@@ -1,5 +1,6 @@
 package com.iptv.wiseplayer.service;
 
+import com.iptv.wiseplayer.domain.enums.PaymentStatus;
 import com.iptv.wiseplayer.domain.entity.Payments;
 import com.iptv.wiseplayer.dto.response.AdminPaymentResponse;
 import com.iptv.wiseplayer.repository.PaymentRepository;
@@ -20,8 +21,12 @@ public class AdminPaymentService {
         this.paymentRepository = paymentRepository;
     }
 
-    public Page<AdminPaymentResponse> getAllPayments(Pageable pageable) {
-        return paymentRepository.findAll(pageable).map(this::convertToResponse);
+    public Page<AdminPaymentResponse> getAllPayments(
+            String paymentId,
+            String deviceId,
+            PaymentStatus status,
+            Pageable pageable) {
+        return paymentRepository.searchPayments(paymentId, deviceId, status, pageable).map(this::convertToResponse);
     }
 
     public Map<String, Object> getPaymentStats() {

@@ -1,5 +1,6 @@
 package com.iptv.wiseplayer.controller.admin;
 
+import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 import com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest;
 import com.iptv.wiseplayer.dto.response.AdminSubscriptionResponse;
 import com.iptv.wiseplayer.service.AdminSubscriptionService;
@@ -25,8 +26,12 @@ public class AdminSubscriptionController {
 
     @Operation(summary = "List All Subscriptions", description = "Retrieves a paginated list of all subscriptions.")
     @GetMapping
-    public ResponseEntity<Page<AdminSubscriptionResponse>> getAllSubscriptions(Pageable pageable) {
-        return ResponseEntity.ok(adminSubscriptionService.getAllSubscriptions(pageable));
+    public ResponseEntity<Page<AdminSubscriptionResponse>> getAllSubscriptions(
+            @RequestParam(required = false) String deviceId,
+            @RequestParam(required = false) String plan,
+            @RequestParam(required = false) SubscriptionStatus status,
+            Pageable pageable) {
+        return ResponseEntity.ok(adminSubscriptionService.getAllSubscriptions(deviceId, plan, status, pageable));
     }
 
     @Operation(summary = "Manual Activation", description = "Manually activates a subscription for a device.")

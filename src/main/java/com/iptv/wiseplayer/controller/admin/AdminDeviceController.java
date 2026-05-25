@@ -1,5 +1,6 @@
 package com.iptv.wiseplayer.controller.admin;
 
+import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.dto.response.AdminDeviceResponse;
 import com.iptv.wiseplayer.service.AdminDeviceService;
@@ -25,8 +26,14 @@ public class AdminDeviceController {
 
     @Operation(summary = "List All Devices", description = "Retrieves a paginated list of all registered devices.")
     @GetMapping
-    public ResponseEntity<Page<AdminDeviceResponse>> getAllDevices(Pageable pageable) {
-        return ResponseEntity.ok(adminDeviceService.getAllDevices(pageable));
+    public ResponseEntity<Page<AdminDeviceResponse>> getAllDevices(
+            @RequestParam(required = false) String deviceId,
+            @RequestParam(required = false) DeviceStatus status,
+            @RequestParam(required = false) SubscriptionType subscription,
+            @RequestParam(required = false) String model,
+            @RequestParam(required = false) String platform,
+            Pageable pageable) {
+        return ResponseEntity.ok(adminDeviceService.getAllDevices(deviceId, status, subscription, model, platform, pageable));
     }
 
     @Operation(summary = "Get Device Details", description = "Retrieves detailed information for a specific device.")

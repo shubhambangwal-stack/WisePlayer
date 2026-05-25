@@ -39,9 +39,13 @@ public class AdminResellerService {
         this.subscriptionRepository = subscriptionRepository;
     }
 
-    public Page<ResellerResponse> getAllResellers(Pageable pageable) {
+    public Page<ResellerResponse> getAllResellers(
+            String username,
+            String fullName,
+            String email,
+            Pageable pageable) {
         List<AdminRole> roles = Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER);
-        return adminRepository.findAllByRoleIn(roles, pageable)
+        return adminRepository.searchResellers(roles, username, fullName, email, pageable)
                 .map(this::convertToResponse);
     }
 

@@ -49,12 +49,13 @@ public class AdminActivationRequestService {
         this.planConfigRepository = planConfigRepository;
     }
 
-    public Page<ActivationRequestResponse> getAllRequests(String status, Pageable pageable) {
-        if (status != null && !status.isEmpty()) {
-            return activationRequestRepository.findAllByStatus(status.toUpperCase(), pageable)
-                    .map(this::convertToResponse);
-        }
-        return activationRequestRepository.findAll(pageable).map(this::convertToResponse);
+    public Page<ActivationRequestResponse> getAllRequests(
+            String status,
+            String deviceId,
+            String planName,
+            Pageable pageable) {
+        return activationRequestRepository.searchActivationRequests(status, deviceId, planName, pageable)
+                .map(this::convertToResponse);
     }
 
     public ActivationRequestResponse getRequestById(UUID id) {
