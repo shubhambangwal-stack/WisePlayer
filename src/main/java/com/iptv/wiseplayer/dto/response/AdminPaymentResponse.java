@@ -14,6 +14,7 @@ public class AdminPaymentResponse {
     private String planName;
     private String paypalOrderId;
     private LocalDateTime createdAt;
+    private String macAddress;
 
     public UUID getPaymentId() { return paymentId; }
     public void setPaymentId(UUID paymentId) { this.paymentId = paymentId; }
@@ -35,4 +36,7 @@ public class AdminPaymentResponse {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getMacAddress() { return macAddress; }
+    public void setMacAddress(String macAddress) { this.macAddress = macAddress; }
 }

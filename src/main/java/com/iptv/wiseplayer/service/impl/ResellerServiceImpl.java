@@ -26,7 +26,9 @@ import com.iptv.wiseplayer.repository.ActivationRequestRepository;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.ResellerService;
+import com.iptv.wiseplayer.util.EncryptionUtil;
 import org.slf4j.Logger;
+
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,6 +50,7 @@ public class ResellerServiceImpl implements ResellerService {
     private final PasswordEncoder passwordEncoder;
     private final com.iptv.wiseplayer.service.CreditService creditService;
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
+    private final EncryptionUtil encryptionUtil;
 
     public ResellerServiceImpl(DeviceRepository deviceRepository,
             AdminRepository adminRepository,
@@ -56,7 +59,8 @@ public class ResellerServiceImpl implements ResellerService {
             AdminTokenUtil adminTokenUtil,
             PasswordEncoder passwordEncoder,
             com.iptv.wiseplayer.service.CreditService creditService,
-            com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository) {
+            com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
+            EncryptionUtil encryptionUtil) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
@@ -65,7 +69,9 @@ public class ResellerServiceImpl implements ResellerService {
         this.passwordEncoder = passwordEncoder;
         this.creditService = creditService;
         this.subscriptionRepository = subscriptionRepository;
+        this.encryptionUtil = encryptionUtil;
     }
+
 
     @Override
     public AdminAuthResponse login(ResellerLoginRequest request) {
@@ -139,6 +145,8 @@ public class ResellerServiceImpl implements ResellerService {
         device.setPlatform(request.getPlatform());
         device.setOsVersion(request.getOsVersion());
         device.setResellerId(resellerId);
+        device.setEncryptedMac(encryptionUtil.encrypt(request.getDeviceId()));
+
 
         String rawSecret = tokenUtil.generateRefreshToken();
         device.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
@@ -159,8 +167,19 @@ public class ResellerServiceImpl implements ResellerService {
             String search,
             com.iptv.wiseplayer.domain.enums.DeviceStatus status,
             org.springframework.data.domain.Pageable pageable) {
-        return deviceRepository.searchResellerUsers(resellerId, status, search, pageable);
+        org.springframework.data.domain.Page<Device> page = deviceRepository.searchResellerUsers(resellerId, status, search, pageable);
+        page.forEach(device -> {
+            if (device.getEncryptedMac() != null) {
+                try {
+                    device.setMacAddress(encryptionUtil.decrypt(device.getEncryptedMac()));
+                } catch (Exception e) {
+                    device.setMacAddress("N/A");
+                }
+            }
+        });
+        return page;
     }
+
 
     @Override
     @Transactional
@@ -341,7 +360,15 @@ public class ResellerServiceImpl implements ResellerService {
                         response.setDeviceModel(device.getDeviceModel());
                         response.setPlatform(device.getPlatform());
                         response.setDeviceStatus(device.getDeviceStatus().name());
+                        if (device.getEncryptedMac() != null) {
+                            try {
+                                response.setMacAddress(encryptionUtil.decrypt(device.getEncryptedMac()));
+                            } catch (Exception e) {
+                                response.setMacAddress("N/A");
+                            }
+                        }
                     });
+
 
                     return response;
                 });

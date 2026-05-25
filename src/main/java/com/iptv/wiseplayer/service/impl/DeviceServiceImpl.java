@@ -16,8 +16,10 @@ import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.SubscriptionRepository;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.DeviceService;
+import com.iptv.wiseplayer.util.EncryptionUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,15 +35,18 @@ public class DeviceServiceImpl implements DeviceService {
     private final DeviceTokenUtil tokenUtil;
     private final DeviceAuditRepository auditRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final EncryptionUtil encryptionUtil;
 
     public DeviceServiceImpl(DeviceRepository deviceRepository,
             DeviceTokenUtil tokenUtil,
             DeviceAuditRepository auditRepository,
-            SubscriptionRepository subscriptionRepository) {
+            SubscriptionRepository subscriptionRepository,
+            EncryptionUtil encryptionUtil) {
         this.deviceRepository = deviceRepository;
         this.tokenUtil = tokenUtil;
         this.auditRepository = auditRepository;
         this.subscriptionRepository = subscriptionRepository;
+        this.encryptionUtil = encryptionUtil;
     }
 
     @Override
@@ -69,6 +74,8 @@ public class DeviceServiceImpl implements DeviceService {
         newDevice.setDeviceModel(request.getDeviceModel());
         newDevice.setOsVersion(request.getOsVersion());
         newDevice.setPlatform(request.getPlatform());
+        newDevice.setEncryptedMac(encryptionUtil.encrypt(request.getDeviceId()));
+
 
         // Generate permanent Hardware-Linked Secret (HLS)
         String rawSecret = tokenUtil.generateRefreshToken();

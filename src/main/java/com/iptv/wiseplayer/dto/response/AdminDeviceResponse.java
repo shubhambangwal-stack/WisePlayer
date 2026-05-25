@@ -17,6 +17,8 @@ public class AdminDeviceResponse {
     private LocalDateTime registeredAt;
     private LocalDateTime lastSeenAt;
     private LocalDateTime expiresAt;
+    private String macAddress;
+
 
     public UUID getDeviceId() { return deviceId; }
     public void setDeviceId(UUID deviceId) { this.deviceId = deviceId; }
@@ -47,4 +49,7 @@ public class AdminDeviceResponse {
 
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+
+    public String getMacAddress() { return macAddress; }
+    public void setMacAddress(String macAddress) { this.macAddress = macAddress; }
 }

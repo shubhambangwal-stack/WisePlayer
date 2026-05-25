@@ -26,6 +26,8 @@ public class ActivationRequestResponse {
     private String deviceModel;
     private String platform;
     private String deviceStatus;
+    private String macAddress;
+
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -77,4 +79,7 @@ public class ActivationRequestResponse {
 
     public String getDeviceStatus() { return deviceStatus; }
     public void setDeviceStatus(String deviceStatus) { this.deviceStatus = deviceStatus; }
+
+    public String getMacAddress() { return macAddress; }
+    public void setMacAddress(String macAddress) { this.macAddress = macAddress; }
 }
