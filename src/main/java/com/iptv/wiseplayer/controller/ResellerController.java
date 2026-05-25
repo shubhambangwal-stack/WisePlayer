@@ -78,10 +78,12 @@ public class ResellerController {
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/users")
-    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this reseller")
+    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this reseller with optional search and status filtering")
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.DeviceStatus status,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentResellerId(), pageable));
+        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentResellerId(), search, status, pageable));
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")

@@ -84,10 +84,12 @@ public class SubResellerController {
     }
 
     @GetMapping("/users")
-    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this sub-reseller")
+    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this sub-reseller with optional search and status filtering")
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.DeviceStatus status,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentSubResellerId(), pageable));
+        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentSubResellerId(), search, status, pageable));
     }
 
     @PutMapping("/users/{deviceId}/disable")

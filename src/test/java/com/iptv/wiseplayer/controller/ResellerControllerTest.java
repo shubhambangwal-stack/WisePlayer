@@ -63,6 +63,15 @@ class ResellerControllerTest {
 
     @Test
     @WithMockUser(authorities = "ROLE_RESELLER", username = "reseller1")
+    void testGetUsersWithFilters() throws Exception {
+        mockMvc.perform(get("/api/reseller/users")
+                .param("search", "Samsung")
+                .param("status", "ACTIVE"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ROLE_RESELLER", username = "reseller1")
     void testGetActivationRequests() throws Exception {
         mockMvc.perform(get("/api/reseller/activation-request"))
                 .andExpect(status().isOk());

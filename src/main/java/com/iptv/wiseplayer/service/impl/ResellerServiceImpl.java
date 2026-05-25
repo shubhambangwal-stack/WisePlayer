@@ -156,8 +156,10 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     public org.springframework.data.domain.Page<Device> getResellerUsers(UUID resellerId,
+            String search,
+            com.iptv.wiseplayer.domain.enums.DeviceStatus status,
             org.springframework.data.domain.Pageable pageable) {
-        return deviceRepository.findAllByResellerId(resellerId, pageable);
+        return deviceRepository.searchResellerUsers(resellerId, status, search, pageable);
     }
 
     @Override

@@ -4,7 +4,6 @@ import com.iptv.wiseplayer.config.SecurityProperties;
 import com.iptv.wiseplayer.exception.DeviceAuthenticationException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
@@ -42,16 +41,17 @@ public class DeviceTokenUtil {
      * Generates a standard JWT token.
      */
     public String generateToken(String deviceId, String fingerprintHash) {
-        long expiryMillis = System.currentTimeMillis() + (securityProperties.getTokenTtlMinutes() * 60 * 1000);
+        Date issuedAt = new Date();
+        Date expiration = new Date(issuedAt.getTime() + (securityProperties.getTokenTtlMinutes() * 60 * 1000L));
 
         SecretKey primaryKey = getSigningKey(securityProperties.getTokenSecrets().get(0));
 
         return Jwts.builder()
-                .setSubject(deviceId)
+                .subject(deviceId)
                 .claim("fingerprintHash", fingerprintHash)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(expiryMillis))
-                .signWith(primaryKey, SignatureAlgorithm.HS256)
+                .issuedAt(issuedAt)
+                .expiration(expiration)
+                .signWith(primaryKey)
                 .compact();
     }
 
@@ -71,11 +71,11 @@ public class DeviceTokenUtil {
         // Try parsing with all available secrets (for rotation support)
         for (String secret : securityProperties.getTokenSecrets()) {
             try {
-                claims = Jwts.parserBuilder()
-                        .setSigningKey(getSigningKey(secret))
+                claims = Jwts.parser()
+                        .verifyWith(getSigningKey(secret))
                         .build()
-                        .parseClaimsJws(token)
-                        .getBody();
+                        .parseSignedClaims(token)
+                        .getPayload();
                 break; // Successfully parsed
             } catch (Exception e) {
                 lastException = e;

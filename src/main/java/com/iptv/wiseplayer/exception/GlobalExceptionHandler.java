@@ -10,6 +10,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import java.util.stream.Collectors;
 
@@ -20,6 +21,30 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
         private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+        @ExceptionHandler(ConnectionLimitException.class)
+        public ResponseEntity<ErrorResponse> handleConnectionLimitException(
+                        com.iptv.wiseplayer.exception.ConnectionLimitException ex,
+                        HttpServletRequest request) {
+                log.warn("Connection Limit Reached: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request);
+        }
+
+        @ExceptionHandler(AccountStatusException.class)
+        public ResponseEntity<ErrorResponse> handleAccountStatusException(
+                        com.iptv.wiseplayer.exception.AccountStatusException ex,
+                        HttpServletRequest request) {
+                log.warn("Account Status Error: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+        }
+
+        @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+        public ResponseEntity<ErrorResponse> handleMethodNotSupportedException(
+                        HttpRequestMethodNotSupportedException ex,
+                        HttpServletRequest request) {
+                log.warn("HTTP Method Not Supported: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, ex.getMessage(), request);
+        }
 
         @ExceptionHandler(DeviceAuthenticationException.class)
         public ResponseEntity<ErrorResponse> handleDeviceAuthenticationException(DeviceAuthenticationException ex,

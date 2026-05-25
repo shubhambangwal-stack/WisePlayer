@@ -69,6 +69,15 @@ class SubResellerControllerTest {
 
     @Test
     @WithMockUser(authorities = "ROLE_SUB_RESELLER", username = "sub1")
+    void testGetUsersWithFilters() throws Exception {
+        mockMvc.perform(get("/api/sub-reseller/users")
+                .param("search", "LG")
+                .param("status", "INACTIVE"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(authorities = "ROLE_SUB_RESELLER", username = "sub1")
     void testGetActivationRequests() throws Exception {
         mockMvc.perform(get("/api/sub-reseller/activation-request"))
                 .andExpect(status().isOk());
