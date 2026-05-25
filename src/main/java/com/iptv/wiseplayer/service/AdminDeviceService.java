@@ -10,6 +10,7 @@ import com.iptv.wiseplayer.repository.PaymentRepository;
 import com.iptv.wiseplayer.repository.ActivationRequestRepository;
 import com.iptv.wiseplayer.repository.PlaylistRepository;
 import com.iptv.wiseplayer.repository.DeviceAuditRepository;
+import com.iptv.wiseplayer.repository.DeviceKeyRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,19 +30,22 @@ public class AdminDeviceService {
     private final ActivationRequestRepository activationRequestRepository;
     private final PlaylistRepository playlistRepository;
     private final DeviceAuditRepository deviceAuditRepository;
+    private final DeviceKeyRepository deviceKeyRepository;
 
     public AdminDeviceService(DeviceRepository deviceRepository,
                               SubscriptionRepository subscriptionRepository,
                               PaymentRepository paymentRepository,
                               ActivationRequestRepository activationRequestRepository,
                               PlaylistRepository playlistRepository,
-                              DeviceAuditRepository deviceAuditRepository) {
+                              DeviceAuditRepository deviceAuditRepository,
+                              DeviceKeyRepository deviceKeyRepository) {
         this.deviceRepository = deviceRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.paymentRepository = paymentRepository;
         this.activationRequestRepository = activationRequestRepository;
         this.playlistRepository = playlistRepository;
         this.deviceAuditRepository = deviceAuditRepository;
+        this.deviceKeyRepository = deviceKeyRepository;
     }
 
     public Page<AdminDeviceResponse> getAllDevices(
@@ -72,6 +76,8 @@ public class AdminDeviceService {
         Device device = findDeviceByIdentifier(idOrMac);
         UUID deviceId = device.getDeviceId();
 
+        // Delete device_keys first — has a strict FK @ManyToOne to Device
+        deviceKeyRepository.deleteByDeviceId(deviceId);
         deviceAuditRepository.deleteAllByDeviceId(deviceId);
         playlistRepository.deleteAllByDeviceId(deviceId);
         paymentRepository.deleteAllByDeviceId(deviceId);
