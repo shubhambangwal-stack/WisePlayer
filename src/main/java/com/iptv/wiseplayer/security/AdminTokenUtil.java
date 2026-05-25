@@ -34,7 +34,8 @@ public class AdminTokenUtil {
 
     public String generateToken(String username, AdminRole role) {
         Date issuedAt = new Date();
-        Date expiration = new Date(issuedAt.getTime() + (60 * 1000L)); // 1 minute
+       // Date expiration = new Date(issuedAt.getTime() + (60 * 1000L)); // 1 minute
+       Date expiration = new Date(issuedAt.getTime() + (24 * 60 * 60 * 1000L)); // 24 hours
 
         return Jwts.builder()
                 .subject(username)
