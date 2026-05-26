@@ -17,7 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.iptv.wiseplayer.util.EncryptionUtil;
+
 
 
 import java.time.LocalDateTime;
@@ -33,7 +33,6 @@ public class AdminActivationRequestService {
     private final AdminSubscriptionService adminSubscriptionService;
     private final com.iptv.wiseplayer.service.CreditService creditService;
     private final PlanConfigRepository planConfigRepository;
-    private final EncryptionUtil encryptionUtil;
 
     public AdminActivationRequestService(
             ActivationRequestRepository activationRequestRepository,
@@ -42,8 +41,7 @@ public class AdminActivationRequestService {
             DeviceRepository deviceRepository,
             AdminSubscriptionService adminSubscriptionService,
             com.iptv.wiseplayer.service.CreditService creditService,
-            PlanConfigRepository planConfigRepository,
-            EncryptionUtil encryptionUtil) {
+            PlanConfigRepository planConfigRepository) {
         this.activationRequestRepository = activationRequestRepository;
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
@@ -51,8 +49,8 @@ public class AdminActivationRequestService {
         this.adminSubscriptionService = adminSubscriptionService;
         this.creditService = creditService;
         this.planConfigRepository = planConfigRepository;
-        this.encryptionUtil = encryptionUtil;
     }
+
 
 
     public Page<ActivationRequestResponse> getAllRequests(
@@ -136,14 +134,9 @@ public class AdminActivationRequestService {
         deviceRepository.findByDeviceId(request.getDeviceId())
                 .ifPresent(d -> {
                     response.setDeviceStatus(d.getDeviceStatus().name());
-                    if (d.getEncryptedMac() != null) {
-                        try {
-                            response.setMacAddress(encryptionUtil.decrypt(d.getEncryptedMac()));
-                        } catch (Exception e) {
-                            response.setMacAddress("N/A");
-                        }
-                    }
+                    response.setMacAddress(d.getMacAddress());
                 });
+
 
 
         response.setPlanName(request.getPlanName());

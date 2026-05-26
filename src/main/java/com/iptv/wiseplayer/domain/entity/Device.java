@@ -79,11 +79,9 @@ public class Device {
     @Column(name = "is_active")
     private Boolean active = true;
 
-    @Column(name = "encrypted_mac", length = 255)
-    private String encryptedMac;
-
-    @Transient
+    @Column(name = "mac_address", length = 100)
     private String macAddress;
+
 
 
     // Constructors
@@ -226,13 +224,6 @@ public class Device {
         this.active = active;
     }
 
-    public String getEncryptedMac() {
-        return encryptedMac;
-    }
-
-    public void setEncryptedMac(String encryptedMac) {
-        this.encryptedMac = encryptedMac;
-    }
 
     public String getMacAddress() {
         return macAddress;

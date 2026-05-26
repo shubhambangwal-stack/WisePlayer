@@ -13,7 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.iptv.wiseplayer.util.EncryptionUtil;
+
 
 
 import java.nio.charset.StandardCharsets;
@@ -27,17 +27,15 @@ public class AdminSubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionService subscriptionService;
     private final DeviceRepository deviceRepository;
-    private final EncryptionUtil encryptionUtil;
 
     public AdminSubscriptionService(SubscriptionRepository subscriptionRepository,
             SubscriptionService subscriptionService,
-            DeviceRepository deviceRepository,
-            EncryptionUtil encryptionUtil) {
+            DeviceRepository deviceRepository) {
         this.subscriptionRepository = subscriptionRepository;
         this.subscriptionService = subscriptionService;
         this.deviceRepository = deviceRepository;
-        this.encryptionUtil = encryptionUtil;
     }
+
 
 
     public Page<AdminSubscriptionResponse> getAllSubscriptions(
@@ -108,16 +106,11 @@ public class AdminSubscriptionService {
         response.setEndDate(subscription.getEndDate());
         if (subscription.getDeviceId() != null) {
             deviceRepository.findByDeviceId(subscription.getDeviceId()).ifPresent(device -> {
-                if (device.getEncryptedMac() != null) {
-                    try {
-                        response.setMacAddress(encryptionUtil.decrypt(device.getEncryptedMac()));
-                    } catch (Exception e) {
-                        response.setMacAddress("N/A");
-                    }
-                }
+                response.setMacAddress(device.getMacAddress());
             });
         }
         return response;
     }
+
 
 }

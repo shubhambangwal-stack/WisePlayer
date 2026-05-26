@@ -23,11 +23,12 @@ import java.util.UUID;
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
         @Query("SELECT d FROM Device d WHERE " +
-                        "(:deviceId IS NULL OR :deviceId = '' OR CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :deviceId, '%'))) AND " +
+                        "(:deviceId IS NULL OR :deviceId = '' OR CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :deviceId, '%')) OR LOWER(d.macAddress) LIKE LOWER(CONCAT('%', :deviceId, '%'))) AND " +
                         "(:status IS NULL OR d.deviceStatus = :status) AND " +
                         "(:subscription IS NULL OR d.subscriptionType = :subscription) AND " +
                         "(:model IS NULL OR :model = '' OR LOWER(d.deviceModel) LIKE LOWER(CONCAT('%', :model, '%'))) AND " +
                         "(:platform IS NULL OR :platform = '' OR LOWER(d.platform) LIKE LOWER(CONCAT('%', :platform, '%')))")
+
         Page<Device> searchDevices(
                         @Param("deviceId") String deviceId,
                         @Param("status") DeviceStatus status,
@@ -85,7 +86,9 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
                         "AND (:search IS NULL OR :search = '' " +
                         "OR LOWER(d.deviceModel) LIKE LOWER(CONCAT('%', :search, '%')) " +
                         "OR LOWER(d.platform) LIKE LOWER(CONCAT('%', :search, '%')) " +
+                        "OR LOWER(d.macAddress) LIKE LOWER(CONCAT('%', :search, '%')) " +
                         "OR CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :search, '%')))")
+
         Page<Device> searchResellerUsers(
                         @Param("resellerId") UUID resellerId,
                         @Param("status") DeviceStatus status,
