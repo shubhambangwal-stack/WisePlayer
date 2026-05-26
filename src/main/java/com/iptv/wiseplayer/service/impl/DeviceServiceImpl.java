@@ -110,13 +110,6 @@ public class DeviceServiceImpl implements DeviceService {
                 .orElseThrow(() -> new DeviceNotFoundException(
                         "Device not found. Please register device first."));
 
-        // SECURE PROTOCOL: Only rotate/return Hardware-Linked Secret (HLS) for INACTIVE devices
-        // Once a device is ACTIVE, the secret is permanent and should never be exposed over public endpoints.
-        String rawSecret = null;
-        if (device.getDeviceStatus() == DeviceStatus.INACTIVE) {
-            rawSecret = tokenUtil.generateRefreshToken();
-            device.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
-        }
 
         // Update last seen timestamp
         device.setLastSeenAt(LocalDateTime.now());
@@ -137,8 +130,6 @@ public class DeviceServiceImpl implements DeviceService {
 
         String message = determineValidationMessage(device);
 
-        String newAccessToken = tokenUtil.generateToken(device.getDeviceId().toString(), providedFingerprintHash);
-
         SubscriptionType responseType = device.getSubscriptionType();
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
             responseType = SubscriptionType.EXPIRED;
@@ -148,15 +139,10 @@ public class DeviceServiceImpl implements DeviceService {
                 device.getDeviceId(),
                 device.getDeviceStatus(),
                 responseType,
-                newAccessToken,
+                null,
                 allowed,
                 message,
                 device.getLastSeenAt());
-        
-        // Only include secret in response if it was generated (INACTIVE only)
-        if (rawSecret != null) {
-            response.setDeviceSecret(rawSecret);
-        }
         
         return response;
     }
