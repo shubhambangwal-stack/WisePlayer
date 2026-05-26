@@ -47,6 +47,7 @@ server:
 
 app:
   security:
+    seed-secret: ${SEED_SECRET:super-secret-seed-key}
     token-secrets:
       - ${SECURITY_TOKEN_SECRET_1}
       - ${SECURITY_TOKEN_SECRET_2}
