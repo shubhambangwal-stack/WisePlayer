@@ -104,6 +104,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/payment/public/**").permitAll()
                         .requestMatchers("/api/payment/public/plans").permitAll()
                         .requestMatchers("/api/public/support/**").permitAll()
+                        .requestMatchers("/api/internal/seed").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         // Monitoring & Docs (Health is public, others are restricted)
                         .requestMatchers("/wp-admin-monitor/health").permitAll()
