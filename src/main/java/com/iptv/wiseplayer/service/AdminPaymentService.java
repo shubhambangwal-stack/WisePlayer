@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import com.iptv.wiseplayer.repository.DeviceRepository;
-import com.iptv.wiseplayer.util.EncryptionUtil;
+
 
 
 @Service
@@ -20,15 +20,13 @@ public class AdminPaymentService {
 
     private final PaymentRepository paymentRepository;
     private final DeviceRepository deviceRepository;
-    private final EncryptionUtil encryptionUtil;
 
     public AdminPaymentService(PaymentRepository paymentRepository,
-                               DeviceRepository deviceRepository,
-                               EncryptionUtil encryptionUtil) {
+                               DeviceRepository deviceRepository) {
         this.paymentRepository = paymentRepository;
         this.deviceRepository = deviceRepository;
-        this.encryptionUtil = encryptionUtil;
     }
+
 
 
     public Page<AdminPaymentResponse> getAllPayments(
@@ -60,16 +58,11 @@ public class AdminPaymentService {
         response.setCreatedAt(payment.getCreatedAt());
         if (payment.getDeviceId() != null) {
             deviceRepository.findByDeviceId(payment.getDeviceId()).ifPresent(device -> {
-                if (device.getEncryptedMac() != null) {
-                    try {
-                        response.setMacAddress(encryptionUtil.decrypt(device.getEncryptedMac()));
-                    } catch (Exception e) {
-                        response.setMacAddress("N/A");
-                    }
-                }
+                response.setMacAddress(device.getMacAddress());
             });
         }
         return response;
     }
+
 
 }

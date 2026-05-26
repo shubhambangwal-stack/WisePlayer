@@ -15,7 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.iptv.wiseplayer.util.EncryptionUtil;
+
 
 
 import java.nio.charset.StandardCharsets;
@@ -33,7 +33,6 @@ public class AdminDeviceService {
     private final PlaylistRepository playlistRepository;
     private final DeviceAuditRepository deviceAuditRepository;
     private final DeviceKeyRepository deviceKeyRepository;
-    private final EncryptionUtil encryptionUtil;
 
     public AdminDeviceService(DeviceRepository deviceRepository,
                               SubscriptionRepository subscriptionRepository,
@@ -41,8 +40,7 @@ public class AdminDeviceService {
                               ActivationRequestRepository activationRequestRepository,
                               PlaylistRepository playlistRepository,
                               DeviceAuditRepository deviceAuditRepository,
-                              DeviceKeyRepository deviceKeyRepository,
-                              EncryptionUtil encryptionUtil) {
+                              DeviceKeyRepository deviceKeyRepository) {
         this.deviceRepository = deviceRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.paymentRepository = paymentRepository;
@@ -50,8 +48,8 @@ public class AdminDeviceService {
         this.playlistRepository = playlistRepository;
         this.deviceAuditRepository = deviceAuditRepository;
         this.deviceKeyRepository = deviceKeyRepository;
-        this.encryptionUtil = encryptionUtil;
     }
+
 
 
     public Page<AdminDeviceResponse> getAllDevices(
@@ -137,13 +135,8 @@ public class AdminDeviceService {
         response.setRegisteredAt(device.getRegisteredAt());
         response.setLastSeenAt(device.getLastSeenAt());
         response.setExpiresAt(device.getExpiresAt());
-        if (device.getEncryptedMac() != null) {
-            try {
-                response.setMacAddress(encryptionUtil.decrypt(device.getEncryptedMac()));
-            } catch (Exception e) {
-                response.setMacAddress("N/A");
-            }
-        }
+        response.setMacAddress(device.getMacAddress());
         return response;
     }
+
 }
