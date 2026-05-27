@@ -14,6 +14,7 @@ import com.iptv.wiseplayer.exception.DeviceNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceAuditRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.SubscriptionRepository;
+import com.iptv.wiseplayer.repository.ResellerCustomerRepository;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.DeviceService;
 import org.springframework.stereotype.Service;
@@ -34,15 +35,18 @@ public class DeviceServiceImpl implements DeviceService {
     private final DeviceTokenUtil tokenUtil;
     private final DeviceAuditRepository auditRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final ResellerCustomerRepository resellerCustomerRepository;
 
     public DeviceServiceImpl(DeviceRepository deviceRepository,
             DeviceTokenUtil tokenUtil,
             DeviceAuditRepository auditRepository,
-            SubscriptionRepository subscriptionRepository) {
+            SubscriptionRepository subscriptionRepository,
+            ResellerCustomerRepository resellerCustomerRepository) {
         this.deviceRepository = deviceRepository;
         this.tokenUtil = tokenUtil;
         this.auditRepository = auditRepository;
         this.subscriptionRepository = subscriptionRepository;
+        this.resellerCustomerRepository = resellerCustomerRepository;
     }
 
 
@@ -72,6 +76,10 @@ public class DeviceServiceImpl implements DeviceService {
         newDevice.setOsVersion(request.getOsVersion());
         newDevice.setPlatform(request.getPlatform());
         newDevice.setMacAddress(request.getDeviceId());
+        
+        // Auto-link reseller if this MAC was pre-claimed
+        resellerCustomerRepository.findByMacAddress(request.getDeviceId())
+                .ifPresent(rc -> newDevice.setResellerId(rc.getResellerId()));
 
 
 
