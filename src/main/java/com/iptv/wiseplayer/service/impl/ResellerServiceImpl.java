@@ -50,6 +50,7 @@ public class ResellerServiceImpl implements ResellerService {
     private final PasswordEncoder passwordEncoder;
     private final com.iptv.wiseplayer.service.CreditService creditService;
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
+    private final com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository;
 
     public ResellerServiceImpl(DeviceRepository deviceRepository,
             AdminRepository adminRepository,
@@ -58,7 +59,8 @@ public class ResellerServiceImpl implements ResellerService {
             AdminTokenUtil adminTokenUtil,
             PasswordEncoder passwordEncoder,
             com.iptv.wiseplayer.service.CreditService creditService,
-            com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository) {
+            com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
+            com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
@@ -67,6 +69,7 @@ public class ResellerServiceImpl implements ResellerService {
         this.passwordEncoder = passwordEncoder;
         this.creditService = creditService;
         this.subscriptionRepository = subscriptionRepository;
+        this.resellerCustomerRepository = resellerCustomerRepository;
     }
 
 
@@ -131,34 +134,38 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
-    public DeviceRegistrationResponse createEndUser(UUID resellerId, DeviceRegistrationRequest request) {
-        String fingerprintHash = tokenUtil.hashFingerprint(request.getDeviceId());
-        if (deviceRepository.findByFingerprintHash(fingerprintHash).isPresent()) {
-            throw new ResourceAlreadyExistsException("Device already registered");
+    public java.util.Map<String, Object> createEndUser(UUID resellerId, DeviceRegistrationRequest request) {
+        String macAddress = request.getDeviceId();
+        
+        // Check if device already claimed by this reseller
+        if (resellerCustomerRepository.findByResellerIdAndMacAddress(resellerId, macAddress).isPresent()) {
+            throw new ResourceAlreadyExistsException("You have already added this device.");
+        }
+        
+        // Check if device is claimed by someone else
+        if (resellerCustomerRepository.findByMacAddress(macAddress).isPresent()) {
+            throw new ResourceAlreadyExistsException("This device is already claimed by another reseller.");
         }
 
-        Device device = new Device(fingerprintHash, DeviceStatus.INACTIVE);
-        device.setSubscriptionType(SubscriptionType.TRIAL);
-        device.setDeviceModel(request.getDeviceModel());
-        device.setPlatform(request.getPlatform());
-        device.setOsVersion(request.getOsVersion());
-        device.setResellerId(resellerId);
-        device.setMacAddress(request.getDeviceId());
+        // 1. Add to reseller_customers table
+        com.iptv.wiseplayer.domain.entity.ResellerCustomer rc = new com.iptv.wiseplayer.domain.entity.ResellerCustomer(resellerId, macAddress, request.getDeviceModel());
+        resellerCustomerRepository.save(rc);
 
+        // 2. If the device already exists in the `devices` table, update its resellerId
+        String fingerprintHash = tokenUtil.hashFingerprint(macAddress);
+        java.util.Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
+        
+        if (existingDevice.isPresent()) {
+            Device device = existingDevice.get();
+            device.setResellerId(resellerId);
+            deviceRepository.save(device);
+        }
 
-
-        String rawSecret = tokenUtil.generateRefreshToken();
-        device.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
-
-        Device savedDevice = deviceRepository.save(device);
-
-        return new DeviceRegistrationResponse(
-                savedDevice.getDeviceId(),
-                savedDevice.getDeviceStatus(),
-                savedDevice.getSubscriptionType(),
-                tokenUtil.generateToken(savedDevice.getDeviceId().toString(), fingerprintHash),
-                rawSecret,
-                savedDevice.getRegisteredAt());
+        return java.util.Map.of(
+            "success", true,
+            "message", "Device successfully added to your list.",
+            "macAddress", macAddress
+        );
     }
 
     @Override

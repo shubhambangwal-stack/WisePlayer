@@ -14,6 +14,7 @@ import com.iptv.wiseplayer.exception.DeviceNotFoundException;
 import com.iptv.wiseplayer.repository.DeviceAuditRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.SubscriptionRepository;
+import com.iptv.wiseplayer.repository.ResellerCustomerRepository;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.DeviceService;
 import org.springframework.stereotype.Service;
@@ -34,15 +35,18 @@ public class DeviceServiceImpl implements DeviceService {
     private final DeviceTokenUtil tokenUtil;
     private final DeviceAuditRepository auditRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final ResellerCustomerRepository resellerCustomerRepository;
 
     public DeviceServiceImpl(DeviceRepository deviceRepository,
             DeviceTokenUtil tokenUtil,
             DeviceAuditRepository auditRepository,
-            SubscriptionRepository subscriptionRepository) {
+            SubscriptionRepository subscriptionRepository,
+            ResellerCustomerRepository resellerCustomerRepository) {
         this.deviceRepository = deviceRepository;
         this.tokenUtil = tokenUtil;
         this.auditRepository = auditRepository;
         this.subscriptionRepository = subscriptionRepository;
+        this.resellerCustomerRepository = resellerCustomerRepository;
     }
 
 
@@ -72,6 +76,10 @@ public class DeviceServiceImpl implements DeviceService {
         newDevice.setOsVersion(request.getOsVersion());
         newDevice.setPlatform(request.getPlatform());
         newDevice.setMacAddress(request.getDeviceId());
+        
+        // Auto-link reseller if this MAC was pre-claimed
+        resellerCustomerRepository.findByMacAddress(request.getDeviceId())
+                .ifPresent(rc -> newDevice.setResellerId(rc.getResellerId()));
 
 
 
@@ -110,13 +118,6 @@ public class DeviceServiceImpl implements DeviceService {
                 .orElseThrow(() -> new DeviceNotFoundException(
                         "Device not found. Please register device first."));
 
-        // SECURE PROTOCOL: Only rotate/return Hardware-Linked Secret (HLS) for INACTIVE devices
-        // Once a device is ACTIVE, the secret is permanent and should never be exposed over public endpoints.
-        String rawSecret = null;
-        if (device.getDeviceStatus() == DeviceStatus.INACTIVE) {
-            rawSecret = tokenUtil.generateRefreshToken();
-            device.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
-        }
 
         // Update last seen timestamp
         device.setLastSeenAt(LocalDateTime.now());
@@ -137,8 +138,6 @@ public class DeviceServiceImpl implements DeviceService {
 
         String message = determineValidationMessage(device);
 
-        String newAccessToken = tokenUtil.generateToken(device.getDeviceId().toString(), providedFingerprintHash);
-
         SubscriptionType responseType = device.getSubscriptionType();
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
             responseType = SubscriptionType.EXPIRED;
@@ -148,15 +147,10 @@ public class DeviceServiceImpl implements DeviceService {
                 device.getDeviceId(),
                 device.getDeviceStatus(),
                 responseType,
-                newAccessToken,
+                null,
                 allowed,
                 message,
                 device.getLastSeenAt());
-        
-        // Only include secret in response if it was generated (INACTIVE only)
-        if (rawSecret != null) {
-            response.setDeviceSecret(rawSecret);
-        }
         
         return response;
     }

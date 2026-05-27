@@ -65,7 +65,7 @@ public class ResellerController {
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PostMapping("/user")
     @Operation(summary = "Create End User", description = "Register an end user device under this reseller")
-    public ResponseEntity<DeviceRegistrationResponse> createEndUser(
+    public ResponseEntity<java.util.Map<String, Object>> createEndUser(
             @Valid @RequestBody DeviceRegistrationRequest request) {
         return ResponseEntity.ok(resellerService.createEndUser(getCurrentResellerId(), request));
     }

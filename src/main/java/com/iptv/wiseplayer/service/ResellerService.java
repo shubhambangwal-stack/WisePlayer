@@ -22,7 +22,7 @@ public interface ResellerService {
 
     ResellerDashboardResponse getDashboardOverview(UUID resellerId);
 
-    DeviceRegistrationResponse createEndUser(UUID resellerId, DeviceRegistrationRequest request);
+    java.util.Map<String, Object> createEndUser(UUID resellerId, DeviceRegistrationRequest request);
 
     org.springframework.data.domain.Page<Device> getResellerUsers(UUID resellerId,
             String search,
