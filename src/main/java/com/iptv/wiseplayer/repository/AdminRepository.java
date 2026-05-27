@@ -26,6 +26,17 @@ public interface AdminRepository extends JpaRepository<Admin, UUID> {
             @Param("email") String email,
             Pageable pageable);
 
+    @Query("SELECT a FROM Admin a WHERE a.parentId = :parentId AND " +
+            "(:search IS NULL OR :search = '' OR " +
+            "LOWER(a.username) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(a.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "(:status IS NULL OR a.active = :status)")
+    Page<Admin> searchSubResellers(
+            @Param("parentId") UUID parentId,
+            @Param("search") String search,
+            @Param("status") Boolean status,
+            Pageable pageable);
     Optional<Admin> findByEmail(String email);
     boolean existsByEmail(String email);
 

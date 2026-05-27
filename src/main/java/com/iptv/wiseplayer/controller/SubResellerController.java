@@ -59,8 +59,9 @@ public class SubResellerController {
     @GetMapping("/credits/transactions")
     @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in sub-reseller")
     public ResponseEntity<Page<CreditTransactionResponse>> getTransactionHistory(
+            @RequestParam(required = false) String search,
             Pageable pageable) {
-        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentSubResellerId(), pageable));
+        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentSubResellerId(), search, pageable));
     }
 
     @PostMapping("/credits/purchase")
@@ -108,9 +109,10 @@ public class SubResellerController {
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this sub-reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentSubResellerId(), status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentSubResellerId(), search, status, pageable));
     }
 
     private UUID getCurrentSubResellerId() {

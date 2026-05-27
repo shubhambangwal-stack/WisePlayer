@@ -35,6 +35,17 @@ public interface ActivationRequestRepository extends JpaRepository<ActivationReq
 
     long countByResellerIdAndStatus(UUID resellerId, String status);
 
+    @Query("SELECT r FROM ActivationRequest r WHERE r.resellerId = :resellerId AND " +
+           "(:status IS NULL OR :status = '' OR LOWER(r.status) = LOWER(:status)) AND " +
+           "(:search IS NULL OR :search = '' OR " +
+           "CAST(r.deviceId AS string) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(r.planName) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<ActivationRequest> searchResellerRequests(
+            @Param("resellerId") UUID resellerId,
+            @Param("status") String status,
+            @Param("search") String search,
+            Pageable pageable);
+
     boolean existsByDeviceIdAndStatus(UUID deviceId, String status);
 
     org.springframework.data.domain.Page<ActivationRequest> findAllByStatus(String status,

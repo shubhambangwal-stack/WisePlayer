@@ -49,8 +49,9 @@ public class CreditController {
     @GetMapping("/transactions")
     @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse>> getTransactionHistory(
+            @RequestParam(required = false) String search,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentResellerId(), pageable));
+        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentResellerId(), search, pageable));
     }
 
     @PostMapping("/purchase")

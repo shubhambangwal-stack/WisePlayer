@@ -12,7 +12,6 @@ public class DeviceRegistrationRequest {
     @NotBlank(message = "Device ID (fingerprint) is required")
     @Size(min = 5, max = 255, message = "Device ID must be between 5 and 255 characters")
     private String deviceId;
-
     private String deviceModel;
     private String osVersion;
     private String platform;

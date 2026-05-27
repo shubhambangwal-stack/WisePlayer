@@ -39,7 +39,7 @@ public interface CreditService {
      * Gets the transaction history for a reseller.
      */
     org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
-            UUID resellerId, org.springframework.data.domain.Pageable pageable);
+            UUID resellerId, String search, org.springframework.data.domain.Pageable pageable);
 
     /**
      * Transfers credits from one reseller to another (typically parent to child).

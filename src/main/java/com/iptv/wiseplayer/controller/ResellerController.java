@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/reseller")
 @Tag(name = "Reseller API", description = "Endpoints for Reseller Management")
@@ -102,11 +103,13 @@ public class ResellerController {
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
-    @GetMapping("/sub-resellers")
-    @Operation(summary = "Get Sub-Resellers", description = "Get a list of all sub-resellers created by this reseller")
+        @GetMapping("/sub-resellers")
     public ResponseEntity<org.springframework.data.domain.Page<Admin>> getSubResellers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean status,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getSubResellers(getCurrentResellerId(), pageable));
+        return ResponseEntity.ok(resellerService.getSubResellers(
+                getCurrentResellerId(), search, status, pageable));
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
@@ -137,9 +140,10 @@ public class ResellerController {
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), search, status, pageable));
     }
 
     private UUID getCurrentResellerId() {

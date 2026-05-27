@@ -64,10 +64,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(securityProperties.getAllowedOrigins());
-        configuration.setAllowedMethods(securityProperties.getAllowedMethods());
-        configuration.setAllowedHeaders(securityProperties.getAllowedHeaders());
-        configuration.setAllowCredentials(securityProperties.isAllowCredentials());
+        configuration.setAllowedOriginPatterns(java.util.List.of("*"));
+        configuration.setAllowedMethods(java.util.List.of("*"));
+        configuration.setAllowedHeaders(java.util.List.of("*"));
+        configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -81,7 +81,7 @@ public class SecurityConfig {
             AdminAuthenticationFilter adminAuthenticationFilter) throws Exception {
         http
                 // Enable CORS using the configured source
-                // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // Disable CSRF using the new lambda style
                 .csrf(AbstractHttpConfigurer::disable)

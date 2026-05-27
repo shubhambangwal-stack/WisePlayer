@@ -33,7 +33,8 @@ public interface ResellerService {
 
     Admin createSubReseller(UUID resellerId, SubResellerCreateRequest request);
 
-    org.springframework.data.domain.Page<Admin> getSubResellers(UUID resellerId,
+    org.springframework.data.domain.Page<Admin> getSubResellers(
+            UUID resellerId, String search, Boolean status,
             org.springframework.data.domain.Pageable pageable);
 
     void updateSubReseller(UUID resellerId, UUID subResellerId,
@@ -44,5 +45,5 @@ public interface ResellerService {
     ActivationRequest submitActivationRequest(UUID resellerId, ResellerActivationRequestDto request);
 
     org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
-            UUID resellerId, String status, org.springframework.data.domain.Pageable pageable);
+            UUID resellerId, String search, String status, org.springframework.data.domain.Pageable pageable);
 }
