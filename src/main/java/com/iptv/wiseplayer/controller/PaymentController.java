@@ -31,8 +31,7 @@ public class PaymentController {
     @Value("${paypal.frontend-url:https://wise-player.com}")
     private String frontendUrl;
 
-//    @Value("${APP_BASE_URL}")
-    @Value("${APP_BASE_URL:https://admin.wise-player.com}")
+    @Value("${APP_BASE_URL}")
     private String appBaseUrl;
 
     private final PaymentService paymentService;
