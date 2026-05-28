@@ -15,6 +15,10 @@ import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.ActivationRequestRepository;
 import com.iptv.wiseplayer.repository.SubscriptionRepository;
+import com.iptv.wiseplayer.repository.ResellerCustomerRepository;
+import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
+import com.iptv.wiseplayer.domain.entity.ResellerCustomer;
+import com.iptv.wiseplayer.exception.ResourceAlreadyExistsException;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
 import com.iptv.wiseplayer.service.impl.ResellerServiceImpl;
@@ -58,6 +62,9 @@ class ResellerServiceImplTest {
 
     @Mock
     private SubscriptionRepository subscriptionRepository;
+
+    @Mock
+    private ResellerCustomerRepository resellerCustomerRepository;
 
     @InjectMocks
     private ResellerServiceImpl resellerService;
@@ -180,5 +187,99 @@ class ResellerServiceImplTest {
         // Assert
         assertSame(expectedPage, result);
         verify(deviceRepository).searchResellerUsers(resellerId, DeviceStatus.ACTIVE, "Samsung", pageable);
+    }
+
+    @Test
+    void createEndUser_ShouldSucceed_WhenDeviceRegisteredAndUnclaimed() {
+        // Arrange
+        String macAddress = "00:11:22:33:44:55";
+        DeviceRegistrationRequest request = new DeviceRegistrationRequest(macAddress, "Samsung Smart TV", "1.0", "Tizen");
+        String fingerprintHash = "mocked_hash";
+        
+        when(tokenUtil.hashFingerprint(macAddress)).thenReturn(fingerprintHash);
+        
+        Device device = new Device();
+        device.setMacAddress(macAddress);
+        device.setFingerprintHash(fingerprintHash);
+        when(deviceRepository.findByFingerprintHash(fingerprintHash)).thenReturn(Optional.of(device));
+        
+        when(resellerCustomerRepository.findByResellerIdAndMacAddress(resellerId, macAddress)).thenReturn(Optional.empty());
+        when(resellerCustomerRepository.findByMacAddress(macAddress)).thenReturn(Optional.empty());
+
+        // Act
+        var result = resellerService.createEndUser(resellerId, request);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue((Boolean) result.get("success"));
+        assertEquals(macAddress, result.get("macAddress"));
+        assertEquals(resellerId, device.getResellerId());
+        
+        verify(resellerCustomerRepository).save(any(ResellerCustomer.class));
+        verify(deviceRepository).save(device);
+    }
+
+    @Test
+    void createEndUser_ShouldThrowResourceNotFoundException_WhenDeviceNotRegistered() {
+        // Arrange
+        String macAddress = "00:11:22:33:44:55";
+        DeviceRegistrationRequest request = new DeviceRegistrationRequest(macAddress, "Samsung Smart TV", "1.0", "Tizen");
+        String fingerprintHash = "mocked_hash";
+        
+        when(tokenUtil.hashFingerprint(macAddress)).thenReturn(fingerprintHash);
+        when(deviceRepository.findByFingerprintHash(fingerprintHash)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () -> resellerService.createEndUser(resellerId, request));
+        verify(resellerCustomerRepository, never()).save(any());
+        verify(deviceRepository, never()).save(any());
+    }
+
+    @Test
+    void createEndUser_ShouldThrowResourceAlreadyExistsException_WhenDeviceAlreadyClaimedBySameReseller() {
+        // Arrange
+        String macAddress = "00:11:22:33:44:55";
+        DeviceRegistrationRequest request = new DeviceRegistrationRequest(macAddress, "Samsung Smart TV", "1.0", "Tizen");
+        String fingerprintHash = "mocked_hash";
+        
+        when(tokenUtil.hashFingerprint(macAddress)).thenReturn(fingerprintHash);
+        
+        Device device = new Device();
+        device.setMacAddress(macAddress);
+        device.setFingerprintHash(fingerprintHash);
+        when(deviceRepository.findByFingerprintHash(fingerprintHash)).thenReturn(Optional.of(device));
+        
+        ResellerCustomer existingClaim = new ResellerCustomer(resellerId, macAddress, "Name");
+        when(resellerCustomerRepository.findByResellerIdAndMacAddress(resellerId, macAddress)).thenReturn(Optional.of(existingClaim));
+
+        // Act & Assert
+        assertThrows(ResourceAlreadyExistsException.class, () -> resellerService.createEndUser(resellerId, request));
+        verify(resellerCustomerRepository, never()).save(any());
+        verify(deviceRepository, never()).save(any());
+    }
+
+    @Test
+    void createEndUser_ShouldThrowResourceAlreadyExistsException_WhenDeviceAlreadyClaimedByOtherReseller() {
+        // Arrange
+        String macAddress = "00:11:22:33:44:55";
+        DeviceRegistrationRequest request = new DeviceRegistrationRequest(macAddress, "Samsung Smart TV", "1.0", "Tizen");
+        String fingerprintHash = "mocked_hash";
+        
+        when(tokenUtil.hashFingerprint(macAddress)).thenReturn(fingerprintHash);
+        
+        Device device = new Device();
+        device.setMacAddress(macAddress);
+        device.setFingerprintHash(fingerprintHash);
+        when(deviceRepository.findByFingerprintHash(fingerprintHash)).thenReturn(Optional.of(device));
+        
+        UUID otherResellerId = UUID.randomUUID();
+        ResellerCustomer existingClaim = new ResellerCustomer(otherResellerId, macAddress, "Name");
+        when(resellerCustomerRepository.findByResellerIdAndMacAddress(resellerId, macAddress)).thenReturn(Optional.empty());
+        when(resellerCustomerRepository.findByMacAddress(macAddress)).thenReturn(Optional.of(existingClaim));
+
+        // Act & Assert
+        assertThrows(ResourceAlreadyExistsException.class, () -> resellerService.createEndUser(resellerId, request));
+        verify(resellerCustomerRepository, never()).save(any());
+        verify(deviceRepository, never()).save(any());
     }
 }

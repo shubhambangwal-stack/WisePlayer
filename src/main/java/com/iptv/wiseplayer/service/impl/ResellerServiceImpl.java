@@ -137,6 +137,14 @@ public class ResellerServiceImpl implements ResellerService {
     public java.util.Map<String, Object> createEndUser(UUID resellerId, DeviceRegistrationRequest request) {
         String macAddress = request.getDeviceId();
         
+        // Check if the device exists in the devices table (registered through the app)
+        String fingerprintHash = tokenUtil.hashFingerprint(macAddress);
+        java.util.Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
+        
+        if (existingDevice.isEmpty()) {
+            throw new ResourceNotFoundException("Device not found. Only devices registered through the app can be added.");
+        }
+        
         // Check if device already claimed by this reseller
         if (resellerCustomerRepository.findByResellerIdAndMacAddress(resellerId, macAddress).isPresent()) {
             throw new ResourceAlreadyExistsException("You have already added this device.");
@@ -151,15 +159,10 @@ public class ResellerServiceImpl implements ResellerService {
         com.iptv.wiseplayer.domain.entity.ResellerCustomer rc = new com.iptv.wiseplayer.domain.entity.ResellerCustomer(resellerId, macAddress, request.getDeviceModel());
         resellerCustomerRepository.save(rc);
 
-        // 2. If the device already exists in the `devices` table, update its resellerId
-        String fingerprintHash = tokenUtil.hashFingerprint(macAddress);
-        java.util.Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
-        
-        if (existingDevice.isPresent()) {
-            Device device = existingDevice.get();
-            device.setResellerId(resellerId);
-            deviceRepository.save(device);
-        }
+        // 2. Update its resellerId
+        Device device = existingDevice.get();
+        device.setResellerId(resellerId);
+        deviceRepository.save(device);
 
         return java.util.Map.of(
             "success", true,
