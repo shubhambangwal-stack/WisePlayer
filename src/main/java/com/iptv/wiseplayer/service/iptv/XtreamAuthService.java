@@ -48,10 +48,15 @@ public class XtreamAuthService {
     }
 
     private void validateUserInfo(XtreamUserInfo userInfo) {
-        // Check status — guard against null/missing status field from provider
+        // Check status — allow null/missing status field (default to Active),
+        // but reject if status is explicitly something other than "Active"
         String status = userInfo.getStatus();
-        if (status == null || status.isBlank() || !"Active".equalsIgnoreCase(status)) {
-            throw new AccountStatusException(status);
+        if (status != null && !status.isBlank()) {
+            if (!"Active".equalsIgnoreCase(status.trim())) {
+                throw new AccountStatusException(status);
+            }
+        } else {
+            log.info("Status field is null or blank in IPTV provider response, assuming Active.");
         }
 
         // Check expiry
