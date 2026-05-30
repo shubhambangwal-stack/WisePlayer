@@ -81,7 +81,7 @@ public class SecurityConfig {
             AdminAuthenticationFilter adminAuthenticationFilter) throws Exception {
         http
                 // Enable CORS using the configured source
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+               // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // Disable CSRF using the new lambda style
                 .csrf(AbstractHttpConfigurer::disable)
