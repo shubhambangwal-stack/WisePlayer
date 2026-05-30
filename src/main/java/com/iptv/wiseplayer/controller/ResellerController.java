@@ -141,8 +141,9 @@ public class ResellerController {
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String planName,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), search, status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), search, status, planName, pageable));
     }
 
     private UUID getCurrentResellerId() {

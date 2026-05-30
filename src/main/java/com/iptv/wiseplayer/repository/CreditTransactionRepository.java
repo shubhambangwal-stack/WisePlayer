@@ -15,15 +15,16 @@ public interface CreditTransactionRepository extends JpaRepository<CreditTransac
             org.springframework.data.domain.Pageable pageable);
 
     @org.springframework.data.jpa.repository.Query("SELECT t FROM CreditTransaction t WHERE t.adminId = :adminId AND " +
-           "(:search IS NULL OR :search = '' OR " +
-           "CAST(t.id AS string) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "CAST(t.amount AS string) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(CAST(t.type AS string)) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(t.notes) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "CAST(t.createdAt AS string) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "ORDER BY t.createdAt DESC")
+            "(:type IS NULL OR :type = '' OR LOWER(CAST(t.type AS string)) = LOWER(:type)) AND " +
+            "(:search IS NULL OR :search = '' OR " +
+            "CAST(t.id AS string) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "CAST(t.amount AS string) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(CAST(t.type AS string)) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "CAST(t.createdAt AS string) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "ORDER BY t.createdAt DESC")
     org.springframework.data.domain.Page<CreditTransaction> searchTransactions(
             @org.springframework.data.repository.query.Param("adminId") UUID adminId,
+            @org.springframework.data.repository.query.Param("type") String type,
             @org.springframework.data.repository.query.Param("search") String search,
             org.springframework.data.domain.Pageable pageable);
 }

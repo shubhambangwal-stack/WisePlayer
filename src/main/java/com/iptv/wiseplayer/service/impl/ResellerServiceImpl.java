@@ -201,7 +201,7 @@ public class ResellerServiceImpl implements ResellerService {
             throw new ResourceAlreadyExistsException("Username already exists");
         }
         Admin sub = new Admin();
-        sub.setUsername(request.getUsername());
+        sub .setUsername(request.getUsername());
         sub.setFullName(request.getFullName());
         sub.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         sub.setRole(AdminRole.SUB_RESELLER);
@@ -328,10 +328,10 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
-            UUID resellerId, String search, String status, org.springframework.data.domain.Pageable pageable) {
-        
-        org.springframework.data.domain.Page<ActivationRequest> requestsPage = 
-                activationRequestRepository.searchResellerRequests(resellerId, status, search, pageable);
+            UUID resellerId, String search, String status, String planName, org.springframework.data.domain.Pageable pageable) {
+
+        org.springframework.data.domain.Page<ActivationRequest> requestsPage =
+                activationRequestRepository.searchResellerRequests(resellerId, status, planName, search, pageable);
         
         return requestsPage.map(request -> {
                     com.iptv.wiseplayer.dto.response.ActivationRequestResponse response = new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();

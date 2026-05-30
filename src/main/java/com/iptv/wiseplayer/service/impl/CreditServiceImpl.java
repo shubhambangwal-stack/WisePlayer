@@ -171,8 +171,8 @@ public class CreditServiceImpl implements CreditService {
 
     @Override
     public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
-            UUID resellerId, String search, org.springframework.data.domain.Pageable pageable) {
-        return creditTransactionRepository.searchTransactions(resellerId, search, pageable)
+            UUID resellerId, String search, String type, org.springframework.data.domain.Pageable pageable) {
+        return creditTransactionRepository.searchTransactions(resellerId, type, search, pageable)
                 .map(transaction -> {
                     com.iptv.wiseplayer.dto.response.CreditTransactionResponse response = new com.iptv.wiseplayer.dto.response.CreditTransactionResponse();
                     response.setId(transaction.getId());
