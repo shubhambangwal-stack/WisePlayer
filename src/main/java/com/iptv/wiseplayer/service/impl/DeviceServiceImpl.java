@@ -65,8 +65,29 @@ public class DeviceServiceImpl implements DeviceService {
         Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
 
         if (existingDevice.isPresent()) {
-            throw new com.iptv.wiseplayer.exception.ResourceAlreadyExistsException("Device already registered",
-                    null); // We can't return the old secret here, frontend should call validate
+            Device device = existingDevice.get();
+            // Update metadata
+            device.setDeviceModel(request.getDeviceModel());
+            device.setOsVersion(request.getOsVersion());
+            device.setPlatform(request.getPlatform());
+            device.setLastSeenAt(LocalDateTime.now());
+
+            // Generate new permanent Hardware-Linked Secret (HLS)
+            String rawSecret = tokenUtil.generateRefreshToken();
+            device.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
+
+            Device savedDevice = deviceRepository.save(device);
+
+            logAudit(savedDevice.getDeviceId(), savedDevice.getDeviceStatus(), savedDevice.getDeviceStatus(), "DEVICE_RE_REGISTERED",
+                    "Device re-registered due to reinstall or cache clear.");
+
+            return new DeviceRegistrationResponse(
+                    savedDevice.getDeviceId(),
+                    savedDevice.getDeviceStatus(),
+                    savedDevice.getSubscriptionType(),
+                    tokenUtil.generateToken(savedDevice.getDeviceId().toString(), fingerprintHash),
+                    rawSecret,
+                    savedDevice.getRegisteredAt());
         }
 
         // Create new device (Trial type by default, but not started yet)
