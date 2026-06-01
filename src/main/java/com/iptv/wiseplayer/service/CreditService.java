@@ -42,15 +42,8 @@ public interface CreditService {
     /**
      * Gets the transaction history for a reseller.
      */
-    Page<CreditTransactionResponse> getTransactionHistory(
-            UUID resellerId,
-            String search,
-            String type,
-            java.time.LocalDate dateFrom,   // ← new
-            java.time.LocalDate dateTo,     // ← new
-            BigDecimal minAmount,           // ← new
-            BigDecimal maxAmount,           // ← new
-            Pageable pageable);
+    org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
+            UUID resellerId, String search, String type, org.springframework.data.domain.Pageable pageable);
 
 
     /**

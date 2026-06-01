@@ -2,7 +2,6 @@ package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.dto.request.CreditPurchaseRequest;
 import com.iptv.wiseplayer.dto.response.CheckoutResponse;
-import com.iptv.wiseplayer.dto.response.CreditTransactionResponse;
 import com.iptv.wiseplayer.service.CreditService;
 import com.iptv.wiseplayer.service.PaymentService;
 import com.iptv.wiseplayer.domain.entity.Admin;
@@ -12,9 +11,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -51,30 +47,12 @@ public class CreditController {
     }
 
     @GetMapping("/transactions")
-    @Operation(summary = "Get Transaction History")
-    public ResponseEntity<Page<CreditTransactionResponse>> getTransactionHistory(
+    @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in reseller")
+    public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse>> getTransactionHistory(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false)
-            @org.springframework.format.annotation.DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            java.time.LocalDate dateFrom,        // ← new
-            @RequestParam(required = false)
-            @org.springframework.format.annotation.DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            java.time.LocalDate dateTo,          // ← new
-            @RequestParam(required = false) BigDecimal minAmount,   // ← new
-            @RequestParam(required = false) BigDecimal maxAmount,   // ← new
-            Pageable pageable) {
-
-        return ResponseEntity.ok(
-                creditService.getTransactionHistory(
-                        getCurrentResellerId(),
-                        search,
-                        type,
-                        dateFrom,
-                        dateTo,
-                        minAmount,
-                        maxAmount,
-                        pageable));
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentResellerId(), search, type, pageable));
     }
 
     @PostMapping("/purchase")

@@ -39,10 +39,10 @@ public class SubResellerController {
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
 
     public SubResellerController(ResellerService resellerService,
-            CreditService creditService,
-            PaymentService paymentService,
-            AdminRepository adminRepository,
-            com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
+                                 CreditService creditService,
+                                 PaymentService paymentService,
+                                 AdminRepository adminRepository,
+                                 com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
         this.resellerService = resellerService;
         this.creditService = creditService;
         this.paymentService = paymentService;
@@ -57,29 +57,12 @@ public class SubResellerController {
     }
 
     @GetMapping("/credits/transactions")
-    @Operation(summary = "Get Transaction History")
+    @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in sub-reseller")
     public ResponseEntity<Page<CreditTransactionResponse>> getTransactionHistory(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false)
-            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-            java.time.LocalDate dateFrom,
-            @RequestParam(required = false)
-            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-            java.time.LocalDate dateTo,
-            @RequestParam(required = false) BigDecimal minAmount,
-            @RequestParam(required = false) BigDecimal maxAmount,
             Pageable pageable) {
-        return ResponseEntity.ok(
-                creditService.getTransactionHistory(
-                        getCurrentSubResellerId(),
-                        search,
-                        type,
-                        dateFrom,
-                        dateTo,
-                        minAmount,
-                        maxAmount,
-                        pageable));
+        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentSubResellerId(), search, type, pageable));
     }
 
     @PostMapping("/credits/purchase")
