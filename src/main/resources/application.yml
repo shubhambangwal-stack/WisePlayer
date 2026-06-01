@@ -1,8 +1,8 @@
 spring:
   application:
     name: wiseplayer
-#  profiles:
-#    active: dev
+  #profiles:
+    #active: dev
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -20,8 +20,8 @@ spring:
   mail:
     host: ${SMTP_HOST:smtp.gmail.com}
     port: ${SMTP_PORT:587}
-    username: aakashtyagi@pearlorganisation.com
-    password: "ktlflyomwiultbwd"
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
     properties:
       mail:
         smtp:
@@ -34,11 +34,11 @@ spring:
 paypal:
 
   mode: ${PAYPAL_MODE:sandbox}
-  client-id: AY9l6yf2rSFI9Bry73axYx5J5LPPI46WmwbOJuge29clm3eiBcI-ciS3tceOc5iUZNkL9lexoyGEIMWB
-  client-secret: EAp7ehGeQnxFqLavMTOFcQNDQrBYx06AHvAk0GweKLOADV_2EMR7Bhw2AgEhpGIUTqjOZOnPXJxevzTO
-  return-url: ${APP_BASE_URL:https://admin.wise-player.com}/api/payment/paypal/success
-  cancel-url: ${APP_BASE_URL:https://admin.wise-player.com}/api/payment/paypal/cancel
-  webhook-url: ${APP_BASE_URL:https://admin.wise-player.com}/api/payment/paypal/webhook
+  client-id: ${PAYPAL_CLIENT_ID}
+  client-secret: ${PAYPAL_CLIENT_SECRET}
+  return-url: ${APP_BASE_URL}/api/payment/paypal/success
+  cancel-url: ${APP_BASE_URL}/api/payment/paypal/cancel
+  webhook-url: ${APP_BASE_URL}/api/payment/paypal/webhook
   webhook-id: ${PAYPAL_WEBHOOK_ID}
   frontend-url: ${FRONTEND_URL:https://wise-player.com}
 
@@ -47,11 +47,11 @@ server:
 
 app:
   security:
+    seed-secret: ${SEED_SECRET:super-secret-seed-key}
     token-secrets:
       - ${SECURITY_TOKEN_SECRET_1}
       - ${SECURITY_TOKEN_SECRET_2}
       - ${SECURITY_TOKEN_SECRET_3}
-    seed-secret: ${SECURITY_SEED_SECRET:wiseplayer-default-seed-secret}
     token-ttl-minutes: ${TOKEN_TTL_MINUTES:1}
     admin-frontend-url: ${ADMIN_FRONTEND_URL:https://admin.wise-player.com}
     allowed-origins: ${ALLOWED_ORIGINS:https://wise-player.com,https://admin.wise-player.com}
