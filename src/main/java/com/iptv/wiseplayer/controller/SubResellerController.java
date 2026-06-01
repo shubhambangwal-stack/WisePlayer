@@ -57,12 +57,29 @@ public class SubResellerController {
     }
 
     @GetMapping("/credits/transactions")
-    @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in sub-reseller")
+    @Operation(summary = "Get Transaction History")
     public ResponseEntity<Page<CreditTransactionResponse>> getTransactionHistory(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate dateFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate dateTo,
+            @RequestParam(required = false) BigDecimal minAmount,
+            @RequestParam(required = false) BigDecimal maxAmount,
             Pageable pageable) {
-        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentSubResellerId(), search, type, pageable));
+        return ResponseEntity.ok(
+                creditService.getTransactionHistory(
+                        getCurrentSubResellerId(),
+                        search,
+                        type,
+                        dateFrom,
+                        dateTo,
+                        minAmount,
+                        maxAmount,
+                        pageable));
     }
 
     @PostMapping("/credits/purchase")

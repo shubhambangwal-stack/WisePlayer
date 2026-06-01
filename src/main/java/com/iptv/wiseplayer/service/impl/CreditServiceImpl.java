@@ -4,12 +4,15 @@ import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.entity.CreditTransaction;
 import com.iptv.wiseplayer.domain.enums.CreditTransactionType;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
+import com.iptv.wiseplayer.dto.response.CreditTransactionResponse;
 import com.iptv.wiseplayer.exception.BadRequestException;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.CreditTransactionRepository;
 import com.iptv.wiseplayer.repository.PlanConfigRepository;
 import com.iptv.wiseplayer.service.CreditService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -170,11 +173,36 @@ public class CreditServiceImpl implements CreditService {
     }
 
     @Override
-    public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
-            UUID resellerId, String search, String type, org.springframework.data.domain.Pageable pageable) {
-        return creditTransactionRepository.searchTransactions(resellerId, type, search, pageable)
+    public Page<CreditTransactionResponse> getTransactionHistory(
+            UUID resellerId,
+            String search,
+            String type,
+            java.time.LocalDate dateFrom,
+            java.time.LocalDate dateTo,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            Pageable pageable) {
+
+        //  Normalize type — "Transfer Out" → "TRANSFER_OUT"
+        if (type != null && !type.isBlank()) {
+            type = type.trim().toUpperCase().replace(" ", "_");
+        }
+
+        //  Normalize search
+        if (search != null && search.isBlank()) {
+            search = null;
+        }
+
+        java.time.LocalDateTime from = dateFrom != null
+                ? dateFrom.atStartOfDay() : null;
+
+        java.time.LocalDateTime to = dateTo != null
+                ? dateTo.atTime(23, 59, 59) : null;
+
+        return creditTransactionRepository
+                .searchTransactions(resellerId, type, search, from, to, minAmount, maxAmount, pageable)
                 .map(transaction -> {
-                    com.iptv.wiseplayer.dto.response.CreditTransactionResponse response = new com.iptv.wiseplayer.dto.response.CreditTransactionResponse();
+                    CreditTransactionResponse response = new CreditTransactionResponse();
                     response.setId(transaction.getId());
                     response.setAmount(transaction.getAmount());
                     response.setType(transaction.getType());
@@ -184,7 +212,6 @@ public class CreditServiceImpl implements CreditService {
                     return response;
                 });
     }
-
     @Override
     @Transactional
     public void transferCredits(UUID fromId, UUID toId, BigDecimal amount) {
