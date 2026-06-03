@@ -23,7 +23,7 @@ public interface CreditTransactionRepository extends JpaRepository<CreditTransac
                     "AND (:minAmount IS NULL OR ABS(t.amount) >= CAST(:minAmount AS numeric)) " +
                     "AND (:maxAmount IS NULL OR ABS(t.amount) <= CAST(:maxAmount AS numeric)) " +
                     "AND (:search IS NULL OR " +
-                    "    t.notes ILIKE '%' || :search || '%' OR " +
+                    "    t.transaction_id::text ILIKE '%' || :search || '%' OR " +
                     "    t.type::text ILIKE '%' || :search || '%' OR " +
                     "    t.amount::text ILIKE '%' || :search || '%') " +
                     "ORDER BY t.created_at DESC",
