@@ -331,38 +331,48 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
-            UUID resellerId, String search, String status, String planName, org.springframework.data.domain.Pageable pageable) {
+            UUID resellerId, String search, String status, String planName,
+            java.time.LocalDate fromDate, java.time.LocalDate toDate,
+            java.math.BigDecimal minCredits, java.math.BigDecimal maxCredits,
+            org.springframework.data.domain.Pageable pageable) {
+
+        String fromDateTime = fromDate != null ? fromDate.atStartOfDay().toString() : null;
+        String toDateTime   = toDate   != null ? toDate.atTime(23, 59, 59).toString() : null;
+        String searchParam = (search   != null && !search.trim().isEmpty())   ? search.trim()   : null;
+        String statusParam = (status   != null && !status.trim().isEmpty())   ? status.trim()   : null;
+        String planParam   = (planName != null && !planName.trim().isEmpty()) ? planName.trim() : null;
 
         org.springframework.data.domain.Page<ActivationRequest> requestsPage =
-                activationRequestRepository.searchResellerRequests(resellerId, status, planName, search, pageable);
-        
+                activationRequestRepository.searchResellerRequests(
+                        resellerId, statusParam, planParam,
+                        fromDateTime, toDateTime, minCredits, maxCredits,
+                        searchParam, pageable);
+
         return requestsPage.map(request -> {
-                    com.iptv.wiseplayer.dto.response.ActivationRequestResponse response = new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();
-                    response.setId(request.getId());
-                    response.setResellerId(request.getResellerId());
-                    response.setDeviceId(request.getDeviceId());
-                    response.setPlanName(request.getPlanName());
-                    response.setAmount(request.getAmount());
-                    response.setCurrency(request.getCurrency());
-                    response.setStatus(request.getStatus());
-                    response.setCreditsUsed(request.getCreditsUsed());
-                    response.setAdminNotes(request.getAdminNotes());
-                    response.setReviewedBy(request.getReviewedBy());
-                    response.setReviewedAt(request.getReviewedAt());
-                    response.setCreatedAt(request.getCreatedAt());
-                    response.setUpdatedAt(request.getUpdatedAt());
+            com.iptv.wiseplayer.dto.response.ActivationRequestResponse response =
+                    new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();
+            response.setId(request.getId());
+            response.setResellerId(request.getResellerId());
+            response.setDeviceId(request.getDeviceId());
+            response.setPlanName(request.getPlanName());
+            response.setAmount(request.getAmount());
+            response.setCurrency(request.getCurrency());
+            response.setStatus(request.getStatus());
+            response.setCreditsUsed(request.getCreditsUsed());
+            response.setAdminNotes(request.getAdminNotes());
+            response.setReviewedBy(request.getReviewedBy());
+            response.setReviewedAt(request.getReviewedAt());
+            response.setCreatedAt(request.getCreatedAt());
+            response.setUpdatedAt(request.getUpdatedAt());
 
-                    // Fetch device details
-                    deviceRepository.findByDeviceId(request.getDeviceId()).ifPresent(device -> {
-                        response.setDeviceModel(device.getDeviceModel());
-                        response.setPlatform(device.getPlatform());
-                        response.setDeviceStatus(device.getDeviceStatus().name());
-                        response.setMacAddress(device.getMacAddress());
-                    });
+            deviceRepository.findByDeviceId(request.getDeviceId()).ifPresent(device -> {
+                response.setDeviceModel(device.getDeviceModel());
+                response.setPlatform(device.getPlatform());
+                response.setDeviceStatus(device.getDeviceStatus().name());
+                response.setMacAddress(device.getMacAddress());
+            });
 
-
-
-                    return response;
-                });
+            return response;
+        });
     }
 }
