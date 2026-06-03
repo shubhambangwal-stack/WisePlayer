@@ -118,9 +118,13 @@ public class SubResellerController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String planName,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
         return ResponseEntity.ok(resellerService.getResellerRequests(
-                getCurrentSubResellerId(), search, status, planName, pageable));
+                getCurrentSubResellerId(), search, status, planName, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
     private UUID getCurrentSubResellerId() {

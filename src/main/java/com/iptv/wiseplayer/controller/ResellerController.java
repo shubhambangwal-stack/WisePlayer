@@ -142,8 +142,13 @@ public class ResellerController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String planName,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), search, status, planName, pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(
+                getCurrentResellerId(), search, status, planName, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
     private UUID getCurrentResellerId() {
