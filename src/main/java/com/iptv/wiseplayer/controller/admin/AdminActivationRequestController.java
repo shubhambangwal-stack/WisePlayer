@@ -25,14 +25,14 @@ public class AdminActivationRequestController {
         this.adminActivationRequestService = adminActivationRequestService;
     }
 
-    @Operation(summary = "List All Activation Requests", description = "Retrieves a paginated list of activation requests, optionally filtered by status, deviceId, or planName.")
     @GetMapping
     public ResponseEntity<Page<ActivationRequestResponse>> getAllRequests(
+            @RequestParam(required = false) UUID resellerId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String deviceId,
             @RequestParam(required = false) String planName,
             Pageable pageable) {
-        return ResponseEntity.ok(adminActivationRequestService.getAllRequests(status, deviceId, planName, pageable));
+        return ResponseEntity.ok(adminActivationRequestService.getAllRequests(resellerId, status, deviceId, planName, pageable));
     }
 
     @Operation(summary = "Get Activation Request Details", description = "Retrieves detailed information for a specific activation request.")

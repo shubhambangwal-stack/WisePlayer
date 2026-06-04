@@ -12,6 +12,7 @@ import com.iptv.wiseplayer.dto.request.ResellerActivationRequestDto;
 import com.iptv.wiseplayer.dto.request.ResellerLoginRequest;
 import com.iptv.wiseplayer.dto.request.ResellerRegisterRequest;
 import com.iptv.wiseplayer.dto.request.SubResellerCreateRequest;
+import com.iptv.wiseplayer.dto.response.ActivationRequestResponse;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.ResellerDashboardResponse;
@@ -30,10 +31,13 @@ import org.slf4j.Logger;
 
 
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -179,8 +183,6 @@ public class ResellerServiceImpl implements ResellerService {
         return deviceRepository.searchResellerUsers(resellerId, status, search, pageable);
     }
 
-
-
     @Override
     @Transactional
     public void disableUser(UUID resellerId, UUID deviceId) {
@@ -222,6 +224,8 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+
+
     public void updateSubReseller(UUID resellerId, UUID subResellerId,
             com.iptv.wiseplayer.dto.request.SubResellerUpdateRequest request) {
         Admin sub = adminRepository.findById(subResellerId)
@@ -308,6 +312,7 @@ public class ResellerServiceImpl implements ResellerService {
         BigDecimal cost = creditService.getActivationCost(planName);
         ActivationRequest request = new ActivationRequest();
         request.setResellerId(resellerId);
+        request.setResellerId(resellerId);
         request.setDeviceId(deviceId);
         request.setPlanName(planName);
         request.setAmount(cost.doubleValue());
@@ -330,11 +335,11 @@ public class ResellerServiceImpl implements ResellerService {
     }
 
     @Override
-    public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
+    public Page<ActivationRequestResponse> getResellerRequests(
             UUID resellerId, String search, String status, String planName,
-            java.time.LocalDate fromDate, java.time.LocalDate toDate,
-            java.math.BigDecimal minCredits, java.math.BigDecimal maxCredits,
-            org.springframework.data.domain.Pageable pageable) {
+            LocalDate fromDate, LocalDate toDate,
+            BigDecimal minCredits, BigDecimal maxCredits,
+            Pageable pageable) {
 
         String fromDateTime = fromDate != null ? fromDate.atStartOfDay().toString() : null;
         String toDateTime   = toDate   != null ? toDate.atTime(23, 59, 59).toString() : null;
@@ -342,7 +347,7 @@ public class ResellerServiceImpl implements ResellerService {
         String statusParam = (status   != null && !status.trim().isEmpty())   ? status.trim()   : null;
         String planParam   = (planName != null && !planName.trim().isEmpty()) ? planName.trim() : null;
 
-        org.springframework.data.domain.Page<ActivationRequest> requestsPage =
+       Page<ActivationRequest> requestsPage =
                 activationRequestRepository.searchResellerRequests(
                         resellerId, statusParam, planParam,
                         fromDateTime, toDateTime, minCredits, maxCredits,
