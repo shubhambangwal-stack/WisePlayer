@@ -55,11 +55,23 @@ public interface ActivationRequestRepository extends JpaRepository<ActivationReq
             @Param("search") String search,
             Pageable pageable);
 
-    @Query("SELECT r FROM ActivationRequest r LEFT JOIN Device d ON d.deviceId = r.deviceId " +
-            "WHERE (:status IS NULL OR :status = '' OR LOWER(r.status) = LOWER(:status)) AND " +
-            "(:planName IS NULL OR :planName = '' OR LOWER(r.planName) LIKE LOWER(CONCAT('%', :planName, '%'))) AND " +
-            "(:deviceId IS NULL OR :deviceId = '' OR CAST(r.deviceId AS string) LIKE LOWER(CONCAT('%', :deviceId, '%')))")
+    @Query(
+            value = "SELECT r.* FROM activation_requests r " +
+                    "LEFT JOIN devices d ON d.device_id = r.device_id " +
+                    "WHERE (:resellerId IS NULL OR r.reseller_id = CAST(:resellerId AS uuid)) " +
+                    "AND (:status IS NULL OR LOWER(r.status) = LOWER(:status)) " +
+                    "AND (:planName IS NULL OR LOWER(r.plan_name) LIKE LOWER(CONCAT('%', :planName, '%'))) " +
+                    "AND (:deviceId IS NULL OR r.device_id::text ILIKE '%' || :deviceId || '%') " +
+                    "ORDER BY r.created_at DESC",
+            countQuery = "SELECT COUNT(*) FROM activation_requests r " +
+                    "LEFT JOIN devices d ON d.device_id = r.device_id " +
+                    "WHERE (:resellerId IS NULL OR r.reseller_id = CAST(:resellerId AS uuid)) " +
+                    "AND (:status IS NULL OR LOWER(r.status) = LOWER(:status)) " +
+                    "AND (:planName IS NULL OR LOWER(r.plan_name) LIKE LOWER(CONCAT('%', :planName, '%'))) " +
+                    "AND (:deviceId IS NULL OR r.device_id::text ILIKE '%' || :deviceId || '%')",
+            nativeQuery = true)
     Page<ActivationRequest> searchActivationRequests(
+            @Param("resellerId") String resellerId,
             @Param("status") String status,
             @Param("deviceId") String deviceId,
             @Param("planName") String planName,
