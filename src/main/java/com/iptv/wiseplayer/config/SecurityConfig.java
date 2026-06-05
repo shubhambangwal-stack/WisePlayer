@@ -92,6 +92,8 @@ public class SecurityConfig {
 
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
+                        // Allow async dispatches to bypass security filter chain
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
                         // Public Endpoints
                         .requestMatchers("/api/device/register").permitAll()
                         .requestMatchers("/api/device/validate").permitAll()
@@ -143,7 +145,7 @@ public class SecurityConfig {
                         // Content Endpoints (Require ACTIVE status)
                         .requestMatchers("/api/playlist/**").hasRole("ACTIVE")
                         .requestMatchers("/api/live/**").hasRole("ACTIVE")
-                        .requestMatchers("/api/stream/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/stream/**", "/api/v2/stream/**").hasRole("ACTIVE")
                         .requestMatchers("/api/xtream/**").hasRole("ACTIVE")
 
                         .anyRequest().authenticated())
