@@ -95,7 +95,7 @@ public class SubResellerController {
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.DeviceStatus status,
-            @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.SubscriptionType subscription,
+            @RequestParam(required = false) String subscription,
             @RequestParam(required = false)
             @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
             java.time.LocalDate registeredFrom,

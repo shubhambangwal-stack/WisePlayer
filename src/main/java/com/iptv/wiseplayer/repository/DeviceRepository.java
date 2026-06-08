@@ -86,7 +86,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
                 "   LOWER(d.macAddress) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
                 "   CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
                 "(:status IS NULL OR d.deviceStatus = :status) AND " +
-                "(:subscription IS NULL OR d.subscriptionType = :subscription) AND " +
+                "(:subscription IS NULL OR :subscription = '' OR UPPER(CAST(d.subscriptionType AS string)) = UPPER(:subscription)) AND " +
                 "(CAST(:registeredFrom AS java.time.LocalDateTime) IS NULL OR d.registeredAt >= :registeredFrom) AND " +
                 "(CAST(:registeredTo AS java.time.LocalDateTime) IS NULL OR d.registeredAt <= :registeredTo) AND " +
                 "(CAST(:expiresFrom AS java.time.LocalDateTime) IS NULL OR d.expiresAt >= :expiresFrom) AND " +
@@ -95,7 +95,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
                 @Param("resellerId") UUID resellerId,
                 @Param("search") String search,
                 @Param("status") DeviceStatus status,
-                @Param("subscription") SubscriptionType subscription,
+                @Param("subscription") String subscription,
                 @Param("registeredFrom") java.time.LocalDateTime registeredFrom,
                 @Param("registeredTo") java.time.LocalDateTime registeredTo,
                 @Param("expiresFrom") java.time.LocalDateTime expiresFrom,

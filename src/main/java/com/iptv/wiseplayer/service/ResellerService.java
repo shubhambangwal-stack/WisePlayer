@@ -28,7 +28,7 @@ public interface ResellerService {
             UUID resellerId,
             String search,
             com.iptv.wiseplayer.domain.enums.DeviceStatus status,
-            com.iptv.wiseplayer.domain.enums.SubscriptionType subscription,
+            String subscription,
             java.time.LocalDate registeredFrom,
             java.time.LocalDate registeredTo,
             java.time.LocalDate expiresFrom,

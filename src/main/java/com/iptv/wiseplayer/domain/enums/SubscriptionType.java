@@ -5,9 +5,7 @@ package com.iptv.wiseplayer.domain.enums;
  */
 public enum SubscriptionType {
     TRIAL,
-    MONTHLY,
     PAID_ANNUAL,
     PAID_LIFETIME,
-    ANNUAL,
     EXPIRED
 }

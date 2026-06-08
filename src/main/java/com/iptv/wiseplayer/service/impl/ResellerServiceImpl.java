@@ -181,7 +181,7 @@ public class ResellerServiceImpl implements ResellerService {
             UUID resellerId,
             String search,
             DeviceStatus status,
-            SubscriptionType subscription,
+            String subscription,
             java.time.LocalDate registeredFrom,
             java.time.LocalDate registeredTo,
             java.time.LocalDate expiresFrom,
@@ -189,6 +189,7 @@ public class ResellerServiceImpl implements ResellerService {
             org.springframework.data.domain.Pageable pageable) {
 
         String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        String subParam = (subscription != null && !subscription.trim().isEmpty()) ? subscription.trim().toUpperCase() : null;
 
         java.time.LocalDateTime regFrom = (registeredFrom != null) ? registeredFrom.atStartOfDay() : null;
         java.time.LocalDateTime regTo   = (registeredTo   != null) ? registeredTo.atTime(23, 59, 59) : null;
@@ -196,7 +197,7 @@ public class ResellerServiceImpl implements ResellerService {
         java.time.LocalDateTime expTo   = (expiresTo      != null) ? expiresTo.atTime(23, 59, 59) : null;
 
         return deviceRepository.searchResellerUsers(
-                resellerId, searchParam, status, subscription,
+                resellerId, searchParam, status, subParam,
                 regFrom, regTo, expFrom, expTo,
                 pageable);
     }
