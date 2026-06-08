@@ -175,12 +175,31 @@ public class ResellerServiceImpl implements ResellerService {
         );
     }
 
+    // ADD:
     @Override
-    public org.springframework.data.domain.Page<Device> getResellerUsers(UUID resellerId,
+    public org.springframework.data.domain.Page<Device> getResellerUsers(
+            UUID resellerId,
             String search,
-            com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            DeviceStatus status,
+            String subscription,
+            java.time.LocalDate registeredFrom,
+            java.time.LocalDate registeredTo,
+            java.time.LocalDate expiresFrom,
+            java.time.LocalDate expiresTo,
             org.springframework.data.domain.Pageable pageable) {
-        return deviceRepository.searchResellerUsers(resellerId, status, search, pageable);
+
+        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        String subParam = (subscription != null && !subscription.trim().isEmpty()) ? subscription.trim().toUpperCase() : null;
+
+        java.time.LocalDateTime regFrom = (registeredFrom != null) ? registeredFrom.atStartOfDay() : null;
+        java.time.LocalDateTime regTo   = (registeredTo   != null) ? registeredTo.atTime(23, 59, 59) : null;
+        java.time.LocalDateTime expFrom = (expiresFrom    != null) ? expiresFrom.atStartOfDay() : null;
+        java.time.LocalDateTime expTo   = (expiresTo      != null) ? expiresTo.atTime(23, 59, 59) : null;
+
+        return deviceRepository.searchResellerUsers(
+                resellerId, searchParam, status, subParam,
+                regFrom, regTo, expFrom, expTo,
+                pageable);
     }
 
     @Override

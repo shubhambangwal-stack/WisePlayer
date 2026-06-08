@@ -91,12 +91,27 @@ public class SubResellerController {
     }
 
     @GetMapping("/users")
-    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this sub-reseller with optional search and status filtering")
+    @Operation(summary = "Get Users", description = "Get devices managed by this sub-reseller with filters for status, plan, registered and expiry date range")
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            @RequestParam(required = false) String subscription,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredTo,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresTo,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentSubResellerId(), search, status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerUsers(
+                getCurrentSubResellerId(), search, status, subscription,
+                registeredFrom, registeredTo, expiresFrom, expiresTo, pageable));
     }
 
     @PutMapping("/users/{deviceId}/disable")
