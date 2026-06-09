@@ -76,8 +76,6 @@ public class ResellerServiceImpl implements ResellerService {
         this.resellerCustomerRepository = resellerCustomerRepository;
     }
 
-
-
     @Override
     public AdminAuthResponse login(ResellerLoginRequest request) {
         Admin admin = adminRepository.findByUsername(request.getUsername())
@@ -237,14 +235,18 @@ public class ResellerServiceImpl implements ResellerService {
     @Override
     public org.springframework.data.domain.Page<Admin> getSubResellers(
             UUID resellerId, String search, Boolean status,
+            java.time.LocalDate fromDate, java.time.LocalDate toDate,
+            java.math.BigDecimal minCredits, java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
-        return adminRepository.searchSubResellers(resellerId, search, status, pageable);
+        String fromParam = fromDate != null ? fromDate.atStartOfDay().toString() : null;
+        String toParam   = toDate   != null ? toDate.atTime(23, 59, 59).toString() : null;
+        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        return adminRepository.searchSubResellers(
+                resellerId, searchParam, status, fromParam, toParam, minCredits, maxCredits, pageable);
     }
 
     @Override
     @Transactional
-
-
     public void updateSubReseller(UUID resellerId, UUID subResellerId,
             com.iptv.wiseplayer.dto.request.SubResellerUpdateRequest request) {
         Admin sub = adminRepository.findById(subResellerId)

@@ -41,6 +41,8 @@ public interface ResellerService {
 
     org.springframework.data.domain.Page<Admin> getSubResellers(
             UUID resellerId, String search, Boolean status,
+            java.time.LocalDate fromDate, java.time.LocalDate toDate,
+            java.math.BigDecimal minCredits, java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable);
 
     void updateSubReseller(UUID resellerId, UUID subResellerId,
