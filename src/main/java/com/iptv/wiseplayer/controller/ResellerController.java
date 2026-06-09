@@ -117,13 +117,17 @@ public class ResellerController {
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
-        @GetMapping("/sub-resellers")
+    @GetMapping("/sub-resellers")
     public ResponseEntity<org.springframework.data.domain.Page<Admin>> getSubResellers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
         return ResponseEntity.ok(resellerService.getSubResellers(
-                getCurrentResellerId(), search, status, pageable));
+                getCurrentResellerId(), search, status, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
