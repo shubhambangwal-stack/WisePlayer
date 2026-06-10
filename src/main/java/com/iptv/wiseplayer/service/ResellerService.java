@@ -3,16 +3,13 @@ package com.iptv.wiseplayer.service;
 import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.entity.ActivationRequest;
-import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
-import com.iptv.wiseplayer.dto.request.ResellerActivationRequestDto;
-import com.iptv.wiseplayer.dto.request.ResellerLoginRequest;
-import com.iptv.wiseplayer.dto.request.ResellerRegisterRequest;
-import com.iptv.wiseplayer.dto.request.SubResellerCreateRequest;
+import com.iptv.wiseplayer.dto.request.*;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.ResellerDashboardResponse;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface ResellerService {
@@ -57,4 +54,9 @@ public interface ResellerService {
             java.time.LocalDate fromDate, java.time.LocalDate toDate,
             java.math.BigDecimal minCredits, java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable);
+
+    Map<String, String> verifyEmail(VerifyOtpRequest request, String username);
+    void forgotPassword(ResellerForgotPasswordRequest request);
+    AdminAuthResponse resetPassword(ResellerResetPasswordRequest request);
+
 }

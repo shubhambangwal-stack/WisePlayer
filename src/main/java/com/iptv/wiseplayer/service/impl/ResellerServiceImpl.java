@@ -1,17 +1,13 @@
 package com.iptv.wiseplayer.service.impl;
 
-import com.iptv.wiseplayer.domain.entity.Admin;
-import com.iptv.wiseplayer.domain.entity.Device;
-import com.iptv.wiseplayer.domain.entity.ActivationRequest;
+import com.iptv.wiseplayer.domain.entity.*;
+
 import java.math.BigDecimal;
+
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionType;
-import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
-import com.iptv.wiseplayer.dto.request.ResellerActivationRequestDto;
-import com.iptv.wiseplayer.dto.request.ResellerLoginRequest;
-import com.iptv.wiseplayer.dto.request.ResellerRegisterRequest;
-import com.iptv.wiseplayer.dto.request.SubResellerCreateRequest;
+import com.iptv.wiseplayer.dto.request.*;
 import com.iptv.wiseplayer.dto.response.ActivationRequestResponse;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
@@ -21,11 +17,10 @@ import com.iptv.wiseplayer.exception.AuthenticationException;
 import com.iptv.wiseplayer.exception.ResourceAlreadyExistsException;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.exception.BadRequestException;
-import com.iptv.wiseplayer.repository.AdminRepository;
-import com.iptv.wiseplayer.repository.DeviceRepository;
-import com.iptv.wiseplayer.repository.ActivationRequestRepository;
+import com.iptv.wiseplayer.repository.*;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
+import com.iptv.wiseplayer.service.EmailService;
 import com.iptv.wiseplayer.service.ResellerService;
 import org.slf4j.Logger;
 
@@ -37,8 +32,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -56,15 +57,22 @@ public class ResellerServiceImpl implements ResellerService {
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
     private final com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository;
 
+    private final ResellerEmailOtpRepository resellerEmailOtpRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailService emailService;
+
     public ResellerServiceImpl(DeviceRepository deviceRepository,
-            AdminRepository adminRepository,
-            ActivationRequestRepository activationRequestRepository,
-            DeviceTokenUtil tokenUtil,
-            AdminTokenUtil adminTokenUtil,
-            PasswordEncoder passwordEncoder,
-            com.iptv.wiseplayer.service.CreditService creditService,
-            com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
-            com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository) {
+                               AdminRepository adminRepository,
+                               ActivationRequestRepository activationRequestRepository,
+                               DeviceTokenUtil tokenUtil,
+                               AdminTokenUtil adminTokenUtil,
+                               PasswordEncoder passwordEncoder,
+                               com.iptv.wiseplayer.service.CreditService creditService,
+                               com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
+                               com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository,
+                               ResellerEmailOtpRepository resellerEmailOtpRepository,
+                               PasswordResetTokenRepository passwordResetTokenRepository,
+                               EmailService emailService) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
@@ -74,8 +82,10 @@ public class ResellerServiceImpl implements ResellerService {
         this.creditService = creditService;
         this.subscriptionRepository = subscriptionRepository;
         this.resellerCustomerRepository = resellerCustomerRepository;
+        this.resellerEmailOtpRepository = resellerEmailOtpRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.emailService = emailService;
     }
-
     @Override
     public AdminAuthResponse login(ResellerLoginRequest request) {
         Admin admin = adminRepository.findByUsername(request.getUsername())
@@ -96,7 +106,7 @@ public class ResellerServiceImpl implements ResellerService {
 
         String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
 
-        return new AdminAuthResponse(true, token, null, admin.getUsername(), admin.getFullName(),
+        return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(), admin.getFullName(),
                 admin.getRole().name());
     }
 
@@ -106,19 +116,32 @@ public class ResellerServiceImpl implements ResellerService {
         if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResourceAlreadyExistsException("Username already exists");
         }
+        if (adminRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new ResourceAlreadyExistsException("Email already registered");
+        }
 
         Admin reseller = new Admin();
         reseller.setUsername(request.getUsername());
         reseller.setFullName(request.getFullName());
+        reseller.setEmail(request.getEmail());
         reseller.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         reseller.setRole(AdminRole.RESELLER);
-        reseller.setActive(true);
+        reseller.setActive(false);
 
         Admin saved = adminRepository.save(reseller);
 
-        String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole());
+        String otp = generateOtp();
+        resellerEmailOtpRepository.deleteByAdminId(saved.getId());
+        ResellerEmailOtp otpEntity = new ResellerEmailOtp();
+        otpEntity.setAdminId(saved.getId());
+        otpEntity.setOtpHash(hashOtp(otp));
+        otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+        resellerEmailOtpRepository.save(otpEntity);
 
-        return new AdminAuthResponse(true, token, null, saved.getUsername(), saved.getFullName(),
+        emailService.sendOtpEmail(saved.getEmail(), otp);
+
+        String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole());
+        return new AdminAuthResponse(true, token, saved.getEmail(), saved.getUsername(), saved.getFullName(),
                 saved.getRole().name());
     }
 
@@ -400,5 +423,87 @@ public class ResellerServiceImpl implements ResellerService {
 
             return response;
         });
+    }
+
+    @Override
+    @Transactional
+    public Map<String, String> verifyEmail(VerifyOtpRequest request, String username) {
+        Admin admin = adminRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        ResellerEmailOtp otpEntity = resellerEmailOtpRepository.findByAdminId(admin.getId())
+                .orElseThrow(() -> new BadRequestException("No pending OTP found"));
+
+        if (LocalDateTime.now().isAfter(otpEntity.getExpiresAt())) {
+            throw new BadRequestException("OTP has expired");
+        }
+
+        if (!otpEntity.getOtpHash().equals(hashOtp(request.getOtp()))) {
+            throw new BadRequestException("Invalid OTP");
+        }
+
+        admin.setActive(true);
+        adminRepository.save(admin);
+        resellerEmailOtpRepository.deleteByAdminId(admin.getId());
+
+        return Map.of("success", "true", "message", "Email verified. You can now login.");
+    }
+
+    @Override
+    @Transactional
+    public void forgotPassword(ResellerForgotPasswordRequest request) {
+        Admin admin = adminRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("No account found with this email"));
+
+        if (admin.getRole() != AdminRole.RESELLER && admin.getRole() != AdminRole.SUB_RESELLER) {
+            throw new AccessDeniedException("Not a reseller account");
+        }
+
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setEmail(admin.getEmail());
+        resetToken.setToken(token);
+        resetToken.setExpiryDate(LocalDateTime.now().plusHours(1));
+        passwordResetTokenRepository.save(resetToken);
+
+        String resetLink = "http://yourserver/reseller-reset-password.html?token=" + token;
+        emailService.sendResellerPasswordResetEmail(admin.getEmail(), resetLink);
+    }
+
+    @Override
+    @Transactional
+    public AdminAuthResponse resetPassword(ResellerResetPasswordRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken())
+                .orElseThrow(() -> new BadRequestException("Invalid or expired token"));
+
+        if (resetToken.isExpired()) {
+            throw new BadRequestException("Token has expired");
+        }
+
+        Admin admin = adminRepository.findByEmail(resetToken.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        admin.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        adminRepository.save(admin);
+        passwordResetTokenRepository.delete(resetToken);
+
+        return new AdminAuthResponse(true, null, admin.getEmail(), admin.getUsername(), admin.getFullName(),
+                admin.getRole().name());
+    }
+
+    private String generateOtp() {
+        SecureRandom random = new SecureRandom();
+        int otp = 100000 + random.nextInt(900000);
+        return String.valueOf(otp);
+    }
+
+    private String hashOtp(String otp) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(otp.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
     }
 }

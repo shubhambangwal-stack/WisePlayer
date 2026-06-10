@@ -23,7 +23,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.iptv.wiseplayer.dto.request.VerifyOtpRequest;
+import com.iptv.wiseplayer.dto.request.ResellerForgotPasswordRequest;
+import com.iptv.wiseplayer.dto.request.ResellerResetPasswordRequest;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -57,6 +61,27 @@ public class ResellerController {
     @Operation(summary = "Reseller Registration", description = "Register a new reseller account")
     public ResponseEntity<AdminAuthResponse> register(@Valid @RequestBody ResellerRegisterRequest request) {
         return ResponseEntity.ok(resellerService.register(request));
+    }
+
+    @PostMapping("/verify-email")
+    @Operation(summary = "Verify Email OTP", description = "Send JWT from register + OTP from email")
+    public ResponseEntity<Map<String, String>> verifyEmail(@Valid @RequestBody VerifyOtpRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(resellerService.verifyEmail(request, username));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Forgot Password", description = "Send password reset link to reseller email")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ResellerForgotPasswordRequest request) {
+        resellerService.forgotPassword(request);
+        return ResponseEntity.ok(Map.of("success", "true", "message", "Reset link sent to your email"));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset Password", description = "Reset reseller password using token from email")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResellerResetPasswordRequest request) {
+        resellerService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("success", "true", "message", "Password reset successfully"));
     }
 
     // --- Reseller Management Endpoints ---
