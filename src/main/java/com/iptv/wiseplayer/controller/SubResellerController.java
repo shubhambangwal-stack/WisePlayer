@@ -142,6 +142,57 @@ public class SubResellerController {
                 getCurrentSubResellerId(), search, status, planName, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
+    @DeleteMapping("/users/{deviceId}")
+    @Operation(summary = "Delete User", description = "Unlink and deactivate a specific device/user")
+    public ResponseEntity<Void> deleteUser(@PathVariable UUID deviceId) {
+        resellerService.deleteUser(getCurrentSubResellerId(), deviceId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/users/{deviceId}/playlists")
+    @Operation(summary = "Get User Playlists", description = "Get playlists for a specific user")
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.PlaylistResponse>> getUserPlaylists(@PathVariable UUID deviceId) {
+        return ResponseEntity.ok(resellerService.getPlaylistsForUser(getCurrentSubResellerId(), deviceId));
+    }
+
+    @PostMapping("/users/{deviceId}/playlists/xtream")
+    @Operation(summary = "Add Xtream Playlist", description = "Add an Xtream playlist to a specific user")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.PlaylistResponse> addXtreamPlaylist(@PathVariable UUID deviceId, @Valid @RequestBody com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request) {
+        return ResponseEntity.ok(resellerService.addXtreamPlaylistForUser(getCurrentSubResellerId(), deviceId, request));
+    }
+
+    @PostMapping("/users/{deviceId}/playlists/m3u")
+    @Operation(summary = "Add M3U Playlist", description = "Add an M3U playlist to a specific user")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.PlaylistResponse> addM3uPlaylist(@PathVariable UUID deviceId, @Valid @RequestBody com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request) {
+        return ResponseEntity.ok(resellerService.addM3uPlaylistForUser(getCurrentSubResellerId(), deviceId, request));
+    }
+
+    @PutMapping("/users/{deviceId}/playlists/{playlistId}/xtream")
+    @Operation(summary = "Update Xtream Playlist", description = "Update an Xtream playlist for a specific user")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.PlaylistResponse> updateXtreamPlaylist(@PathVariable UUID deviceId, @PathVariable UUID playlistId, @Valid @RequestBody com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request) {
+        return ResponseEntity.ok(resellerService.updateXtreamPlaylistForUser(getCurrentSubResellerId(), deviceId, playlistId, request));
+    }
+
+    @PutMapping("/users/{deviceId}/playlists/{playlistId}/m3u")
+    @Operation(summary = "Update M3U Playlist", description = "Update an M3U playlist for a specific user")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.PlaylistResponse> updateM3uPlaylist(@PathVariable UUID deviceId, @PathVariable UUID playlistId, @Valid @RequestBody com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request) {
+        return ResponseEntity.ok(resellerService.updateM3uPlaylistForUser(getCurrentSubResellerId(), deviceId, playlistId, request));
+    }
+
+    @DeleteMapping("/users/{deviceId}/playlists/{playlistId}")
+    @Operation(summary = "Delete Playlist", description = "Delete a playlist for a specific user")
+    public ResponseEntity<Void> deletePlaylist(@PathVariable UUID deviceId, @PathVariable UUID playlistId) {
+        resellerService.deletePlaylistForUser(getCurrentSubResellerId(), deviceId, playlistId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/users/{deviceId}/renew")
+    @Operation(summary = "Renew Subscription", description = "Instantly renew or activate a user's subscription using credits")
+    public ResponseEntity<Void> renewSubscription(@PathVariable UUID deviceId, @RequestParam String planName) {
+        resellerService.renewUserSubscription(getCurrentSubResellerId(), deviceId, planName);
+        return ResponseEntity.ok().build();
+    }
+
     private UUID getCurrentSubResellerId() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return adminRepository.findByUsername(username)

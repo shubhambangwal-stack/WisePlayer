@@ -57,4 +57,20 @@ public interface ResellerService {
             java.time.LocalDate fromDate, java.time.LocalDate toDate,
             java.math.BigDecimal minCredits, java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable);
+
+    void deleteUser(UUID resellerId, UUID deviceId);
+
+    java.util.List<com.iptv.wiseplayer.dto.response.PlaylistResponse> getPlaylistsForUser(UUID resellerId, UUID deviceId);
+
+    com.iptv.wiseplayer.dto.response.PlaylistResponse addXtreamPlaylistForUser(UUID resellerId, UUID deviceId, com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request);
+
+    com.iptv.wiseplayer.dto.response.PlaylistResponse addM3uPlaylistForUser(UUID resellerId, UUID deviceId, com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request);
+
+    com.iptv.wiseplayer.dto.response.PlaylistResponse updateXtreamPlaylistForUser(UUID resellerId, UUID deviceId, UUID playlistId, com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request);
+
+    com.iptv.wiseplayer.dto.response.PlaylistResponse updateM3uPlaylistForUser(UUID resellerId, UUID deviceId, UUID playlistId, com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request);
+
+    void deletePlaylistForUser(UUID resellerId, UUID deviceId, UUID playlistId);
+
+    void renewUserSubscription(UUID resellerId, UUID deviceId, String planName);
 }

@@ -183,6 +183,72 @@ public class PlaylistServiceImpl implements PlaylistService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    @Override
+    @Transactional
+    public PlaylistResponse updateXtreamPlaylist(UUID playlistId, XtreamPlaylistRequest request) {
+        log.info("Updating Xtream playlist '{}' (ID: {})", request.getName(), playlistId);
+        
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
+                
+        // Validate credentials before saving
+        xtreamClient.authenticate(request.getServerUrl(), request.getUsername(), request.getPassword())
+                .orElseThrow(() -> {
+                    log.warn("Xtream validation failed for '{}' during update", request.getName());
+                    return new BadRequestException("Invalid Xtream credentials or inactive account");
+                });
+
+        playlist.setName(request.getName());
+        playlist.setType(PlaylistType.XTREAM);
+        playlist.setServerUrl(encryptionUtil.encrypt(request.getServerUrl()));
+        playlist.setUsername(encryptionUtil.encrypt(request.getUsername()));
+        playlist.setPassword(encryptionUtil.encrypt(request.getPassword()));
+        playlist.setM3uUrl(null);
+
+        Playlist saved = playlistRepository.save(playlist);
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse updateM3uPlaylist(UUID playlistId, M3uPlaylistRequest request) {
+        log.info("Updating M3U playlist '{}' (ID: {})", request.getName(), playlistId);
+        
+        Playlist playlist = playlistRepository.findById(playlistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
+
+        var xtreamDetails = xtreamUrlParser.parse(request.getM3uUrl());
+        if (xtreamDetails != null) {
+            XtreamPlaylistRequest xtreamRequest = new XtreamPlaylistRequest();
+            xtreamRequest.setName(request.getName());
+            xtreamRequest.setServerUrl(xtreamDetails.getServerUrl());
+            xtreamRequest.setUsername(xtreamDetails.getUsername());
+            xtreamRequest.setPassword(xtreamDetails.getPassword());
+            return updateXtreamPlaylist(playlistId, xtreamRequest);
+        }
+
+        validateM3uUrl(request.getM3uUrl());
+
+        playlist.setName(request.getName());
+        playlist.setType(PlaylistType.M3U);
+        playlist.setM3uUrl(encryptionUtil.encrypt(request.getM3uUrl()));
+        playlist.setServerUrl(null);
+        playlist.setUsername(null);
+        playlist.setPassword(null);
+
+        Playlist saved = playlistRepository.save(playlist);
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deletePlaylist(UUID playlistId) {
+        if (!playlistRepository.existsById(playlistId)) {
+            throw new ResourceNotFoundException("Playlist not found");
+        }
+        playlistRepository.deleteById(playlistId);
+    }
+
     private PlaylistResponse mapToResponse(Playlist playlist) {
         // Decrypt fields for response
         String serverUrl = playlist.getServerUrl() != null ? encryptionUtil.decrypt(playlist.getServerUrl())

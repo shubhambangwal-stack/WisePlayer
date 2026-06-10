@@ -13,6 +13,12 @@ public interface PlaylistService {
 
     PlaylistResponse savePublicM3uPlaylist(String deviceId, M3uPlaylistRequest request);
 
+    PlaylistResponse updateXtreamPlaylist(UUID playlistId, XtreamPlaylistRequest request);
+
+    PlaylistResponse updateM3uPlaylist(UUID playlistId, M3uPlaylistRequest request);
+
+    void deletePlaylist(UUID playlistId);
+
     java.util.List<PlaylistResponse> getPlaylists(UUID deviceId);
 }
 

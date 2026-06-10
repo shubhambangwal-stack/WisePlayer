@@ -55,6 +55,8 @@ public class ResellerServiceImpl implements ResellerService {
     private final com.iptv.wiseplayer.service.CreditService creditService;
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
     private final com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository;
+    private final com.iptv.wiseplayer.service.PlaylistService playlistService;
+    private final com.iptv.wiseplayer.service.SubscriptionService subscriptionService;
 
     public ResellerServiceImpl(DeviceRepository deviceRepository,
             AdminRepository adminRepository,
@@ -64,7 +66,9 @@ public class ResellerServiceImpl implements ResellerService {
             PasswordEncoder passwordEncoder,
             com.iptv.wiseplayer.service.CreditService creditService,
             com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
-            com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository) {
+            com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository,
+            com.iptv.wiseplayer.service.PlaylistService playlistService,
+            com.iptv.wiseplayer.service.SubscriptionService subscriptionService) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
@@ -74,6 +78,8 @@ public class ResellerServiceImpl implements ResellerService {
         this.creditService = creditService;
         this.subscriptionRepository = subscriptionRepository;
         this.resellerCustomerRepository = resellerCustomerRepository;
+        this.playlistService = playlistService;
+        this.subscriptionService = subscriptionService;
     }
 
     @Override
@@ -400,5 +406,115 @@ public class ResellerServiceImpl implements ResellerService {
 
             return response;
         });
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(UUID resellerId, UUID deviceId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied: Device does not belong to this reseller");
+        }
+        
+        // Remove resellerCustomer link
+        resellerCustomerRepository.findByResellerIdAndMacAddress(resellerId, device.getMacAddress())
+                .ifPresent(resellerCustomerRepository::delete);
+                
+        // Unlink and deactivate
+        device.setResellerId(null);
+        device.setActive(false);
+        device.setDeviceStatus(DeviceStatus.INACTIVE);
+        deviceRepository.save(device);
+    }
+
+    @Override
+    public java.util.List<com.iptv.wiseplayer.dto.response.PlaylistResponse> getPlaylistsForUser(UUID resellerId, UUID deviceId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+        return playlistService.getPlaylists(deviceId);
+    }
+
+    @Override
+    public com.iptv.wiseplayer.dto.response.PlaylistResponse addXtreamPlaylistForUser(UUID resellerId, UUID deviceId, com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+        return playlistService.saveXtreamPlaylist(deviceId, request);
+    }
+
+    @Override
+    public com.iptv.wiseplayer.dto.response.PlaylistResponse addM3uPlaylistForUser(UUID resellerId, UUID deviceId, com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+        return playlistService.saveM3uPlaylist(deviceId, request);
+    }
+
+    @Override
+    public com.iptv.wiseplayer.dto.response.PlaylistResponse updateXtreamPlaylistForUser(UUID resellerId, UUID deviceId, UUID playlistId, com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest request) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+        return playlistService.updateXtreamPlaylist(playlistId, request);
+    }
+
+    @Override
+    public com.iptv.wiseplayer.dto.response.PlaylistResponse updateM3uPlaylistForUser(UUID resellerId, UUID deviceId, UUID playlistId, com.iptv.wiseplayer.dto.request.M3uPlaylistRequest request) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+        return playlistService.updateM3uPlaylist(playlistId, request);
+    }
+
+    @Override
+    public void deletePlaylistForUser(UUID resellerId, UUID deviceId, UUID playlistId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+        playlistService.deletePlaylist(playlistId);
+    }
+
+    @Override
+    @Transactional
+    public void renewUserSubscription(UUID resellerId, UUID deviceId, String planName) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+
+        BigDecimal cost = creditService.getActivationCost(planName);
+        
+        // Deduct credits directly. If not enough credits, it will throw an exception
+        creditService.deductCredits(resellerId, planName, null);
+        
+        // Use the subscription service to activate
+        com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest req = new com.iptv.wiseplayer.dto.request.SubscriptionActivationRequest(device.getDeviceId().toString(), planName);
+        subscriptionService.activateSubscription(req);
+        
+        // Optionally save a successful activation request for history
+        ActivationRequest request = new ActivationRequest();
+        request.setResellerId(resellerId);
+        request.setDeviceId(deviceId);
+        request.setPlanName(planName);
+        request.setAmount(cost.doubleValue());
+        request.setCurrency("CREDITS");
+        request.setStatus("APPROVED");
+        request.setCreditsUsed(cost);
+        activationRequestRepository.save(request);
     }
 }
