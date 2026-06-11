@@ -18,9 +18,34 @@ jobs:
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
-          password: ${{ secrets.PORT }}
+          port: ${{ secrets.PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-           echo "===== DEPLOY ====="
+            set -xe
+
+            echo "===== SETUP SSH CONFIG ====="
+            mkdir -p ~/.ssh
+            cat >> ~/.ssh/config << 'EOF'
+            Host github.com
+              IdentityFile ~/.ssh/github
+              StrictHostKeyChecking no
+            EOF
+            chmod 600 ~/.ssh/config
+
+            echo "===== DEPLOY STARTED ====="
+            whoami
+            hostname
+            pwd
+
+            echo "===== NAVIGATING TO PROJECT ====="
             cd /opt/wiseplayer/backend
+
+            echo "===== GIT INFO ====="
+            git branch
+            git status
+
+            echo "===== RUNNING DEPLOY SCRIPT ====="
+            chmod +x deploy.sh
             ./deploy.sh
+
+            echo "===== DEPLOY FINISHED ====="
