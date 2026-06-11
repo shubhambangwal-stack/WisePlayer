@@ -1,14 +1,11 @@
 name: Wise Deployment Script
-
 on:
   push:
     branches:
       - main
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -18,9 +15,23 @@ jobs:
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
-          password: ${{ secrets.PORT }}
+          password: ${{ secrets.PASSWORD }}      # ← fixed: was PORT
+          port: ${{ secrets.PORT }}              # ← added: port was missing
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          debug: true                            # ← appleboy debug mode
           script: |
-           echo "===== DEPLOY ====="
+            echo "===== DEPLOY ====="
             cd /opt/wiseplayer/backend
             ./deploy.sh
+
+      - name: Raw SSH verbose test (optional)
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          ssh -vvv \
+            -i /tmp/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -p ${{ secrets.PORT }} \
+            ${{ secrets.USER }}@${{ secrets.HOST }} \
+            "echo connected && cd /opt/wiseplayer/backend && ./deploy.sh"
+          rm -f /tmp/deploy_key
