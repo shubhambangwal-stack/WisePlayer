@@ -1,4 +1,4 @@
-name: We2Meet Deployment Script
+name: Wise Deployment Script
 
 on:
   push:
@@ -19,34 +19,8 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           password: ${{ secrets.PASS }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -x
-
-            echo "===== USER INFO ====="
-            whoami
-            pwd
-            hostname
-
-            echo "===== SSH INFO ====="
-            ls -la ~/.ssh || true
-            ssh-add -l || true
-
-            echo "===== GITHUB TEST ====="
-            ssh -o StrictHostKeyChecking=no -T git@github.com || true
-
-            echo "===== REPO INFO ====="
-            cd /var/www/matriomony-backend-
-            git remote -v
-            git branch
-            git status
-
-            echo "===== TEST REMOTE ACCESS ====="
-            git ls-remote origin || true
-
-            echo "===== SSH DEBUG ====="
-            ssh -vT git@github.com || true
-
-            echo "===== DEPLOY ====="
+           echo "===== DEPLOY ====="
+            cd /opt/wiseplayer/backend
             ./deploy.sh
