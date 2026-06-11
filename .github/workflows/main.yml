@@ -10,28 +10,52 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Debug Secrets (encoded)
+        run: |
+          echo "=== HOST ==="
+          echo '${{ secrets.HOST }}' | base64
+
+          echo "=== USER ==="
+          echo '${{ secrets.USER }}' | base64
+
+          echo "=== PORT ==="
+          echo '${{ secrets.PORT }}' | base64
+
+          echo "=== PASSWORD ==="
+          echo '${{ secrets.PASSWORD }}' | base64
+
+          echo "=== KEY set? ==="
+          echo '${{ secrets.SSH_PRIVATE_KEY != '' }}'
+
+          echo "=== KEY length (chars) ==="
+          echo '${{ secrets.SSH_PRIVATE_KEY }}' | wc -c
+
+          echo "=== KEY length (lines) ==="
+          echo '${{ secrets.SSH_PRIVATE_KEY }}' | wc -l
+
+          echo "=== KEY first line (b64) ==="
+          echo '${{ secrets.SSH_PRIVATE_KEY }}' | head -1 | base64
+
+          echo "=== KEY last line (b64) ==="
+          echo '${{ secrets.SSH_PRIVATE_KEY }}' | tail -1 | base64
+
+      - name: Check Port Reachability
+        run: |
+          PORT=$(echo '${{ secrets.PORT }}' | tr -d '[:space:]')
+          HOST=$(echo '${{ secrets.HOST }}' | tr -d '[:space:]')
+          echo "Testing $HOST:$PORT"
+          nc -zv $HOST $PORT && echo "PORT OPEN" || echo "PORT CLOSED/UNREACHABLE"
+
       - name: SSH and Run Script
         uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
-          password: ${{ secrets.PASSWORD }}      # ← fixed: was PORT
-          port: ${{ secrets.PORT }}              # ← added: port was missing
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          debug: true                            # ← appleboy debug mode
+          debug: true
           script: |
             echo "===== DEPLOY ====="
             cd /opt/wiseplayer/backend
             ./deploy.sh
-
-      - name: Raw SSH verbose test (optional)
-        run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-          ssh -vvv \
-            -i /tmp/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -p ${{ secrets.PORT }} \
-            ${{ secrets.USER }}@${{ secrets.HOST }} \
-            "echo connected && cd /opt/wiseplayer/backend && ./deploy.sh"
-          rm -f /tmp/deploy_key
