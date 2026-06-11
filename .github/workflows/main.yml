@@ -39,12 +39,12 @@ jobs:
           echo "=== KEY last line (b64) ==="
           echo '${{ secrets.SSH_PRIVATE_KEY }}' | tail -1 | base64
 
-      - name: Check Port Reachability
-        run: |
-          PORT=$(echo '${{ secrets.PORT }}' | tr -d '[:space:]')
-          HOST=$(echo '${{ secrets.HOST }}' | tr -d '[:space:]')
-          echo "Testing $HOST:$PORT"
-          nc -zv $HOST $PORT && echo "PORT OPEN" || echo "PORT CLOSED/UNREACHABLE"
+      # - name: Check Port Reachability
+      #   run: |
+      #     PORT=$(echo '${{ secrets.PORT }}' | tr -d '[:space:]')
+      #     HOST=$(echo '${{ secrets.HOST }}' | tr -d '[:space:]')
+      #     echo "Testing $HOST:$PORT"
+      #     nc -zv $HOST $PORT && echo "PORT OPEN" || echo "PORT CLOSED/UNREACHABLE"
 
       - name: SSH and Run Script
         uses: appleboy/ssh-action@v1.2.4
