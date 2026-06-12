@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -92,6 +93,9 @@ public class ResellerServiceImpl implements ResellerService {
                 .orElseThrow(() -> new AuthenticationException("Invalid credentials"));
 
         if (!admin.isActive()) {
+            if (resellerEmailOtpRepository.findByAdminId(admin.getId()).isPresent()) {
+                throw new AccessDeniedException("Email not verified. Please complete OTP verification.");
+            }
             throw new AccessDeniedException("Account is disabled");
         }
 
@@ -113,22 +117,43 @@ public class ResellerServiceImpl implements ResellerService {
     @Override
     @Transactional
     public AdminAuthResponse register(ResellerRegisterRequest request) {
-        if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new ResourceAlreadyExistsException("Username already exists");
-        }
-        if (adminRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new ResourceAlreadyExistsException("Email already registered");
+        Admin reseller;
+
+        java.util.Optional<Admin> byEmail = adminRepository.findByEmail(request.getEmail());
+        java.util.Optional<Admin> byUsername = adminRepository.findByUsername(request.getUsername());
+
+        if (byEmail.isPresent()) {
+            Admin existing = byEmail.get();
+            if (existing.isActive()) {
+                throw new ResourceAlreadyExistsException("Email already registered");
+            }
+            // Unverified account with this email exists — reuse it, update all fields including username
+            existing.setUsername(request.getUsername());
+            existing.setFullName(request.getFullName());
+            existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            reseller = adminRepository.save(existing);
+        } else if (byUsername.isPresent()) {
+            Admin existing = byUsername.get();
+            if (existing.isActive()) {
+                throw new ResourceAlreadyExistsException("Username already exists");
+            }
+            // Unverified account with this username exists — reuse it, update email too
+            existing.setEmail(request.getEmail());
+            existing.setFullName(request.getFullName());
+            existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            reseller = adminRepository.save(existing);
+        } else {
+            reseller = new Admin();
+            reseller.setUsername(request.getUsername());
+            reseller.setFullName(request.getFullName());
+            reseller.setEmail(request.getEmail());
+            reseller.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            reseller.setRole(AdminRole.RESELLER);
+            reseller.setActive(false);
+            reseller = adminRepository.save(reseller);
         }
 
-        Admin reseller = new Admin();
-        reseller.setUsername(request.getUsername());
-        reseller.setFullName(request.getFullName());
-        reseller.setEmail(request.getEmail());
-        reseller.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        reseller.setRole(AdminRole.RESELLER);
-        reseller.setActive(false);
-
-        Admin saved = adminRepository.save(reseller);
+        Admin saved = reseller;
 
         String otp = generateOtp();
         resellerEmailOtpRepository.deleteByAdminId(saved.getId());
@@ -144,7 +169,12 @@ public class ResellerServiceImpl implements ResellerService {
         return new AdminAuthResponse(true, token, saved.getEmail(), saved.getUsername(), saved.getFullName(),
                 saved.getRole().name());
     }
-
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    public void purgeExpiredOtps() {
+        resellerEmailOtpRepository.deleteAllExpired(LocalDateTime.now());
+        log.info("Purged expired OTPs from reseller_email_otps");
+    }
     @Override
     public ResellerDashboardResponse getDashboardOverview(UUID resellerId) {
         ResellerDashboardResponse response = new ResellerDashboardResponse();
