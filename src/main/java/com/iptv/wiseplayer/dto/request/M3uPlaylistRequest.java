@@ -1,8 +1,13 @@
 package com.iptv.wiseplayer.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class M3uPlaylistRequest {
 
+    @NotBlank(message = "Playlist name is required")
     private String name;
+
+    @NotBlank(message = "M3U URL is required")
     private String m3uUrl;
 
     public M3uPlaylistRequest() {
