@@ -61,8 +61,13 @@ public class SubResellerController {
     public ResponseEntity<Page<CreditTransactionResponse>> getTransactionHistory(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minAmount,
+            @RequestParam(required = false) java.math.BigDecimal maxAmount,
             Pageable pageable) {
-        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentSubResellerId(), search, type, pageable));
+        return ResponseEntity.ok(creditService.getTransactionHistory(
+                getCurrentSubResellerId(), search, type, fromDate, toDate, minAmount, maxAmount, pageable));
     }
 
     @PostMapping("/credits/purchase")
@@ -86,12 +91,27 @@ public class SubResellerController {
     }
 
     @GetMapping("/users")
-    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this sub-reseller with optional search and status filtering")
+    @Operation(summary = "Get Users", description = "Get devices managed by this sub-reseller with filters for status, plan, registered and expiry date range")
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            @RequestParam(required = false) String subscription,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredTo,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresTo,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentSubResellerId(), search, status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerUsers(
+                getCurrentSubResellerId(), search, status, subscription,
+                registeredFrom, registeredTo, expiresFrom, expiresTo, pageable));
     }
 
     @PutMapping("/users/{deviceId}/disable")
@@ -113,9 +133,13 @@ public class SubResellerController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String planName,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
         return ResponseEntity.ok(resellerService.getResellerRequests(
-                getCurrentSubResellerId(), search, status, planName, pageable));
+                getCurrentSubResellerId(), search, status, planName, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
     private UUID getCurrentSubResellerId() {

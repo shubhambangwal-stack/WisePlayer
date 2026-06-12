@@ -54,11 +54,17 @@ public class AdminActivationRequestService {
 
 
     public Page<ActivationRequestResponse> getAllRequests(
+            UUID resellerId,
             String status,
             String deviceId,
             String planName,
             Pageable pageable) {
-        return activationRequestRepository.searchActivationRequests(status, deviceId, planName, pageable)
+        String resellerParam = resellerId != null ? resellerId.toString() : null;
+        String statusParam   = (status   != null && !status.trim().isEmpty())   ? status.trim()   : null;
+        String deviceParam   = (deviceId != null && !deviceId.trim().isEmpty()) ? deviceId.trim() : null;
+        String planParam     = (planName != null && !planName.trim().isEmpty()) ? planName.trim() : null;
+        return activationRequestRepository.searchActivationRequests(
+                        resellerParam, statusParam, deviceParam, planParam, pageable)
                 .map(this::convertToResponse);
     }
 

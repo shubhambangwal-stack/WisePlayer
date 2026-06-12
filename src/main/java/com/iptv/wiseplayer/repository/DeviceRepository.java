@@ -81,19 +81,26 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
         Page<Device> findAllByResellerId(UUID resellerId, Pageable pageable);
 
-        @Query("SELECT d FROM Device d WHERE d.resellerId = :resellerId " +
-                        "AND (:status IS NULL OR d.deviceStatus = :status) " +
-                        "AND (:search IS NULL OR :search = '' " +
-                        "OR LOWER(d.deviceModel) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                        "OR LOWER(d.platform) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                        "OR LOWER(d.macAddress) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                        "OR CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :search, '%')))")
-
+        @Query("SELECT d FROM Device d WHERE d.resellerId = :resellerId AND " +
+                "(:search IS NULL OR :search = '' OR " +
+                "   LOWER(d.macAddress) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+                "   CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+                "(:status IS NULL OR d.deviceStatus = :status) AND " +
+                "(:subscription IS NULL OR :subscription = '' OR UPPER(CAST(d.subscriptionType AS string)) = UPPER(:subscription)) AND " +
+                "(CAST(:registeredFrom AS java.time.LocalDateTime) IS NULL OR d.registeredAt >= :registeredFrom) AND " +
+                "(CAST(:registeredTo AS java.time.LocalDateTime) IS NULL OR d.registeredAt <= :registeredTo) AND " +
+                "(CAST(:expiresFrom AS java.time.LocalDateTime) IS NULL OR d.expiresAt >= :expiresFrom) AND " +
+                "(CAST(:expiresTo AS java.time.LocalDateTime) IS NULL OR d.expiresAt <= :expiresTo)")
         Page<Device> searchResellerUsers(
-                        @Param("resellerId") UUID resellerId,
-                        @Param("status") DeviceStatus status,
-                        @Param("search") String search,
-                        Pageable pageable);
+                @Param("resellerId") UUID resellerId,
+                @Param("search") String search,
+                @Param("status") DeviceStatus status,
+                @Param("subscription") String subscription,
+                @Param("registeredFrom") java.time.LocalDateTime registeredFrom,
+                @Param("registeredTo") java.time.LocalDateTime registeredTo,
+                @Param("expiresFrom") java.time.LocalDateTime expiresFrom,
+                @Param("expiresTo") java.time.LocalDateTime expiresTo,
+                Pageable pageable);
 
         long countByRegisteredAtBetween(java.time.LocalDateTime from, java.time.LocalDateTime to);
 

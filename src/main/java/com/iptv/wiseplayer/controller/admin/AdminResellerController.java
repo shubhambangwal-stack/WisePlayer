@@ -81,4 +81,11 @@ public class AdminResellerController {
             Pageable pageable) {
         return ResponseEntity.ok(adminResellerService.getSubResellers(id, pageable));
     }
+    @Operation(summary = "Delete Reseller", description = "Permanently deletes a reseller and all associated data.")
+    @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ROLE_SUPER_ADMIN')")
+    public ResponseEntity<Map<String, Object>> deleteReseller(@PathVariable UUID id) {
+        adminResellerService.deleteReseller(id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Reseller deleted successfully"));
+    }
 }

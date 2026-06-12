@@ -1,17 +1,14 @@
 package com.iptv.wiseplayer.service.impl;
 
-import com.iptv.wiseplayer.domain.entity.Admin;
-import com.iptv.wiseplayer.domain.entity.Device;
-import com.iptv.wiseplayer.domain.entity.ActivationRequest;
+import com.iptv.wiseplayer.domain.entity.*;
+
 import java.math.BigDecimal;
+
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionType;
-import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
-import com.iptv.wiseplayer.dto.request.ResellerActivationRequestDto;
-import com.iptv.wiseplayer.dto.request.ResellerLoginRequest;
-import com.iptv.wiseplayer.dto.request.ResellerRegisterRequest;
-import com.iptv.wiseplayer.dto.request.SubResellerCreateRequest;
+import com.iptv.wiseplayer.dto.request.*;
+import com.iptv.wiseplayer.dto.response.ActivationRequestResponse;
 import com.iptv.wiseplayer.dto.response.AdminAuthResponse;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
 import com.iptv.wiseplayer.dto.response.ResellerDashboardResponse;
@@ -20,21 +17,30 @@ import com.iptv.wiseplayer.exception.AuthenticationException;
 import com.iptv.wiseplayer.exception.ResourceAlreadyExistsException;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.exception.BadRequestException;
-import com.iptv.wiseplayer.repository.AdminRepository;
-import com.iptv.wiseplayer.repository.DeviceRepository;
-import com.iptv.wiseplayer.repository.ActivationRequestRepository;
+import com.iptv.wiseplayer.repository.*;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
+import com.iptv.wiseplayer.service.EmailService;
 import com.iptv.wiseplayer.service.ResellerService;
 import org.slf4j.Logger;
 
 
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -52,15 +58,22 @@ public class ResellerServiceImpl implements ResellerService {
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
     private final com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository;
 
+    private final ResellerEmailOtpRepository resellerEmailOtpRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailService emailService;
+
     public ResellerServiceImpl(DeviceRepository deviceRepository,
-            AdminRepository adminRepository,
-            ActivationRequestRepository activationRequestRepository,
-            DeviceTokenUtil tokenUtil,
-            AdminTokenUtil adminTokenUtil,
-            PasswordEncoder passwordEncoder,
-            com.iptv.wiseplayer.service.CreditService creditService,
-            com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
-            com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository) {
+                               AdminRepository adminRepository,
+                               ActivationRequestRepository activationRequestRepository,
+                               DeviceTokenUtil tokenUtil,
+                               AdminTokenUtil adminTokenUtil,
+                               PasswordEncoder passwordEncoder,
+                               com.iptv.wiseplayer.service.CreditService creditService,
+                               com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
+                               com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository,
+                               ResellerEmailOtpRepository resellerEmailOtpRepository,
+                               PasswordResetTokenRepository passwordResetTokenRepository,
+                               EmailService emailService) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
@@ -70,16 +83,19 @@ public class ResellerServiceImpl implements ResellerService {
         this.creditService = creditService;
         this.subscriptionRepository = subscriptionRepository;
         this.resellerCustomerRepository = resellerCustomerRepository;
+        this.resellerEmailOtpRepository = resellerEmailOtpRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.emailService = emailService;
     }
-
-
-
     @Override
     public AdminAuthResponse login(ResellerLoginRequest request) {
         Admin admin = adminRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new AuthenticationException("Invalid credentials"));
 
         if (!admin.isActive()) {
+            if (resellerEmailOtpRepository.findByAdminId(admin.getId()).isPresent()) {
+                throw new AccessDeniedException("Email not verified. Please complete OTP verification.");
+            }
             throw new AccessDeniedException("Account is disabled");
         }
 
@@ -94,32 +110,71 @@ public class ResellerServiceImpl implements ResellerService {
 
         String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
 
-        return new AdminAuthResponse(true, token, null, admin.getUsername(), admin.getFullName(),
+        return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(), admin.getFullName(),
                 admin.getRole().name());
     }
 
     @Override
     @Transactional
     public AdminAuthResponse register(ResellerRegisterRequest request) {
-        if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new ResourceAlreadyExistsException("Username already exists");
+        Admin reseller;
+
+        java.util.Optional<Admin> byEmail = adminRepository.findByEmail(request.getEmail());
+        java.util.Optional<Admin> byUsername = adminRepository.findByUsername(request.getUsername());
+
+        if (byEmail.isPresent()) {
+            Admin existing = byEmail.get();
+            if (existing.isActive()) {
+                throw new ResourceAlreadyExistsException("Email already registered");
+            }
+            // Unverified account with this email exists — reuse it, update all fields including username
+            existing.setUsername(request.getUsername());
+            existing.setFullName(request.getFullName());
+            existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            reseller = adminRepository.save(existing);
+        } else if (byUsername.isPresent()) {
+            Admin existing = byUsername.get();
+            if (existing.isActive()) {
+                throw new ResourceAlreadyExistsException("Username already exists");
+            }
+            // Unverified account with this username exists — reuse it, update email too
+            existing.setEmail(request.getEmail());
+            existing.setFullName(request.getFullName());
+            existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            reseller = adminRepository.save(existing);
+        } else {
+            reseller = new Admin();
+            reseller.setUsername(request.getUsername());
+            reseller.setFullName(request.getFullName());
+            reseller.setEmail(request.getEmail());
+            reseller.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            reseller.setRole(AdminRole.RESELLER);
+            reseller.setActive(false);
+            reseller = adminRepository.save(reseller);
         }
 
-        Admin reseller = new Admin();
-        reseller.setUsername(request.getUsername());
-        reseller.setFullName(request.getFullName());
-        reseller.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        reseller.setRole(AdminRole.RESELLER);
-        reseller.setActive(true);
+        Admin saved = reseller;
 
-        Admin saved = adminRepository.save(reseller);
+        String otp = generateOtp();
+        resellerEmailOtpRepository.deleteByAdminId(saved.getId());
+        ResellerEmailOtp otpEntity = new ResellerEmailOtp();
+        otpEntity.setAdminId(saved.getId());
+        otpEntity.setOtpHash(hashOtp(otp));
+        otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+        resellerEmailOtpRepository.save(otpEntity);
+
+        emailService.sendOtpEmail(saved.getEmail(), otp);
 
         String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole());
-
-        return new AdminAuthResponse(true, token, null, saved.getUsername(), saved.getFullName(),
+        return new AdminAuthResponse(true, token, saved.getEmail(), saved.getUsername(), saved.getFullName(),
                 saved.getRole().name());
     }
-
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    public void purgeExpiredOtps() {
+        resellerEmailOtpRepository.deleteAllExpired(LocalDateTime.now());
+        log.info("Purged expired OTPs from reseller_email_otps");
+    }
     @Override
     public ResellerDashboardResponse getDashboardOverview(UUID resellerId) {
         ResellerDashboardResponse response = new ResellerDashboardResponse();
@@ -171,15 +226,32 @@ public class ResellerServiceImpl implements ResellerService {
         );
     }
 
+    // ADD:
     @Override
-    public org.springframework.data.domain.Page<Device> getResellerUsers(UUID resellerId,
+    public org.springframework.data.domain.Page<Device> getResellerUsers(
+            UUID resellerId,
             String search,
-            com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            DeviceStatus status,
+            String subscription,
+            java.time.LocalDate registeredFrom,
+            java.time.LocalDate registeredTo,
+            java.time.LocalDate expiresFrom,
+            java.time.LocalDate expiresTo,
             org.springframework.data.domain.Pageable pageable) {
-        return deviceRepository.searchResellerUsers(resellerId, status, search, pageable);
+
+        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        String subParam = (subscription != null && !subscription.trim().isEmpty()) ? subscription.trim().toUpperCase() : null;
+
+        java.time.LocalDateTime regFrom = (registeredFrom != null) ? registeredFrom.atStartOfDay() : null;
+        java.time.LocalDateTime regTo   = (registeredTo   != null) ? registeredTo.atTime(23, 59, 59) : null;
+        java.time.LocalDateTime expFrom = (expiresFrom    != null) ? expiresFrom.atStartOfDay() : null;
+        java.time.LocalDateTime expTo   = (expiresTo      != null) ? expiresTo.atTime(23, 59, 59) : null;
+
+        return deviceRepository.searchResellerUsers(
+                resellerId, searchParam, status, subParam,
+                regFrom, regTo, expFrom, expTo,
+                pageable);
     }
-
-
 
     @Override
     @Transactional
@@ -216,8 +288,14 @@ public class ResellerServiceImpl implements ResellerService {
     @Override
     public org.springframework.data.domain.Page<Admin> getSubResellers(
             UUID resellerId, String search, Boolean status,
+            java.time.LocalDate fromDate, java.time.LocalDate toDate,
+            java.math.BigDecimal minCredits, java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
-        return adminRepository.searchSubResellers(resellerId, search, status, pageable);
+        String fromParam = fromDate != null ? fromDate.atStartOfDay().toString() : null;
+        String toParam   = toDate   != null ? toDate.atTime(23, 59, 59).toString() : null;
+        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        return adminRepository.searchSubResellers(
+                resellerId, searchParam, status, fromParam, toParam, minCredits, maxCredits, pageable);
     }
 
     @Override
@@ -308,6 +386,7 @@ public class ResellerServiceImpl implements ResellerService {
         BigDecimal cost = creditService.getActivationCost(planName);
         ActivationRequest request = new ActivationRequest();
         request.setResellerId(resellerId);
+        request.setResellerId(resellerId);
         request.setDeviceId(deviceId);
         request.setPlanName(planName);
         request.setAmount(cost.doubleValue());
@@ -330,39 +409,131 @@ public class ResellerServiceImpl implements ResellerService {
     }
 
     @Override
-    public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse> getResellerRequests(
-            UUID resellerId, String search, String status, String planName, org.springframework.data.domain.Pageable pageable) {
+    public Page<ActivationRequestResponse> getResellerRequests(
+            UUID resellerId, String search, String status, String planName,
+            LocalDate fromDate, LocalDate toDate,
+            BigDecimal minCredits, BigDecimal maxCredits,
+            Pageable pageable) {
 
-        org.springframework.data.domain.Page<ActivationRequest> requestsPage =
-                activationRequestRepository.searchResellerRequests(resellerId, status, planName, search, pageable);
-        
+        String fromDateTime = fromDate != null ? fromDate.atStartOfDay().toString() : null;
+        String toDateTime   = toDate   != null ? toDate.atTime(23, 59, 59).toString() : null;
+        String searchParam = (search   != null && !search.trim().isEmpty())   ? search.trim()   : null;
+        String statusParam = (status   != null && !status.trim().isEmpty())   ? status.trim()   : null;
+        String planParam   = (planName != null && !planName.trim().isEmpty()) ? planName.trim() : null;
+
+       Page<ActivationRequest> requestsPage =
+                activationRequestRepository.searchResellerRequests(
+                        resellerId, statusParam, planParam,
+                        fromDateTime, toDateTime, minCredits, maxCredits,
+                        searchParam, pageable);
+
         return requestsPage.map(request -> {
-                    com.iptv.wiseplayer.dto.response.ActivationRequestResponse response = new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();
-                    response.setId(request.getId());
-                    response.setResellerId(request.getResellerId());
-                    response.setDeviceId(request.getDeviceId());
-                    response.setPlanName(request.getPlanName());
-                    response.setAmount(request.getAmount());
-                    response.setCurrency(request.getCurrency());
-                    response.setStatus(request.getStatus());
-                    response.setCreditsUsed(request.getCreditsUsed());
-                    response.setAdminNotes(request.getAdminNotes());
-                    response.setReviewedBy(request.getReviewedBy());
-                    response.setReviewedAt(request.getReviewedAt());
-                    response.setCreatedAt(request.getCreatedAt());
-                    response.setUpdatedAt(request.getUpdatedAt());
+            com.iptv.wiseplayer.dto.response.ActivationRequestResponse response =
+                    new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();
+            response.setId(request.getId());
+            response.setResellerId(request.getResellerId());
+            response.setDeviceId(request.getDeviceId());
+            response.setPlanName(request.getPlanName());
+            response.setAmount(request.getAmount());
+            response.setCurrency(request.getCurrency());
+            response.setStatus(request.getStatus());
+            response.setCreditsUsed(request.getCreditsUsed());
+            response.setAdminNotes(request.getAdminNotes());
+            response.setReviewedBy(request.getReviewedBy());
+            response.setReviewedAt(request.getReviewedAt());
+            response.setCreatedAt(request.getCreatedAt());
+            response.setUpdatedAt(request.getUpdatedAt());
 
-                    // Fetch device details
-                    deviceRepository.findByDeviceId(request.getDeviceId()).ifPresent(device -> {
-                        response.setDeviceModel(device.getDeviceModel());
-                        response.setPlatform(device.getPlatform());
-                        response.setDeviceStatus(device.getDeviceStatus().name());
-                        response.setMacAddress(device.getMacAddress());
-                    });
+            deviceRepository.findByDeviceId(request.getDeviceId()).ifPresent(device -> {
+                response.setDeviceModel(device.getDeviceModel());
+                response.setPlatform(device.getPlatform());
+                response.setDeviceStatus(device.getDeviceStatus().name());
+                response.setMacAddress(device.getMacAddress());
+            });
 
+            return response;
+        });
+    }
 
+    @Override
+    @Transactional
+    public Map<String, String> verifyEmail(VerifyOtpRequest request, String username) {
+        Admin admin = adminRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
-                    return response;
-                });
+        ResellerEmailOtp otpEntity = resellerEmailOtpRepository.findByAdminId(admin.getId())
+                .orElseThrow(() -> new BadRequestException("No pending OTP found"));
+
+        if (LocalDateTime.now().isAfter(otpEntity.getExpiresAt())) {
+            throw new BadRequestException("OTP has expired");
+        }
+
+        if (!otpEntity.getOtpHash().equals(hashOtp(request.getOtp()))) {
+            throw new BadRequestException("Invalid OTP");
+        }
+
+        admin.setActive(true);
+        adminRepository.save(admin);
+        resellerEmailOtpRepository.deleteByAdminId(admin.getId());
+
+        return Map.of("success", "true", "message", "Email verified. You can now login.");
+    }
+
+    @Override
+    @Transactional
+    public void forgotPassword(ResellerForgotPasswordRequest request) {
+        Admin admin = adminRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("No account found with this email"));
+
+        if (admin.getRole() != AdminRole.RESELLER && admin.getRole() != AdminRole.SUB_RESELLER) {
+            throw new AccessDeniedException("Not a reseller account");
+        }
+
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setEmail(admin.getEmail());
+        resetToken.setToken(token);
+        resetToken.setExpiryDate(LocalDateTime.now().plusHours(1));
+        passwordResetTokenRepository.save(resetToken);
+
+        String resetLink = "http://yourserver/reseller-reset-password.html?token=" + token;
+        emailService.sendResellerPasswordResetEmail(admin.getEmail(), resetLink);
+    }
+
+    @Override
+    @Transactional
+    public AdminAuthResponse resetPassword(ResellerResetPasswordRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getToken())
+                .orElseThrow(() -> new BadRequestException("Invalid or expired token"));
+
+        if (resetToken.isExpired()) {
+            throw new BadRequestException("Token has expired");
+        }
+
+        Admin admin = adminRepository.findByEmail(resetToken.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        admin.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        adminRepository.save(admin);
+        passwordResetTokenRepository.delete(resetToken);
+
+        return new AdminAuthResponse(true, null, admin.getEmail(), admin.getUsername(), admin.getFullName(),
+                admin.getRole().name());
+    }
+
+    private String generateOtp() {
+        SecureRandom random = new SecureRandom();
+        int otp = 100000 + random.nextInt(900000);
+        return String.valueOf(otp);
+    }
+
+    private String hashOtp(String otp) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(otp.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
     }
 }

@@ -222,6 +222,18 @@ public class AdminResellerService {
         adminRepository.save(admin);
     }
 
+    @Transactional
+    public void deleteReseller(UUID id) {
+        Admin admin = adminRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
+
+        if (admin.getRole() != AdminRole.RESELLER && admin.getRole() != AdminRole.SUB_RESELLER) {
+            throw new ResourceNotFoundException("Admin is not a reseller");
+        }
+
+        adminRepository.delete(admin);
+    }
+
     private ResellerResponse convertToResponse(Admin admin) {
         ResellerResponse response = new ResellerResponse();
         response.setId(admin.getId());

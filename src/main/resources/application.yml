@@ -1,8 +1,8 @@
 spring:
   application:
     name: wiseplayer
-  profiles:
-    active: dev
+#  profiles:
+#    active: dev
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -43,7 +43,7 @@ paypal:
   frontend-url: ${FRONTEND_URL:https://wise-player.com}
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8081}
 
 app:
   base-url: ${APP_BASE_URL:http://localhost:8080}

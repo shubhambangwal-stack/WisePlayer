@@ -171,10 +171,23 @@ public class CreditServiceImpl implements CreditService {
 
     @Override
     public org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
-            UUID resellerId, String search, String type, org.springframework.data.domain.Pageable pageable) {
-        return creditTransactionRepository.searchTransactions(resellerId, type, search, pageable)
+            UUID resellerId, String search, String type,
+            java.time.LocalDate fromDate, java.time.LocalDate toDate,
+            java.math.BigDecimal minAmount, java.math.BigDecimal maxAmount,
+            org.springframework.data.domain.Pageable pageable) {
+
+        String typeParam = (type != null && !type.trim().isEmpty())
+                ? type.trim().toUpperCase().replace(" ", "_") : null;
+        String searchParam = (search != null && !search.trim().isEmpty())
+                ? search.trim() : null;
+        String fromParam = fromDate != null ? fromDate.atStartOfDay().toString() : null;
+        String toParam = toDate != null ? toDate.atTime(23, 59, 59).toString() : null;
+
+        return creditTransactionRepository
+                .searchTransactions(resellerId, typeParam, fromParam, toParam, minAmount, maxAmount, searchParam, pageable)
                 .map(transaction -> {
-                    com.iptv.wiseplayer.dto.response.CreditTransactionResponse response = new com.iptv.wiseplayer.dto.response.CreditTransactionResponse();
+                    com.iptv.wiseplayer.dto.response.CreditTransactionResponse response =
+                            new com.iptv.wiseplayer.dto.response.CreditTransactionResponse();
                     response.setId(transaction.getId());
                     response.setAmount(transaction.getAmount());
                     response.setType(transaction.getType());

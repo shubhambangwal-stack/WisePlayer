@@ -23,7 +23,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.iptv.wiseplayer.dto.request.VerifyOtpRequest;
+import com.iptv.wiseplayer.dto.request.ResellerForgotPasswordRequest;
+import com.iptv.wiseplayer.dto.request.ResellerResetPasswordRequest;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -59,6 +63,27 @@ public class ResellerController {
         return ResponseEntity.ok(resellerService.register(request));
     }
 
+    @PostMapping("/verify-email")
+    @Operation(summary = "Verify Email OTP", description = "Send JWT from register + OTP from email")
+    public ResponseEntity<Map<String, String>> verifyEmail(@Valid @RequestBody VerifyOtpRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(resellerService.verifyEmail(request, username));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Forgot Password", description = "Send password reset link to reseller email")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ResellerForgotPasswordRequest request) {
+        resellerService.forgotPassword(request);
+        return ResponseEntity.ok(Map.of("success", "true", "message", "Reset link sent to your email"));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset Password", description = "Reset reseller password using token from email")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResellerResetPasswordRequest request) {
+        resellerService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("success", "true", "message", "Password reset successfully"));
+    }
+
     // --- Reseller Management Endpoints ---
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
@@ -78,12 +103,27 @@ public class ResellerController {
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/users")
-    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this reseller with optional search and status filtering")
+    @Operation(summary = "Get Users", description = "Get devices managed by this reseller with filters for status, plan, registered and expiry date range")
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            @RequestParam(required = false) String subscription,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredTo,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresTo,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentResellerId(), search, status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerUsers(
+                getCurrentResellerId(), search, status, subscription,
+                registeredFrom, registeredTo, expiresFrom, expiresTo, pageable));
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
@@ -102,13 +142,17 @@ public class ResellerController {
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
-        @GetMapping("/sub-resellers")
+    @GetMapping("/sub-resellers")
     public ResponseEntity<org.springframework.data.domain.Page<Admin>> getSubResellers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
         return ResponseEntity.ok(resellerService.getSubResellers(
-                getCurrentResellerId(), search, status, pageable));
+                getCurrentResellerId(), search, status, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
@@ -142,8 +186,13 @@ public class ResellerController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String planName,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), search, status, planName, pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(
+                getCurrentResellerId(), search, status, planName, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
     private UUID getCurrentResellerId() {

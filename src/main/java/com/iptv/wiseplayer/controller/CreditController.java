@@ -51,8 +51,13 @@ public class CreditController {
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse>> getTransactionHistory(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minAmount,
+            @RequestParam(required = false) java.math.BigDecimal maxAmount,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentResellerId(), search, type, pageable));
+        return ResponseEntity.ok(creditService.getTransactionHistory(
+                getCurrentResellerId(), search, type, fromDate, toDate, minAmount, maxAmount, pageable));
     }
 
     @PostMapping("/purchase")

@@ -26,17 +26,48 @@ public interface AdminRepository extends JpaRepository<Admin, UUID> {
             @Param("email") String email,
             Pageable pageable);
 
-    @Query("SELECT a FROM Admin a WHERE a.parentId = :parentId AND " +
-            "(:search IS NULL OR :search = '' OR " +
-            "LOWER(a.username) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(a.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "(:status IS NULL OR a.active = :status)")
-    Page<Admin> searchSubResellers(
-            @Param("parentId") UUID parentId,
-            @Param("search") String search,
-            @Param("status") Boolean status,
-            Pageable pageable);
+//    @Query("SELECT a FROM Admin a WHERE a.parentId = :parentId AND " +
+//            "(:search IS NULL OR :search = '' OR " +
+//            "LOWER(a.username) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+//            "LOWER(a.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+//            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+//            "(:status IS NULL OR a.active = :status)")
+//    Page<Admin> searchSubResellers(
+//            @Param("parentId") UUID parentId,
+//            @Param("search") String search,
+//            @Param("status") Boolean status,
+//            Pageable pageable);
+@Query(value = "SELECT a.* FROM admins a WHERE a.parent_id = :parentId " +
+        "AND (:status IS NULL OR a.is_active = :status) " +
+        "AND (:fromDate IS NULL OR a.created_at >= CAST(:fromDate AS timestamp)) " +
+        "AND (:toDate IS NULL OR a.created_at <= CAST(:toDate AS timestamp)) " +
+        "AND (:minCredits IS NULL OR a.credits >= CAST(:minCredits AS numeric)) " +
+        "AND (:maxCredits IS NULL OR a.credits <= CAST(:maxCredits AS numeric)) " +
+        "AND (:search IS NULL OR " +
+        "    a.username ILIKE '%' || :search || '%' OR " +
+        "    a.full_name ILIKE '%' || :search || '%' OR " +
+        "    a.admin_id::text ILIKE '%' || :search || '%') " +
+        "ORDER BY a.created_at DESC",
+        countQuery = "SELECT COUNT(*) FROM admins a WHERE a.parent_id = :parentId " +
+                "AND (:status IS NULL OR a.is_active = :status) " +
+                "AND (:fromDate IS NULL OR a.created_at >= CAST(:fromDate AS timestamp)) " +
+                "AND (:toDate IS NULL OR a.created_at <= CAST(:toDate AS timestamp)) " +
+                "AND (:minCredits IS NULL OR a.credits >= CAST(:minCredits AS numeric)) " +
+                "AND (:maxCredits IS NULL OR a.credits <= CAST(:maxCredits AS numeric)) " +
+                "AND (:search IS NULL OR " +
+                "    a.username ILIKE '%' || :search || '%' OR " +
+                "    a.full_name ILIKE '%' || :search || '%' OR " +
+                "    a.id::text ILIKE '%' || :search || '%')",
+        nativeQuery = true)
+Page<Admin> searchSubResellers(
+        @Param("parentId") UUID parentId,
+        @Param("search") String search,
+        @Param("status") Boolean status,
+        @Param("fromDate") String fromDate,
+        @Param("toDate") String toDate,
+        @Param("minCredits") java.math.BigDecimal minCredits,
+        @Param("maxCredits") java.math.BigDecimal maxCredits,
+        Pageable pageable);
     Optional<Admin> findByEmail(String email);
     boolean existsByEmail(String email);
 
