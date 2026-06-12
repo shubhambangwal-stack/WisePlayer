@@ -100,7 +100,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/device/activate").permitAll()
                         .requestMatchers("/api/playlist/public/**").permitAll()
                         .requestMatchers("/api/payment/paypal/**").permitAll()
-                        .requestMatchers("/api/reseller/login", "/api/reseller/register").permitAll()
+                        .requestMatchers("/api/reseller/login", "/api/reseller/register", "/api/reseller/forgot-password", "/api/reseller/reset-password").permitAll()
                         .requestMatchers("/api/payment/public/**").permitAll()
                         .requestMatchers("/api/payment/public/plans").permitAll()
                         .requestMatchers("/api/public/support/**").permitAll()

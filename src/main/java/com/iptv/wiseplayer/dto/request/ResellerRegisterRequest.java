@@ -12,6 +12,9 @@ public class ResellerRegisterRequest {
     @NotBlank(message = "Full name is required")
     private String fullName;
 
+    @NotBlank(message = "Email is required")
+    private String email;
+
     public String getUsername() {
         return username;
     }
@@ -34,5 +37,13 @@ public class ResellerRegisterRequest {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

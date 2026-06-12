@@ -156,4 +156,79 @@ public class EmailService {
                 """
                 .formatted(resetLink);
     }
+
+
+
+//    Reseller/Subreseller Forgot Password
+public void sendOtpEmail(String toEmail, String otp) {
+    try {
+        log.info("Sending OTP email to: {}", toEmail);
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
+                StandardCharsets.UTF_8.name());
+
+        String htmlContent = """
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f0f; color: #ffffff; padding: 20px; }
+                            .container { max-width: 600px; margin: 0 auto; background-color: #1a1a1a; padding: 40px; border-radius: 12px; border: 1px solid #333; }
+                            .logo { color: #e50914; font-size: 28px; font-weight: bold; margin-bottom: 20px; text-align: center; }
+                            .title { font-size: 24px; font-weight: 600; margin-bottom: 20px; text-align: center; color: #00d4ff; }
+                            .content { line-height: 1.6; color: #cccccc; margin-bottom: 30px; }
+                            .otp-box { background-color: #2a2a2a; border: 2px solid #00d4ff; border-radius: 8px; text-align: center; padding: 20px; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #00d4ff; margin: 20px 0; }
+                            .footer { margin-top: 40px; font-size: 12px; color: #666; text-align: center; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="logo">WisePlayer</div>
+                            <div class="title">Verify Your Email</div>
+                            <div class="content">
+                                <p>Hello,</p>
+                                <p>Use the OTP below to verify your WisePlayer Reseller account. It expires in 10 minutes.</p>
+                            </div>
+                            <div class="otp-box">%s</div>
+                            <div class="content">
+                                <p>If you did not register, please ignore this email.</p>
+                            </div>
+                            <div class="footer">&copy; 2024 WisePlayer. All rights reserved.</div>
+                        </div>
+                    </body>
+                    </html>
+                    """.formatted(otp);
+
+        helper.setFrom(fromEmail);
+        helper.setTo(toEmail);
+        helper.setSubject("Your WisePlayer Verification OTP");
+        helper.setText(htmlContent, true);
+
+        mailSender.send(message);
+        log.info("OTP email sent successfully to: {}", toEmail);
+    } catch (Exception e) {
+        log.error("Error sending OTP email to {}: {}", toEmail, e.getMessage(), e);
+    }
+}
+
+    public void sendResellerPasswordResetEmail(String toEmail, String resetLink) {
+        try {
+            log.info("Sending reseller password reset email to: {}", toEmail);
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED,
+                    StandardCharsets.UTF_8.name());
+
+            String htmlContent = createResetPasswordHtml(resetLink);
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Password Reset Request - WisePlayer Reseller");
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("Reseller password reset email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Error sending reseller password reset email to {}: {}", toEmail, e.getMessage(), e);
+        }
+    }
 }
