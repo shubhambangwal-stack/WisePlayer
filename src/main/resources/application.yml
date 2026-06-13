@@ -3,10 +3,10 @@ spring:
     name: wiseplayer
 #  profiles:
 #    active: dev
- # flyway:
-  #  enabled: true
-   # baseline-on-migrate: true
-   # baseline-version: 1
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USERNAME}
