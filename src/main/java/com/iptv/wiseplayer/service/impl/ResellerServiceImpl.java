@@ -496,7 +496,7 @@ public class ResellerServiceImpl implements ResellerService {
         resetToken.setExpiryDate(LocalDateTime.now().plusHours(1));
         passwordResetTokenRepository.save(resetToken);
 
-        String resetLink = "http://yourserver/reseller-reset-password.html?token=" + token;
+        String resetLink = "https://wise-player.com/reset-password?token=" + token;
         emailService.sendResellerPasswordResetEmail(admin.getEmail(), resetLink);
     }
 
