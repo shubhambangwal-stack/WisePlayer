@@ -57,6 +57,18 @@ public class Admin {
     @Column(name = "credits", precision = 10, scale = 2, nullable = false)
     private BigDecimal credits = BigDecimal.ZERO;
 
+    @Column(name = "can_create", nullable = false)
+    private boolean canCreate = true;
+
+    @Column(name = "can_read", nullable = false)
+    private boolean canRead = true;
+
+    @Column(name = "can_update", nullable = false)
+    private boolean canUpdate = true;
+
+    @Column(name = "can_delete", nullable = false)
+    private boolean canDelete = true;
+
     @Column(name = "partner_level", length = 20)
     private String partnerLevel = "SILVER";
 
@@ -90,4 +102,13 @@ public class Admin {
     public boolean isSuperAdmin() {
         return AdminRole.SUPER_ADMIN.equals(this.role);
     }
+
+    public boolean isCanCreate() { return canCreate; }
+    public void setCanCreate(boolean canCreate) { this.canCreate = canCreate; }
+    public boolean isCanRead() { return canRead; }
+    public void setCanRead(boolean canRead) { this.canRead = canRead; }
+    public boolean isCanUpdate() { return canUpdate; }
+    public void setCanUpdate(boolean canUpdate) { this.canUpdate = canUpdate; }
+    public boolean isCanDelete() { return canDelete; }
+    public void setCanDelete(boolean canDelete) { this.canDelete = canDelete; }
 }

@@ -24,19 +24,23 @@ public class AdminResellerService {
     private final com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository;
     private final com.iptv.wiseplayer.repository.PaymentRepository paymentRepository;
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
+    private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
 
     public AdminResellerService(AdminRepository adminRepository,
-                               DeviceRepository deviceRepository,
-                               com.iptv.wiseplayer.repository.CreditTransactionRepository creditTransactionRepository,
-                               com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository,
-                               com.iptv.wiseplayer.repository.PaymentRepository paymentRepository,
-                               com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository) {
+                                DeviceRepository deviceRepository,
+                                com.iptv.wiseplayer.repository.CreditTransactionRepository creditTransactionRepository,
+                                com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository,
+                                com.iptv.wiseplayer.repository.PaymentRepository paymentRepository,
+                                com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
+                                com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
         this.adminRepository = adminRepository;
         this.deviceRepository = deviceRepository;
         this.creditTransactionRepository = creditTransactionRepository;
         this.activationRequestRepository = activationRequestRepository;
         this.paymentRepository = paymentRepository;
         this.subscriptionRepository = subscriptionRepository;
+        this.superAdminRepository = superAdminRepository;
+
     }
 
     public Page<ResellerResponse> getAllResellers(
@@ -191,6 +195,25 @@ public class AdminResellerService {
             throw new ResourceNotFoundException("Admin is not a reseller");
         }
 
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+
+        java.util.Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository.findByUsername(currentUsername);
+        if (!superAdminOpt.isPresent()) {
+            Admin currentAdmin = adminRepository.findByUsername(currentUsername)
+                    .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
+
+            if (!currentAdmin.getRole().canManage(admin.getRole())) {
+                throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot modify an equal or higher-ranked role.");
+            }
+
+            if ((request.getCanCreate() != null && request.getCanCreate() && !currentAdmin.isCanCreate()) ||
+                (request.getCanRead() != null && request.getCanRead() && !currentAdmin.isCanRead()) ||
+                (request.getCanUpdate() != null && request.getCanUpdate() && !currentAdmin.isCanUpdate()) ||
+                (request.getCanDelete() != null && request.getCanDelete() && !currentAdmin.isCanDelete())) {
+                throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot grant permissions that you do not possess.");
+            }
+        }
+
         if (request.getFullName() != null)
             admin.setFullName(request.getFullName());
         if (request.getEmail() != null)
@@ -201,6 +224,11 @@ public class AdminResellerService {
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
+
+        if (request.getCanCreate() != null) admin.setCanCreate(request.getCanCreate());
+        if (request.getCanRead() != null) admin.setCanRead(request.getCanRead());
+        if (request.getCanUpdate() != null) admin.setCanUpdate(request.getCanUpdate());
+        if (request.getCanDelete() != null) admin.setCanDelete(request.getCanDelete());
 
         if (request.getCredits() != null) {
             java.math.BigDecimal oldCredits = admin.getCredits() == null ? java.math.BigDecimal.ZERO
@@ -232,6 +260,33 @@ public class AdminResellerService {
         }
 
         adminRepository.delete(admin);
+    }
+
+    @Transactional
+    public void updateRolePermissions(AdminRole targetRole, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        java.util.Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository.findByUsername(currentUsername);
+        if (superAdminOpt.isPresent()) {
+            adminRepository.updatePermissionsByRole(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
+            return;
+        }
+
+        Admin currentAdmin = adminRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
+
+        if (!currentAdmin.getRole().canManage(targetRole)) {
+            throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot bulk modify an equal or higher-ranked role.");
+        }
+
+        if ((request.getCanCreate() != null && request.getCanCreate() && !currentAdmin.isCanCreate()) ||
+            (request.getCanRead() != null && request.getCanRead() && !currentAdmin.isCanRead()) ||
+            (request.getCanUpdate() != null && request.getCanUpdate() && !currentAdmin.isCanUpdate()) ||
+            (request.getCanDelete() != null && request.getCanDelete() && !currentAdmin.isCanDelete())) {
+            throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot grant permissions that you do not possess.");
+        }
+
+        adminRepository.updatePermissionsByRole(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
     }
 
     private ResellerResponse convertToResponse(Admin admin) {

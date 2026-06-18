@@ -7,17 +7,26 @@ public class AdminAuthResponse {
     private String username;
     private String fullName;
     private String role;
+    private boolean canCreate;
+    private boolean canRead;
+    private boolean canUpdate;
+    private boolean canDelete;
 
     public AdminAuthResponse() {}
 
     public AdminAuthResponse(boolean success, String token, String email,
-                             String username, String fullName, String role) {
+                             String username, String fullName, String role,
+                             boolean canCreate, boolean canRead, boolean canUpdate, boolean canDelete) {
         this.success = success;
         this.token = token;
         this.email = email;
         this.username = username;
         this.fullName = fullName;
         this.role = role;
+        this.canCreate = canCreate;
+        this.canRead = canRead;
+        this.canUpdate = canUpdate;
+        this.canDelete = canDelete;
     }
 
     public boolean isSuccess() { return success; }
@@ -37,4 +46,16 @@ public class AdminAuthResponse {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public boolean isCanCreate() { return canCreate; }
+    public void setCanCreate(boolean canCreate) { this.canCreate = canCreate; }
+
+    public boolean isCanRead() { return canRead; }
+    public void setCanRead(boolean canRead) { this.canRead = canRead; }
+
+    public boolean isCanUpdate() { return canUpdate; }
+    public void setCanUpdate(boolean canUpdate) { this.canUpdate = canUpdate; }
+
+    public boolean isCanDelete() { return canDelete; }
+    public void setCanDelete(boolean canDelete) { this.canDelete = canDelete; }
 }

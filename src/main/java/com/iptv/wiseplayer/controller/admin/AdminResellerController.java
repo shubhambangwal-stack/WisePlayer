@@ -88,4 +88,13 @@ public class AdminResellerController {
         adminResellerService.deleteReseller(id);
         return ResponseEntity.ok(Map.of("success", true, "message", "Reseller deleted successfully"));
     }
+
+    @Operation(summary = "Bulk Update Role Permissions", description = "Updates permissions for all users in a specific role at once.")
+    @PutMapping("/crud-permissions/{role}")
+    public ResponseEntity<?> updateRolePermissions(
+            @PathVariable com.iptv.wiseplayer.domain.enums.AdminRole role,
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+        adminResellerService.updateRolePermissions(role, request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Permissions updated successfully for all " + role.name() + "s"));
+    }
 }

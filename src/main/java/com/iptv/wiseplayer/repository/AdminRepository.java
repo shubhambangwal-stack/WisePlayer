@@ -68,6 +68,35 @@ Page<Admin> searchSubResellers(
         @Param("minCredits") java.math.BigDecimal minCredits,
         @Param("maxCredits") java.math.BigDecimal maxCredits,
         Pageable pageable);
+        
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Admin a SET " +
+           "a.canCreate = COALESCE(:canCreate, a.canCreate), " +
+           "a.canRead = COALESCE(:canRead, a.canRead), " +
+           "a.canUpdate = COALESCE(:canUpdate, a.canUpdate), " +
+           "a.canDelete = COALESCE(:canDelete, a.canDelete) " +
+           "WHERE a.role = :role")
+    void updatePermissionsByRole(
+            @Param("role") AdminRole role,
+            @Param("canCreate") Boolean canCreate,
+            @Param("canRead") Boolean canRead,
+            @Param("canUpdate") Boolean canUpdate,
+            @Param("canDelete") Boolean canDelete);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Admin a SET " +
+           "a.canCreate = COALESCE(:canCreate, a.canCreate), " +
+           "a.canRead = COALESCE(:canRead, a.canRead), " +
+           "a.canUpdate = COALESCE(:canUpdate, a.canUpdate), " +
+           "a.canDelete = COALESCE(:canDelete, a.canDelete) " +
+           "WHERE a.parentId = :parentId")
+    void updatePermissionsByParentId(
+            @Param("parentId") UUID parentId,
+            @Param("canCreate") Boolean canCreate,
+            @Param("canRead") Boolean canRead,
+            @Param("canUpdate") Boolean canUpdate,
+            @Param("canDelete") Boolean canDelete);
+            
     Optional<Admin> findByEmail(String email);
     boolean existsByEmail(String email);
 

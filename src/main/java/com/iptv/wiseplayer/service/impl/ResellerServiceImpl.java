@@ -87,19 +87,21 @@ public class ResellerServiceImpl implements ResellerService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.emailService = emailService;
     }
-    @Override
-    public AdminAuthResponse login(ResellerLoginRequest request) {
-        Admin admin = adminRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new AuthenticationException("Invalid credentials"));
 
-        if (!admin.isActive()) {
-            if (resellerEmailOtpRepository.findByAdminId(admin.getId()).isPresent()) {
-                throw new AccessDeniedException("Email not verified. Please complete OTP verification.");
+    @Override
+    @Transactional
+    public AdminAuthResponse login(ResellerLoginRequest request) {
+        Admin admin = null;
+        if (request.getUsername() != null && !request.getUsername().isEmpty()) {
+            admin = adminRepository.findByUsername(request.getUsername()).orElse(null);
+            if (admin == null) {
+                admin = adminRepository.findByEmail(request.getUsername()).orElse(null);
             }
-            throw new AccessDeniedException("Account is disabled");
+        }
+        if (admin == null) {
+            throw new AuthenticationException("Invalid credentials");
         }
 
-        // Only allow RESELLER or SUB_RESELLER
         if (admin.getRole() != AdminRole.RESELLER && admin.getRole() != AdminRole.SUB_RESELLER) {
             throw new AccessDeniedException("Access denied: Not a reseller account");
         }
@@ -108,10 +110,32 @@ public class ResellerServiceImpl implements ResellerService {
             throw new AuthenticationException("Invalid credentials");
         }
 
-        String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
+        String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole(),
+                admin.isCanCreate(), admin.isCanRead(), admin.isCanUpdate(), admin.isCanDelete());
 
-        return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(), admin.getFullName(),
-                admin.getRole().name());
+        if (!admin.isActive()) {
+            // Check if a valid (non-expired) OTP already exists
+            boolean hasValidOtp = resellerEmailOtpRepository.findByAdminId(admin.getId())
+                    .map(otp -> LocalDateTime.now().isBefore(otp.getExpiresAt()))
+                    .orElse(false);
+
+            if (!hasValidOtp) {
+                try {
+                    sendOtpForUser(admin);
+                } catch (Exception e) {
+                    log.error("Failed to send OTP for user: {}", admin.getUsername(), e);
+                    throw new BadRequestException("Failed to send OTP. Please try again.");
+                }
+            }
+
+            return new AdminAuthResponse(false, token, admin.getEmail(), admin.getUsername(),
+                    admin.getFullName(), admin.getRole().name(),
+                    admin.isCanCreate(), admin.isCanRead(), admin.isCanUpdate(), admin.isCanDelete());
+        }
+
+        return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(),
+                admin.getFullName(), admin.getRole().name(),
+                admin.isCanCreate(), admin.isCanRead(), admin.isCanUpdate(), admin.isCanDelete());
     }
 
     @Override
@@ -155,19 +179,11 @@ public class ResellerServiceImpl implements ResellerService {
 
         Admin saved = reseller;
 
-        String otp = generateOtp();
-        resellerEmailOtpRepository.deleteByAdminId(saved.getId());
-        ResellerEmailOtp otpEntity = new ResellerEmailOtp();
-        otpEntity.setAdminId(saved.getId());
-        otpEntity.setOtpHash(hashOtp(otp));
-        otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        resellerEmailOtpRepository.save(otpEntity);
+        emailService.sendWelcomeEmail(saved.getEmail(), saved.getUsername(), saved.getFullName());
 
-        emailService.sendOtpEmail(saved.getEmail(), otp);
-
-        String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole());
+        String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole(), saved.isCanCreate(), saved.isCanRead(), saved.isCanUpdate(), saved.isCanDelete());
         return new AdminAuthResponse(true, token, saved.getEmail(), saved.getUsername(), saved.getFullName(),
-                saved.getRole().name());
+                saved.getRole().name(), saved.isCanCreate(), saved.isCanRead(), saved.isCanUpdate(), saved.isCanDelete());
     }
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
@@ -275,6 +291,22 @@ public class ResellerServiceImpl implements ResellerService {
         if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResourceAlreadyExistsException("Username already exists");
         }
+        
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Admin currentAdmin = adminRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
+
+        if (!currentAdmin.getRole().canManage(AdminRole.SUB_RESELLER)) {
+            throw new AccessDeniedException("You cannot create a sub-reseller.");
+        }
+
+        if ((request.getCanCreate() != null && request.getCanCreate() && !currentAdmin.isCanCreate()) ||
+            (request.getCanRead() != null && request.getCanRead() && !currentAdmin.isCanRead()) ||
+            (request.getCanUpdate() != null && request.getCanUpdate() && !currentAdmin.isCanUpdate()) ||
+            (request.getCanDelete() != null && request.getCanDelete() && !currentAdmin.isCanDelete())) {
+            throw new AccessDeniedException("You cannot grant permissions that you do not possess.");
+        }
+
         Admin sub = new Admin();
         sub .setUsername(request.getUsername());
         sub.setFullName(request.getFullName());
@@ -282,6 +314,12 @@ public class ResellerServiceImpl implements ResellerService {
         sub.setRole(AdminRole.SUB_RESELLER);
         sub.setParentId(resellerId);
         sub.setCreatorId(resellerId);
+
+        if (request.getCanCreate() != null) sub.setCanCreate(request.getCanCreate());
+        if (request.getCanRead() != null) sub.setCanRead(request.getCanRead());
+        if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
+        if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
+
         return adminRepository.save(sub);
     }
 
@@ -309,10 +347,31 @@ public class ResellerServiceImpl implements ResellerService {
             throw new AccessDeniedException("Permission denied: Not your sub-reseller");
         }
 
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Admin currentAdmin = adminRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
+
+        if (!currentAdmin.getRole().canManage(sub.getRole())) {
+            throw new AccessDeniedException("You cannot modify an equal or higher-ranked role.");
+        }
+
+        if ((request.getCanCreate() != null && request.getCanCreate() && !currentAdmin.isCanCreate()) ||
+            (request.getCanRead() != null && request.getCanRead() && !currentAdmin.isCanRead()) ||
+            (request.getCanUpdate() != null && request.getCanUpdate() && !currentAdmin.isCanUpdate()) ||
+            (request.getCanDelete() != null && request.getCanDelete() && !currentAdmin.isCanDelete())) {
+            throw new AccessDeniedException("You cannot grant permissions that you do not possess.");
+        }
+
         sub.setFullName(request.getFullName());
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             sub.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
+
+        if (request.getCanCreate() != null) sub.setCanCreate(request.getCanCreate());
+        if (request.getCanRead() != null) sub.setCanRead(request.getCanRead());
+        if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
+        if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
+
         adminRepository.save(sub);
     }
 
@@ -328,6 +387,26 @@ public class ResellerServiceImpl implements ResellerService {
 
         sub.setActive(!sub.isActive());
         adminRepository.save(sub);
+    }
+
+    @Override
+    @Transactional
+    public void deleteSubReseller(UUID resellerId, UUID subResellerId) {
+        Admin sub = adminRepository.findById(subResellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
+
+        if (!resellerId.equals(sub.getParentId())) {
+            throw new AccessDeniedException("Permission denied: Not your sub-reseller");
+        }
+
+        if (sub.getRole() != AdminRole.SUB_RESELLER) {
+            throw new AccessDeniedException("Can only delete sub-resellers");
+        }
+
+        if(sub.getCredits() != null){
+            throw new AccessDeniedException("Can't delete subreseller with credits");
+        }
+        adminRepository.delete(sub);
     }
 
     @Override
@@ -409,6 +488,96 @@ public class ResellerServiceImpl implements ResellerService {
     }
 
     @Override
+    @Transactional
+    public void deleteActivationRequest(UUID resellerId, UUID requestId) {
+        ActivationRequest activationRequest = activationRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Activation request not found"));
+
+        if (!resellerId.equals(activationRequest.getResellerId())) {
+            throw new AccessDeniedException("Permission denied: Not your activation request");
+        }
+
+        if ("APPROVED".equals(activationRequest.getStatus())) {
+            throw new BadRequestException("Cannot delete an approved activation request");
+        }
+
+        activationRequestRepository.delete(activationRequest);
+    }
+
+    @Override
+    @Transactional
+    public void detachDevice(UUID resellerId, UUID deviceId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+
+        if (device.getMacAddress() != null) {
+            resellerCustomerRepository
+                    .findByResellerIdAndMacAddress(resellerId, device.getMacAddress())
+                    .ifPresent(resellerCustomerRepository::delete);
+        }
+
+        device.setResellerId(null);
+        deviceRepository.save(device);
+    }
+
+    @Override
+    @Transactional
+    public void cancelSubscription(UUID resellerId, UUID deviceId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+
+        Subscription sub = subscriptionRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("No subscription found for this device"));
+
+        if (sub.getStatus() == com.iptv.wiseplayer.domain.enums.SubscriptionStatus.CANCELLED) {
+            throw new BadRequestException("Subscription is already cancelled");
+        }
+
+        sub.setStatus(com.iptv.wiseplayer.domain.enums.SubscriptionStatus.CANCELLED);
+        subscriptionRepository.save(sub);
+    }
+
+    @Override
+    @Transactional
+    public void pauseResumeSubscription(UUID resellerId, UUID deviceId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+
+        if (!resellerId.equals(device.getResellerId())) {
+            throw new AccessDeniedException("Permission denied");
+        }
+
+        Subscription sub = subscriptionRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("No subscription found for this device"));
+
+        if (sub.getStatus() == com.iptv.wiseplayer.domain.enums.SubscriptionStatus.CANCELLED ||
+                sub.getStatus() == com.iptv.wiseplayer.domain.enums.SubscriptionStatus.EXPIRED) {
+            throw new BadRequestException("Cannot pause/resume a cancelled or expired subscription");
+        }
+
+        if (sub.getStatus() == com.iptv.wiseplayer.domain.enums.SubscriptionStatus.PAUSED) {
+            sub.setStatus(com.iptv.wiseplayer.domain.enums.SubscriptionStatus.ACTIVE);
+            device.setActive(true);
+            device.setDeviceStatus(DeviceStatus.ACTIVE);
+        } else {
+            sub.setStatus(com.iptv.wiseplayer.domain.enums.SubscriptionStatus.PAUSED);
+            device.setActive(false);
+            device.setDeviceStatus(DeviceStatus.INACTIVE);
+        }
+
+        subscriptionRepository.save(sub);
+        deviceRepository.save(device);
+    }
+
+    @Override
     public Page<ActivationRequestResponse> getResellerRequests(
             UUID resellerId, String search, String status, String planName,
             LocalDate fromDate, LocalDate toDate,
@@ -481,6 +650,25 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+    public Map<String, String> resendOtp(String username) {
+        Admin admin = adminRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        if (admin.isActive()) {
+            throw new BadRequestException("Account is already verified");
+        }
+
+        try {
+            sendOtpForUser(admin);
+        } catch (Exception e) {
+            log.error("Failed to resend OTP for user: {}", username, e);
+            throw new BadRequestException("Failed to send OTP. Please try again.");
+        }
+        return Map.of("success", "true", "message", "OTP resent to " + admin.getEmail());
+    }
+
+    @Override
+    @Transactional
     public void forgotPassword(ResellerForgotPasswordRequest request) {
         Admin admin = adminRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("No account found with this email"));
@@ -496,7 +684,7 @@ public class ResellerServiceImpl implements ResellerService {
         resetToken.setExpiryDate(LocalDateTime.now().plusHours(1));
         passwordResetTokenRepository.save(resetToken);
 
-        String resetLink = "http://yourserver/reseller-reset-password.html?token=" + token;
+        String resetLink = "https://wise-player.com/reset-password?token=" + token;
         emailService.sendResellerPasswordResetEmail(admin.getEmail(), resetLink);
     }
 
@@ -518,7 +706,7 @@ public class ResellerServiceImpl implements ResellerService {
         passwordResetTokenRepository.delete(resetToken);
 
         return new AdminAuthResponse(true, null, admin.getEmail(), admin.getUsername(), admin.getFullName(),
-                admin.getRole().name());
+                admin.getRole().name(), admin.isCanCreate(), admin.isCanRead(), admin.isCanUpdate(), admin.isCanDelete());
     }
 
     private String generateOtp() {
@@ -535,5 +723,35 @@ public class ResellerServiceImpl implements ResellerService {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 not available", e);
         }
+    }
+
+
+    private void sendOtpForUser(Admin admin) {
+        String otp = generateOtp();
+        resellerEmailOtpRepository.deleteByAdminId(admin.getId());
+        ResellerEmailOtp otpEntity = new ResellerEmailOtp();
+        otpEntity.setAdminId(admin.getId());
+        otpEntity.setOtpHash(hashOtp(otp));
+        otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+        resellerEmailOtpRepository.save(otpEntity);
+        emailService.sendOtpEmail(admin.getEmail(), otp);
+        log.info("OTP sent for user: {}", admin.getUsername());
+    }
+
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void updateSubResellersBulkPermissions(java.util.UUID resellerId, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+        Admin reseller = adminRepository.findById(resellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
+
+        if ((request.getCanCreate() != null && request.getCanCreate() && !reseller.isCanCreate()) ||
+            (request.getCanRead() != null && request.getCanRead() && !reseller.isCanRead()) ||
+            (request.getCanUpdate() != null && request.getCanUpdate() && !reseller.isCanUpdate()) ||
+            (request.getCanDelete() != null && request.getCanDelete() && !reseller.isCanDelete())) {
+            throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot grant permissions that you do not possess.");
+        }
+
+        adminRepository.updatePermissionsByParentId(resellerId, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
     }
 }
