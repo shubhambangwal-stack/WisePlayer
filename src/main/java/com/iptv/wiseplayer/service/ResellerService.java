@@ -56,7 +56,13 @@ public interface ResellerService {
             org.springframework.data.domain.Pageable pageable);
 
     Map<String, String> verifyEmail(VerifyOtpRequest request, String username);
+    Map<String, String> resendOtp(String username);
     void forgotPassword(ResellerForgotPasswordRequest request);
     AdminAuthResponse resetPassword(ResellerResetPasswordRequest request);
-
+    void deleteSubReseller(UUID resellerId, UUID subResellerId);
+    void deleteActivationRequest(UUID resellerId, UUID requestId);
+    void detachDevice(UUID resellerId, UUID deviceId);
+    void cancelSubscription(UUID resellerId, UUID deviceId);
+    void pauseResumeSubscription(UUID resellerId, UUID deviceId);
+    void updateSubResellersBulkPermissions(UUID resellerId, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request);
 }

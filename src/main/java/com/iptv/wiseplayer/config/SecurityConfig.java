@@ -1,5 +1,7 @@
 package com.iptv.wiseplayer.config;
 
+import com.iptv.wiseplayer.repository.AdminRepository;
+import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.security.AdminAuthenticationFilter;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
 import com.iptv.wiseplayer.security.DeviceAuthenticationFilter;
@@ -30,15 +32,18 @@ public class SecurityConfig {
     private final com.iptv.wiseplayer.repository.DeviceRepository deviceRepository;
     private final DeviceTokenUtil deviceTokenUtil;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final AdminRepository adminRepository;
 
     public SecurityConfig(SecurityProperties securityProperties,
-            com.iptv.wiseplayer.repository.DeviceRepository deviceRepository,
-            DeviceTokenUtil deviceTokenUtil,
-            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+                          DeviceRepository deviceRepository,
+                          DeviceTokenUtil deviceTokenUtil,
+                          com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+                          AdminRepository adminRepository) {
         this.securityProperties = securityProperties;
         this.deviceRepository = deviceRepository;
         this.deviceTokenUtil = deviceTokenUtil;
         this.objectMapper = objectMapper;
+        this.adminRepository = adminRepository;
     }
 
     @Bean
@@ -48,7 +53,7 @@ public class SecurityConfig {
 
     @Bean
     public AdminAuthenticationFilter adminAuthenticationFilter() {
-        return new AdminAuthenticationFilter(adminTokenUtil(), objectMapper);
+        return new AdminAuthenticationFilter(adminTokenUtil(), objectMapper, adminRepository);
     }
 
     @Bean
@@ -92,9 +97,10 @@ public class SecurityConfig {
 
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
+                           // Public Endpoints
                         // Allow async dispatches to bypass security filter chain
                         .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
-                        // Public Endpoints
+         
                         .requestMatchers("/api/device/register").permitAll()
                         .requestMatchers("/api/device/validate").permitAll()
                         .requestMatchers("/api/device/refresh").permitAll()

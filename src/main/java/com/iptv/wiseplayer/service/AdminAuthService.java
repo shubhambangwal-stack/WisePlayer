@@ -60,9 +60,9 @@ public class AdminAuthService {
             com.iptv.wiseplayer.domain.entity.SuperAdmin superAdmin = superAdminOpt.get();
             log.info("Found SuperAdmin record for username: '{}'", loginUsername);
             if (passwordEncoder.matches(request.getPassword(), superAdmin.getPassword())) {
-                String token = adminTokenUtil.generateToken(superAdmin.getUsername(), AdminRole.SUPER_ADMIN);
+                String token = adminTokenUtil.generateToken(superAdmin.getUsername(), AdminRole.SUPER_ADMIN, true, true, true, true);
                 return new AdminAuthResponse(true, token, superAdmin.getEmail(), superAdmin.getUsername(), superAdmin.getFullName(),
-                        AdminRole.SUPER_ADMIN.name());
+                        AdminRole.SUPER_ADMIN.name(), true, true, true, true);
             } else {
                 log.warn("Password mismatch for SuperAdmin: '{}'", loginUsername);
             }
@@ -88,10 +88,10 @@ public class AdminAuthService {
         }
 
         log.info("Login successful for username: '{}'", loginUsername);
-        String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole());
+        String token = adminTokenUtil.generateToken(admin.getUsername(), admin.getRole(), admin.isCanCreate(), admin.isCanRead(), admin.isCanUpdate(), admin.isCanDelete());
 
         return new AdminAuthResponse(true, token, admin.getEmail(), admin.getUsername(), admin.getFullName(),
-                admin.getRole().name());
+                admin.getRole().name(), admin.isCanCreate(), admin.isCanRead(), admin.isCanUpdate(), admin.isCanDelete());
     }
 
     public void changePassword(String username, com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {

@@ -70,6 +70,13 @@ public class ResellerController {
         return ResponseEntity.ok(resellerService.verifyEmail(request, username));
     }
 
+    @PostMapping("/resend-otp")
+    @Operation(summary = "Resend OTP", description = "Resend verification OTP. Requires JWT from login response.")
+    public ResponseEntity<Map<String, String>> resendOtp() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(resellerService.resendOtp(username));
+    }
+
     @PostMapping("/forgot-password")
     @Operation(summary = "Forgot Password", description = "Send password reset link to reseller email")
     public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ResellerForgotPasswordRequest request) {
@@ -173,6 +180,14 @@ public class ResellerController {
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @DeleteMapping("/sub-resellers/{id}")
+    @Operation(summary = "Delete Sub-Reseller", description = "Permanently delete a sub-reseller under this reseller")
+    public ResponseEntity<Map<String, Object>> deleteSubReseller(@PathVariable UUID id) {
+        resellerService.deleteSubReseller(getCurrentResellerId(), id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Sub-reseller deleted successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PostMapping("/activation-request")
     @Operation(summary = "Submit Activation Request", description = "Submit a request to activate a user/device subscription")
     public ResponseEntity<ActivationRequest> submitRequest(@Valid @RequestBody ResellerActivationRequestDto request) {
@@ -195,6 +210,14 @@ public class ResellerController {
                 getCurrentResellerId(), search, status, planName, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @DeleteMapping("/activation-request/{id}")
+    @Operation(summary = "Delete Activation Request", description = "Delete a pending or rejected activation request")
+    public ResponseEntity<Map<String, Object>> deleteActivationRequest(@PathVariable UUID id) {
+        resellerService.deleteActivationRequest(getCurrentResellerId(), id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request deleted successfully"));
+    }
+
     private UUID getCurrentResellerId() {
         String identifier = SecurityContextHolder.getContext().getAuthentication().getName();
         return adminRepository.findByUsername(identifier)
@@ -202,5 +225,46 @@ public class ResellerController {
                 .or(() -> superAdminRepository.findByUsername(identifier)
                         .map(com.iptv.wiseplayer.domain.entity.SuperAdmin::getId))
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found for: " + identifier));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @DeleteMapping("/users/{deviceId}/detach")
+    @Operation(summary = "Detach Device", description = "Remove device from reseller. Subscription stays intact.")
+    public ResponseEntity<Map<String, Object>> detachDevice(@PathVariable UUID deviceId) {
+        resellerService.detachDevice(getCurrentResellerId(), deviceId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Device detached successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PatchMapping("/users/{deviceId}/lock")
+    @Operation(summary = "Lock/Unlock Device", description = "Lock device to block all access. Call again to unlock.")
+    public ResponseEntity<Map<String, Object>> lockDevice(@PathVariable UUID deviceId) {
+        resellerService.disableUser(getCurrentResellerId(), deviceId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Device lock status toggled"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PatchMapping("/users/{deviceId}/cancel-subscription")
+    @Operation(summary = "Cancel Subscription", description = "Permanently cancel subscription. Cannot be renewed.")
+    public ResponseEntity<Map<String, Object>> cancelSubscription(@PathVariable UUID deviceId) {
+        resellerService.cancelSubscription(getCurrentResellerId(), deviceId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Subscription cancelled successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PatchMapping("/users/{deviceId}/pause-subscription")
+    @Operation(summary = "Pause/Resume Subscription", description = "Toggle subscription between PAUSED and ACTIVE.")
+    public ResponseEntity<Map<String, Object>> pauseResumeSubscription(@PathVariable UUID deviceId) {
+        resellerService.pauseResumeSubscription(getCurrentResellerId(), deviceId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Subscription pause/resume toggled"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PutMapping("/sub-resellers/bulk-permissions")
+    @Operation(summary = "Bulk Update Sub-Reseller Permissions", description = "Updates permissions for all sub-resellers under this reseller at once.")
+    public ResponseEntity<?> updateSubResellersBulkPermissions(
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+        resellerService.updateSubResellersBulkPermissions(getCurrentResellerId(), request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Permissions updated successfully for all sub-resellers"));
     }
 }
