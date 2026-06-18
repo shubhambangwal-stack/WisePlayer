@@ -5,6 +5,7 @@ import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import com.iptv.wiseplayer.security.DeviceContext;
 import com.iptv.wiseplayer.service.PlaylistService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,7 +33,7 @@ public class PlaylistController {
 
     @Operation(summary = "Save Xtream Playlist", description = "Validates and saves a new Xtream Codes playlist.")
     @PostMapping("/xtream")
-    public ResponseEntity<?> saveXtreamPlaylist(@RequestBody XtreamPlaylistRequest request) {
+    public ResponseEntity<?> saveXtreamPlaylist(@Valid @RequestBody XtreamPlaylistRequest request) {
         PlaylistResponse response = playlistService.saveXtreamPlaylist(deviceContext.getCurrentDeviceId(), request);
         return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -42,7 +43,7 @@ public class PlaylistController {
 
     @Operation(summary = "Save M3U Playlist", description = "Validates and saves a new M3U playlist URL.")
     @PostMapping("/m3u")
-    public ResponseEntity<?> saveM3uPlaylist(@RequestBody M3uPlaylistRequest request) {
+    public ResponseEntity<?> saveM3uPlaylist(@Valid @RequestBody M3uPlaylistRequest request) {
         PlaylistResponse response = playlistService.saveM3uPlaylist(deviceContext.getCurrentDeviceId(), request);
         return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -54,7 +55,7 @@ public class PlaylistController {
     @PostMapping("/public/{deviceId}/m3u")
     public ResponseEntity<?> savePublicM3uPlaylist(
             @PathVariable String deviceId,
-            @RequestBody M3uPlaylistRequest request) {
+            @Valid @RequestBody M3uPlaylistRequest request) {
         PlaylistResponse response = playlistService.savePublicM3uPlaylist(deviceId, request);
         return ResponseEntity.ok(Map.of(
                 "success", true,

@@ -46,13 +46,14 @@ server:
   port: ${SERVER_PORT:8081}
 
 app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   security:
     seed-secret: ${SEED_SECRET:super-secret-seed-key}
     token-secrets:
       - ${SECURITY_TOKEN_SECRET_1}
       - ${SECURITY_TOKEN_SECRET_2}
       - ${SECURITY_TOKEN_SECRET_3}
-    token-ttl-minutes: ${TOKEN_TTL_MINUTES:1}
+    token-ttl-minutes: ${TOKEN_TTL_MINUTES:40}
     admin-frontend-url: ${ADMIN_FRONTEND_URL:https://admin.wise-player.com}
     allowed-origins: ${ALLOWED_ORIGINS:https://wise-player.com,https://admin.wise-player.com}
     allowed-methods:
