@@ -267,4 +267,43 @@ public class ResellerController {
         resellerService.updateSubResellersBulkPermissions(getCurrentResellerId(), request);
         return ResponseEntity.ok(Map.of("success", true, "message", "Permissions updated successfully for all sub-resellers"));
     }
+
+    // -------------------------------------------------------------------------
+    // Consistent crud-permissions endpoints
+    // -------------------------------------------------------------------------
+
+    @Operation(
+        summary = "Bulk: update CRUD for ALL sub-resellers under this reseller",
+        description = "Updates canCreate/canRead/canUpdate/canDelete for every sub-reseller belonging to this reseller. " +
+                      "Escalation rule: caller cannot grant flags they don't own. Null fields are skipped."
+    )
+    @PutMapping("/crud-permissions/bulk")
+    public ResponseEntity<?> bulkUpdateSubResellerPermissions(
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request) {
+        // Convert to UpdateResellerRequest for the existing service method
+        com.iptv.wiseplayer.dto.request.UpdateResellerRequest bulk =
+                new com.iptv.wiseplayer.dto.request.UpdateResellerRequest();
+        bulk.setCanCreate(request.getCanCreate());
+        bulk.setCanRead(request.getCanRead());
+        bulk.setCanUpdate(request.getCanUpdate());
+        bulk.setCanDelete(request.getCanDelete());
+        resellerService.updateSubResellersBulkPermissions(getCurrentResellerId(), bulk);
+        return ResponseEntity.ok(Map.of("success", true,
+                "message", "CRUD permissions updated for all sub-resellers."));
+    }
+
+    @Operation(
+        summary = "Individual: update CRUD for a specific sub-reseller by ID",
+        description = "Changes only the CRUD flags for a specific sub-reseller identified by UUID. " +
+                      "Ownership rule: the sub-reseller must belong to the calling reseller. " +
+                      "Escalation rule: caller cannot grant flags they don't own. Null fields are skipped."
+    )
+    @PatchMapping("/crud-permissions/{id}")
+    public ResponseEntity<?> updateSubResellerPermissionsById(
+            @PathVariable UUID id,
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request) {
+        resellerService.updateSubResellerPermissionsById(getCurrentResellerId(), id, request);
+        return ResponseEntity.ok(Map.of("success", true,
+                "message", "CRUD permissions updated for sub-reseller " + id));
+    }
 }

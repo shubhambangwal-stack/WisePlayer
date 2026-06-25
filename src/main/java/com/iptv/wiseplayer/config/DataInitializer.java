@@ -5,6 +5,7 @@ import com.iptv.wiseplayer.domain.entity.SuperAdmin;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.SuperAdminRepository;
+import com.iptv.wiseplayer.service.RolePermissionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,11 +27,14 @@ public class DataInitializer {
     private final SuperAdminRepository superRepo;
     private final AdminRepository adminRepo;
     private final PasswordEncoder encoder;
+    private final RolePermissionService rolePermissionService;
 
-    public DataInitializer(SuperAdminRepository superRepo, AdminRepository adminRepo, PasswordEncoder encoder) {
+    public DataInitializer(SuperAdminRepository superRepo, AdminRepository adminRepo,
+                           PasswordEncoder encoder, RolePermissionService rolePermissionService) {
         this.superRepo = superRepo;
         this.adminRepo = adminRepo;
         this.encoder = encoder;
+        this.rolePermissionService = rolePermissionService;
     }
 
     /**
@@ -41,6 +45,10 @@ public class DataInitializer {
     @Transactional
     public List<String> seedData() {
         List<String> results = new ArrayList<>();
+
+        // Seed role_permissions defaults (idempotent – skips existing rows)
+        rolePermissionService.seedDefaults();
+        results.add("Role permission defaults seeded.");
 
         // Seed SuperAdmin
         if (superRepo.count() == 0) {
