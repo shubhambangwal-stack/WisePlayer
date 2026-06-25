@@ -1,0 +1,255 @@
+{
+	"info": {
+		"_postman_id": "8a3d7f92-2b61-41c3-bf96-1234567890ab",
+		"name": "WisePlayer Hierarchy CRUD Permissions (100% Accurate)",
+		"description": "Comprehensive Postman collection matching the exact 3-tier hierarchy implementation: SuperAdmin -> Admin -> Reseller -> SubReseller.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentication (Get Tokens)",
+			"item": [
+				{
+					"name": "Super Admin Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"superadmin\",\r\n    \"password\": \"superadmin123\"\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/superadmin/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "superadmin", "login"]
+						}
+					}
+				},
+				{
+					"name": "Admin Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"admin_user\",\r\n    \"password\": \"password123\"\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "login"]
+						}
+					}
+				},
+				{
+					"name": "Reseller Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"reseller_user\",\r\n    \"password\": \"password123\"\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/reseller/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "reseller", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Super Admin Panel (Manage All)",
+			"description": "Super Admins can manage ADMIN, RESELLER, and SUB_RESELLER roles.",
+			"item": [
+				{
+					"name": "BULK: Change All Admins (Role Defaults)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{superadmin_token}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"canCreate\": true,\r\n    \"canRead\": true,\r\n    \"canUpdate\": true,\r\n    \"canDelete\": false\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/crud-permissions/bulk/ADMIN",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "crud-permissions", "bulk", "ADMIN"]
+						}
+					}
+				},
+				{
+					"name": "BULK: Change All Resellers (Role Defaults)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{superadmin_token}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"canCreate\": true,\r\n    \"canRead\": true,\r\n    \"canUpdate\": false,\r\n    \"canDelete\": false\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/crud-permissions/bulk/RESELLER",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "crud-permissions", "bulk", "RESELLER"]
+						}
+					}
+				},
+				{
+					"name": "INDIVIDUAL: Change Specific Admin/Reseller by ID",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{superadmin_token}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"canCreate\": true,\r\n    \"canRead\": true,\r\n    \"canUpdate\": true,\r\n    \"canDelete\": true\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/crud-permissions/{{target_uuid}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "crud-permissions", "{{target_uuid}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Admin Panel (Manage Resellers & Sub-Resellers)",
+			"description": "Admins can manage RESELLER and SUB_RESELLER roles, but CANNOT manage other ADMINS.",
+			"item": [
+				{
+					"name": "BULK: Change All Resellers (Role Defaults)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"canCreate\": true,\r\n    \"canRead\": true,\r\n    \"canUpdate\": false,\r\n    \"canDelete\": false\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/crud-permissions/bulk/RESELLER",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "crud-permissions", "bulk", "RESELLER"]
+						}
+					}
+				},
+				{
+					"name": "INDIVIDUAL: Change Specific Reseller/Sub-Reseller by ID",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{admin_token}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"canCreate\": true,\r\n    \"canRead\": true,\r\n    \"canUpdate\": false,\r\n    \"canDelete\": false\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/crud-permissions/{{target_uuid}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "crud-permissions", "{{target_uuid}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Reseller Panel (Manage Sub-Resellers)",
+			"description": "Resellers can ONLY manage their own SUB_RESELLERS.",
+			"item": [
+				{
+					"name": "BULK: Change ALL Your Sub-Resellers",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{reseller_token}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"canCreate\": false,\r\n    \"canRead\": true,\r\n    \"canUpdate\": false,\r\n    \"canDelete\": false\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/reseller/crud-permissions/bulk",
+							"host": ["{{base_url}}"],
+							"path": ["api", "reseller", "crud-permissions", "bulk"]
+						}
+					}
+				},
+				{
+					"name": "INDIVIDUAL: Change Specific Sub-Reseller by ID",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{reseller_token}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"canCreate\": false,\r\n    \"canRead\": true,\r\n    \"canUpdate\": false,\r\n    \"canDelete\": false\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/reseller/crud-permissions/{{subreseller_uuid}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "reseller", "crud-permissions", "{{subreseller_uuid}}"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "superadmin_token",
+			"value": "YOUR_SUPERADMIN_TOKEN"
+		},
+		{
+			"key": "admin_token",
+			"value": "YOUR_ADMIN_TOKEN"
+		},
+		{
+			"key": "reseller_token",
+			"value": "YOUR_RESELLER_TOKEN"
+		},
+		{
+			"key": "target_uuid",
+			"value": "ENTER_TARGET_UUID"
+		},
+		{
+			"key": "subreseller_uuid",
+			"value": "ENTER_SUBRESELLER_UUID"
+		}
+	]
+}

@@ -65,4 +65,12 @@ public interface ResellerService {
     void cancelSubscription(UUID resellerId, UUID deviceId);
     void pauseResumeSubscription(UUID resellerId, UUID deviceId);
     void updateSubResellersBulkPermissions(UUID resellerId, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request);
+
+    /**
+     * Updates ONLY the CRUD flags for a specific sub-reseller by ID.
+     * Ownership check: sub-reseller must belong to resellerId.
+     * Escalation check: caller cannot grant flags they don't possess.
+     */
+    void updateSubResellerPermissionsById(UUID resellerId, UUID subResellerId,
+            com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request);
 }

@@ -11,6 +11,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.iptv.wiseplayer.security.CrudOperation;
+import com.iptv.wiseplayer.security.CrudPermissionGuard;
+import com.iptv.wiseplayer.security.RequiresCrud;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +29,8 @@ public class AdminResellerService {
     private final com.iptv.wiseplayer.repository.PaymentRepository paymentRepository;
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
+    private final com.iptv.wiseplayer.repository.RolePermissionRepository rolePermissionRepository;
+    private final CrudPermissionGuard crudPermissionGuard;
 
     public AdminResellerService(AdminRepository adminRepository,
                                 DeviceRepository deviceRepository,
@@ -32,7 +38,9 @@ public class AdminResellerService {
                                 com.iptv.wiseplayer.repository.ActivationRequestRepository activationRequestRepository,
                                 com.iptv.wiseplayer.repository.PaymentRepository paymentRepository,
                                 com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
-                                com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
+                                com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository,
+                                com.iptv.wiseplayer.repository.RolePermissionRepository rolePermissionRepository,
+                                CrudPermissionGuard crudPermissionGuard) {
         this.adminRepository = adminRepository;
         this.deviceRepository = deviceRepository;
         this.creditTransactionRepository = creditTransactionRepository;
@@ -40,7 +48,8 @@ public class AdminResellerService {
         this.paymentRepository = paymentRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.superAdminRepository = superAdminRepository;
-
+        this.rolePermissionRepository = rolePermissionRepository;
+        this.crudPermissionGuard = crudPermissionGuard;
     }
 
     public Page<ResellerResponse> getAllResellers(
@@ -185,6 +194,7 @@ public class AdminResellerService {
     }
 
     @Transactional
+    @RequiresCrud(CrudOperation.UPDATE)
     public void updateReseller(UUID id, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request,
             org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         Admin admin = adminRepository.findById(id)
@@ -206,12 +216,7 @@ public class AdminResellerService {
                 throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot modify an equal or higher-ranked role.");
             }
 
-            if ((request.getCanCreate() != null && request.getCanCreate() && !currentAdmin.isCanCreate()) ||
-                (request.getCanRead() != null && request.getCanRead() && !currentAdmin.isCanRead()) ||
-                (request.getCanUpdate() != null && request.getCanUpdate() && !currentAdmin.isCanUpdate()) ||
-                (request.getCanDelete() != null && request.getCanDelete() && !currentAdmin.isCanDelete())) {
-                throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot grant permissions that you do not possess.");
-            }
+            crudPermissionGuard.checkEscalation(currentAdmin, request);
         }
 
         if (request.getFullName() != null)
@@ -251,6 +256,7 @@ public class AdminResellerService {
     }
 
     @Transactional
+    @RequiresCrud(CrudOperation.DELETE)
     public void deleteReseller(UUID id) {
         Admin admin = adminRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
@@ -263,12 +269,16 @@ public class AdminResellerService {
     }
 
     @Transactional
+    @RequiresCrud(CrudOperation.UPDATE)
     public void updateRolePermissions(AdminRole targetRole, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
         String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         
         java.util.Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository.findByUsername(currentUsername);
         if (superAdminOpt.isPresent()) {
+            // 1. Update all existing admins of this role
             adminRepository.updatePermissionsByRole(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
+            // 2. Sync the role_permissions defaults table so future registrations are consistent
+            syncRolePermissionsTable(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
             return;
         }
 
@@ -279,14 +289,68 @@ public class AdminResellerService {
             throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot bulk modify an equal or higher-ranked role.");
         }
 
-        if ((request.getCanCreate() != null && request.getCanCreate() && !currentAdmin.isCanCreate()) ||
-            (request.getCanRead() != null && request.getCanRead() && !currentAdmin.isCanRead()) ||
-            (request.getCanUpdate() != null && request.getCanUpdate() && !currentAdmin.isCanUpdate()) ||
-            (request.getCanDelete() != null && request.getCanDelete() && !currentAdmin.isCanDelete())) {
-            throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot grant permissions that you do not possess.");
+        crudPermissionGuard.checkEscalation(currentAdmin, request);
+
+        // 1. Update all existing admins of this role
+        adminRepository.updatePermissionsByRole(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
+        // 2. Sync the role_permissions defaults table so future registrations are consistent
+        syncRolePermissionsTable(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
+    }
+
+    /**
+     * Update CRUD permission flags for a SINGLE admin identified by UUID.
+     * Only the caller's higher-ranked role can modify; cannot grant flags they don't have.
+     */
+    @Transactional
+    @RequiresCrud(CrudOperation.UPDATE)
+    public void updateAdminPermissionsById(UUID targetAdminId,
+                                           com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request) {
+        Admin target = adminRepository.findById(targetAdminId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found: " + targetAdminId));
+
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // SuperAdmin can update anyone
+        java.util.Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt =
+                superAdminRepository.findByUsername(currentUsername);
+
+        if (superAdminOpt.isEmpty()) {
+            Admin currentAdmin = adminRepository.findByUsername(currentUsername)
+                    .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
+
+            // Must be higher-ranked
+            if (!currentAdmin.getRole().canManage(target.getRole())) {
+                throw new com.iptv.wiseplayer.exception.AccessDeniedException(
+                        "You cannot modify an equal or higher-ranked admin.");
+            }
+
+            // Cannot grant permissions the caller doesn't have
+            crudPermissionGuard.checkEscalation(currentAdmin, request);
         }
 
-        adminRepository.updatePermissionsByRole(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
+        if (request.getCanCreate() != null) target.setCanCreate(request.getCanCreate());
+        if (request.getCanRead()   != null) target.setCanRead(request.getCanRead());
+        if (request.getCanUpdate() != null) target.setCanUpdate(request.getCanUpdate());
+        if (request.getCanDelete() != null) target.setCanDelete(request.getCanDelete());
+
+        adminRepository.save(target);
+    }
+
+    /**
+     * Internal helper: upsert the role_permissions row so defaults stay in sync
+     * whenever a bulk permission change is made.
+     */
+    private void syncRolePermissionsTable(AdminRole role,
+                                          Boolean canCreate, Boolean canRead,
+                                          Boolean canUpdate, Boolean canDelete) {
+        com.iptv.wiseplayer.domain.entity.RolePermission rp =
+                rolePermissionRepository.findByRole(role)
+                        .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(role));
+        if (canCreate != null) rp.setCanCreate(canCreate);
+        if (canRead   != null) rp.setCanRead(canRead);
+        if (canUpdate != null) rp.setCanUpdate(canUpdate);
+        if (canDelete != null) rp.setCanDelete(canDelete);
+        rolePermissionRepository.save(rp);
     }
 
     private ResellerResponse convertToResponse(Admin admin) {

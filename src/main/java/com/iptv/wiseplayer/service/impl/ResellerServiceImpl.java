@@ -19,12 +19,13 @@ import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.exception.BadRequestException;
 import com.iptv.wiseplayer.repository.*;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
+import com.iptv.wiseplayer.security.CrudOperation;
+import com.iptv.wiseplayer.security.CrudPermissionGuard;
 import com.iptv.wiseplayer.security.DeviceTokenUtil;
+import com.iptv.wiseplayer.security.RequiresCrud;
 import com.iptv.wiseplayer.service.EmailService;
 import com.iptv.wiseplayer.service.ResellerService;
 import org.slf4j.Logger;
-
-
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,6 +62,8 @@ public class ResellerServiceImpl implements ResellerService {
     private final ResellerEmailOtpRepository resellerEmailOtpRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailService emailService;
+    private final com.iptv.wiseplayer.repository.RolePermissionRepository rolePermissionRepository;
+    private final CrudPermissionGuard crudPermissionGuard;
 
     public ResellerServiceImpl(DeviceRepository deviceRepository,
                                AdminRepository adminRepository,
@@ -73,7 +76,9 @@ public class ResellerServiceImpl implements ResellerService {
                                com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository,
                                ResellerEmailOtpRepository resellerEmailOtpRepository,
                                PasswordResetTokenRepository passwordResetTokenRepository,
-                               EmailService emailService) {
+                               EmailService emailService,
+                               com.iptv.wiseplayer.repository.RolePermissionRepository rolePermissionRepository,
+                               CrudPermissionGuard crudPermissionGuard) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
@@ -86,6 +91,8 @@ public class ResellerServiceImpl implements ResellerService {
         this.resellerEmailOtpRepository = resellerEmailOtpRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.emailService = emailService;
+        this.rolePermissionRepository = rolePermissionRepository;
+        this.crudPermissionGuard = crudPermissionGuard;
     }
 
     @Override
@@ -167,6 +174,11 @@ public class ResellerServiceImpl implements ResellerService {
             existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
             reseller = adminRepository.save(existing);
         } else {
+            // Apply role-level defaults from role_permissions table before saving
+            com.iptv.wiseplayer.domain.entity.RolePermission defaults =
+                    rolePermissionRepository.findByRole(AdminRole.RESELLER)
+                            .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(AdminRole.RESELLER));
+
             reseller = new Admin();
             reseller.setUsername(request.getUsername());
             reseller.setFullName(request.getFullName());
@@ -174,6 +186,11 @@ public class ResellerServiceImpl implements ResellerService {
             reseller.setPasswordHash(passwordEncoder.encode(request.getPassword()));
             reseller.setRole(AdminRole.RESELLER);
             reseller.setActive(false);
+            // Apply role defaults instead of hardcoded true
+            reseller.setCanCreate(defaults.isCanCreate());
+            reseller.setCanRead(defaults.isCanRead());
+            reseller.setCanUpdate(defaults.isCanUpdate());
+            reseller.setCanDelete(defaults.isCanDelete());
             reseller = adminRepository.save(reseller);
         }
 
@@ -205,6 +222,7 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+    @RequiresCrud(CrudOperation.CREATE)
     public java.util.Map<String, Object> createEndUser(UUID resellerId, DeviceRegistrationRequest request) {
         String macAddress = request.getDeviceId();
         
@@ -271,6 +289,7 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+    @RequiresCrud(CrudOperation.UPDATE)
     public void disableUser(UUID resellerId, UUID deviceId) {
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
@@ -287,11 +306,12 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+    @RequiresCrud(CrudOperation.CREATE)
     public Admin createSubReseller(UUID resellerId, SubResellerCreateRequest request) {
         if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResourceAlreadyExistsException("Username already exists");
         }
-        
+
         String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         Admin currentAdmin = adminRepository.findByUsername(currentUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
@@ -300,20 +320,28 @@ public class ResellerServiceImpl implements ResellerService {
             throw new AccessDeniedException("You cannot create a sub-reseller.");
         }
 
-        if ((request.getCanCreate() != null && request.getCanCreate() && !currentAdmin.isCanCreate()) ||
-            (request.getCanRead() != null && request.getCanRead() && !currentAdmin.isCanRead()) ||
-            (request.getCanUpdate() != null && request.getCanUpdate() && !currentAdmin.isCanUpdate()) ||
-            (request.getCanDelete() != null && request.getCanDelete() && !currentAdmin.isCanDelete())) {
-            throw new AccessDeniedException("You cannot grant permissions that you do not possess.");
-        }
+        // Centralized escalation check — cannot grant flags you don't possess
+        crudPermissionGuard.checkEscalation(currentAdmin,
+                request.getCanCreate(), request.getCanRead(),
+                request.getCanUpdate(), request.getCanDelete());
+
+        // Apply SUB_RESELLER role defaults from role_permissions table
+        com.iptv.wiseplayer.domain.entity.RolePermission subDefaults =
+                rolePermissionRepository.findByRole(AdminRole.SUB_RESELLER)
+                        .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(AdminRole.SUB_RESELLER));
 
         Admin sub = new Admin();
-        sub .setUsername(request.getUsername());
+        sub.setUsername(request.getUsername());
         sub.setFullName(request.getFullName());
         sub.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         sub.setRole(AdminRole.SUB_RESELLER);
         sub.setParentId(resellerId);
         sub.setCreatorId(resellerId);
+        // Start from role defaults, then overlay any explicit overrides from the request
+        sub.setCanCreate(subDefaults.isCanCreate());
+        sub.setCanRead(subDefaults.isCanRead());
+        sub.setCanUpdate(subDefaults.isCanUpdate());
+        sub.setCanDelete(subDefaults.isCanDelete());
 
         if (request.getCanCreate() != null) sub.setCanCreate(request.getCanCreate());
         if (request.getCanRead() != null) sub.setCanRead(request.getCanRead());
@@ -338,6 +366,7 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+    @RequiresCrud(CrudOperation.UPDATE)
     public void updateSubReseller(UUID resellerId, UUID subResellerId,
             com.iptv.wiseplayer.dto.request.SubResellerUpdateRequest request) {
         Admin sub = adminRepository.findById(subResellerId)
@@ -355,12 +384,10 @@ public class ResellerServiceImpl implements ResellerService {
             throw new AccessDeniedException("You cannot modify an equal or higher-ranked role.");
         }
 
-        if ((request.getCanCreate() != null && request.getCanCreate() && !currentAdmin.isCanCreate()) ||
-            (request.getCanRead() != null && request.getCanRead() && !currentAdmin.isCanRead()) ||
-            (request.getCanUpdate() != null && request.getCanUpdate() && !currentAdmin.isCanUpdate()) ||
-            (request.getCanDelete() != null && request.getCanDelete() && !currentAdmin.isCanDelete())) {
-            throw new AccessDeniedException("You cannot grant permissions that you do not possess.");
-        }
+        // Centralized escalation check
+        crudPermissionGuard.checkEscalation(currentAdmin,
+                request.getCanCreate(), request.getCanRead(),
+                request.getCanUpdate(), request.getCanDelete());
 
         sub.setFullName(request.getFullName());
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
@@ -377,6 +404,38 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+    @RequiresCrud(CrudOperation.UPDATE)
+    public void updateSubResellerPermissionsById(UUID resellerId, UUID subResellerId,
+            com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request) {
+        Admin sub = adminRepository.findById(subResellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
+
+        if (!resellerId.equals(sub.getParentId())) {
+            throw new AccessDeniedException("Permission denied: Not your sub-reseller");
+        }
+
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        Admin currentAdmin = adminRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
+
+        if (!currentAdmin.getRole().canManage(sub.getRole())) {
+            throw new AccessDeniedException("You cannot modify an equal or higher-ranked role.");
+        }
+
+        // Centralized escalation check
+        crudPermissionGuard.checkEscalation(currentAdmin, request);
+
+        if (request.getCanCreate() != null) sub.setCanCreate(request.getCanCreate());
+        if (request.getCanRead()   != null) sub.setCanRead(request.getCanRead());
+        if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
+        if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
+
+        adminRepository.save(sub);
+    }
+
+    @Override
+    @Transactional
+    @RequiresCrud(CrudOperation.UPDATE)
     public void toggleSubResellerStatus(UUID resellerId, UUID subResellerId) {
         Admin sub = adminRepository.findById(subResellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
@@ -391,6 +450,7 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+    @RequiresCrud(CrudOperation.DELETE)
     public void deleteSubReseller(UUID resellerId, UUID subResellerId) {
         Admin sub = adminRepository.findById(subResellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
@@ -403,7 +463,7 @@ public class ResellerServiceImpl implements ResellerService {
             throw new AccessDeniedException("Can only delete sub-resellers");
         }
 
-        if(sub.getCredits() != null){
+        if (sub.getCredits() != null) {
             throw new AccessDeniedException("Can't delete subreseller with credits");
         }
         adminRepository.delete(sub);
@@ -506,6 +566,7 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @Transactional
+    @RequiresCrud(CrudOperation.DELETE)
     public void detachDevice(UUID resellerId, UUID deviceId) {
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
@@ -741,16 +802,12 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @org.springframework.transaction.annotation.Transactional
+    @RequiresCrud(CrudOperation.UPDATE)
     public void updateSubResellersBulkPermissions(java.util.UUID resellerId, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
         Admin reseller = adminRepository.findById(resellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
 
-        if ((request.getCanCreate() != null && request.getCanCreate() && !reseller.isCanCreate()) ||
-            (request.getCanRead() != null && request.getCanRead() && !reseller.isCanRead()) ||
-            (request.getCanUpdate() != null && request.getCanUpdate() && !reseller.isCanUpdate()) ||
-            (request.getCanDelete() != null && request.getCanDelete() && !reseller.isCanDelete())) {
-            throw new com.iptv.wiseplayer.exception.AccessDeniedException("You cannot grant permissions that you do not possess.");
-        }
+        crudPermissionGuard.checkEscalation(reseller, request);
 
         adminRepository.updatePermissionsByParentId(resellerId, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
     }

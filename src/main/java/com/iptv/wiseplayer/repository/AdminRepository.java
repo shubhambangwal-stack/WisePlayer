@@ -57,7 +57,7 @@ public interface AdminRepository extends JpaRepository<Admin, UUID> {
                 "AND (:search IS NULL OR " +
                 "    a.username ILIKE '%' || :search || '%' OR " +
                 "    a.full_name ILIKE '%' || :search || '%' OR " +
-                "    a.id::text ILIKE '%' || :search || '%')",
+                "    a.admin_id::text ILIKE '%' || :search || '%')",
         nativeQuery = true)
 Page<Admin> searchSubResellers(
         @Param("parentId") UUID parentId,
