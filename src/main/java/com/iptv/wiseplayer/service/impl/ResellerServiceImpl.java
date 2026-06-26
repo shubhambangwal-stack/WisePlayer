@@ -348,6 +348,13 @@ public class ResellerServiceImpl implements ResellerService {
         if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
         if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
 
+        // 100% Accurate Escalation Prevention: Cap permissions strictly to the creator's permissions.
+        // This prevents loopholes where role defaults might exceed the caller's own permissions.
+        if (!currentAdmin.isCanCreate()) sub.setCanCreate(false);
+        if (!currentAdmin.isCanRead()) sub.setCanRead(false);
+        if (!currentAdmin.isCanUpdate()) sub.setCanUpdate(false);
+        if (!currentAdmin.isCanDelete()) sub.setCanDelete(false);
+
         return adminRepository.save(sub);
     }
 
@@ -399,12 +406,16 @@ public class ResellerServiceImpl implements ResellerService {
         if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
         if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
 
+        if (!currentAdmin.isCanCreate()) sub.setCanCreate(false);
+        if (!currentAdmin.isCanRead()) sub.setCanRead(false);
+        if (!currentAdmin.isCanUpdate()) sub.setCanUpdate(false);
+        if (!currentAdmin.isCanDelete()) sub.setCanDelete(false);
+
         adminRepository.save(sub);
     }
 
     @Override
     @Transactional
-    @RequiresCrud(CrudOperation.UPDATE)
     public void updateSubResellerPermissionsById(UUID resellerId, UUID subResellerId,
             com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request) {
         Admin sub = adminRepository.findById(subResellerId)
@@ -429,6 +440,11 @@ public class ResellerServiceImpl implements ResellerService {
         if (request.getCanRead()   != null) sub.setCanRead(request.getCanRead());
         if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
         if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
+
+        if (!currentAdmin.isCanCreate()) sub.setCanCreate(false);
+        if (!currentAdmin.isCanRead()) sub.setCanRead(false);
+        if (!currentAdmin.isCanUpdate()) sub.setCanUpdate(false);
+        if (!currentAdmin.isCanDelete()) sub.setCanDelete(false);
 
         adminRepository.save(sub);
     }
@@ -468,7 +484,6 @@ public class ResellerServiceImpl implements ResellerService {
         }
         adminRepository.delete(sub);
     }
-
     @Override
     @Transactional
     public ActivationRequest submitActivationRequest(UUID resellerId, ResellerActivationRequestDto requestDto) {
@@ -802,13 +817,17 @@ public class ResellerServiceImpl implements ResellerService {
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    @RequiresCrud(CrudOperation.UPDATE)
     public void updateSubResellersBulkPermissions(java.util.UUID resellerId, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
         Admin reseller = adminRepository.findById(resellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
 
         crudPermissionGuard.checkEscalation(reseller, request);
 
-        adminRepository.updatePermissionsByParentId(resellerId, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
+        Boolean canCreate = !reseller.isCanCreate() ? false : request.getCanCreate();
+        Boolean canRead = !reseller.isCanRead() ? false : request.getCanRead();
+        Boolean canUpdate = !reseller.isCanUpdate() ? false : request.getCanUpdate();
+        Boolean canDelete = !reseller.isCanDelete() ? false : request.getCanDelete();
+
+        adminRepository.updatePermissionsByParentId(resellerId, canCreate, canRead, canUpdate, canDelete);
     }
 }

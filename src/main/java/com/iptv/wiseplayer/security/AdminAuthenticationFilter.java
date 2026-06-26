@@ -104,7 +104,7 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
                             break;
                         case "PUT":
                         case "PATCH":
-                            if (!admin.isCanUpdate()) { blocked = true; reason = "Access Denied: Update permission revoked."; }
+                            if (!admin.isCanUpdate() && !path.contains("/crud-permissions")) { blocked = true; reason = "Access Denied: Update permission revoked."; }
                             break;
                         case "DELETE":
                             if (!admin.isCanDelete()) { blocked = true; reason = "Access Denied: Delete permission revoked."; }

@@ -1,12 +1,4 @@
--- ============================================================
--- Migration: Create role_permissions table
--- This table stores the DEFAULT CRUD flags per AdminRole.
--- When a new admin/reseller/sub-reseller is created, their
--- initial permission flags are read from here instead of
--- being hardcoded to TRUE in the Java entity.
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS role_permissions (
+CREATE TABLE role_permissions (
     role        VARCHAR(20)  PRIMARY KEY,
     can_create  BOOLEAN      NOT NULL DEFAULT TRUE,
     can_read    BOOLEAN      NOT NULL DEFAULT TRUE,
