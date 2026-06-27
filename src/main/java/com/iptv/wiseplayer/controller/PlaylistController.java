@@ -70,4 +70,36 @@ public class PlaylistController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Get All Public Playlists", description = "Retrieves all saved playlists for a specific MAC address/device ID.")
+    @GetMapping("/public/{deviceId}")
+    public ResponseEntity<?> getPublicPlaylists(@PathVariable String deviceId) {
+        List<PlaylistResponse> response = playlistService.getPublicPlaylists(deviceId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "data", response));
+    }
+
+    @Operation(summary = "Update Public M3U Playlist", description = "Updates an existing M3U playlist by ID for a specific MAC address/device ID.")
+    @PutMapping("/public/{deviceId}/{playlistId}")
+    public ResponseEntity<?> updatePublicM3uPlaylist(
+            @PathVariable String deviceId,
+            @PathVariable java.util.UUID playlistId,
+            @Valid @RequestBody M3uPlaylistRequest request) {
+        PlaylistResponse response = playlistService.updatePublicM3uPlaylist(deviceId, playlistId, request);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "M3U playlist updated successfully",
+                "data", response));
+    }
+
+    @Operation(summary = "Delete Public Playlist", description = "Deletes a specific playlist by ID for a MAC address/device ID.")
+    @DeleteMapping("/public/{deviceId}/{playlistId}")
+    public ResponseEntity<?> deletePublicPlaylist(
+            @PathVariable String deviceId,
+            @PathVariable java.util.UUID playlistId) {
+        playlistService.deletePublicPlaylist(deviceId, playlistId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist deleted successfully"));
+    }
 }

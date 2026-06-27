@@ -60,6 +60,13 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         Optional<Device> findByDeviceId(UUID deviceId);
 
         /**
+         * Find device by raw MAC address.
+         * @param macAddress the MAC address string
+         * @return Optional containing device if found
+         */
+        Optional<Device> findByMacAddressIgnoreCase(String macAddress);
+
+        /**
          * Find device by refresh token.
          *
          * @param refreshToken Refresh token string
