@@ -236,7 +236,7 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Transactional
     public void deletePublicPlaylist(String deviceId, UUID playlistId) {
         Device device = resolveDevice(deviceId);
-        
+
         Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, device.getDeviceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
                 

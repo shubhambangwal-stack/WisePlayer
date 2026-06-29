@@ -306,4 +306,20 @@ public class ResellerController {
         return ResponseEntity.ok(Map.of("success", true,
                 "message", "CRUD permissions updated for sub-reseller " + id));
     }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PutMapping("/profile")
+    @Operation(summary = "Update Profile", description = "Update reseller profile details (full name only)")
+    public ResponseEntity<Map<String, Object>> updateProfile(@Valid @RequestBody com.iptv.wiseplayer.dto.request.UpdateProfileRequest request) {
+        resellerService.updateProfile(getCurrentResellerId(), request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Profile updated successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PutMapping("/change-password")
+    @Operation(summary = "Change Password", description = "Change reseller password")
+    public ResponseEntity<Map<String, Object>> changePassword(@Valid @RequestBody com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {
+        resellerService.changePassword(getCurrentResellerId(), request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Password changed successfully"));
+    }
 }
