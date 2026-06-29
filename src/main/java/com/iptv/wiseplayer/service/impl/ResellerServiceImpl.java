@@ -830,4 +830,31 @@ public class ResellerServiceImpl implements ResellerService {
 
         adminRepository.updatePermissionsByParentId(resellerId, canCreate, canRead, canUpdate, canDelete);
     }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void updateProfile(UUID adminId, com.iptv.wiseplayer.dto.request.UpdateProfileRequest request) {
+        Admin admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found with ID: " + adminId));
+        admin.setFullName(request.getFullName());
+        adminRepository.save(admin);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void changePassword(UUID adminId, com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new com.iptv.wiseplayer.exception.BadRequestException("New passwords do not match");
+        }
+
+        Admin admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found with ID: " + adminId));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), admin.getPasswordHash())) {
+            throw new com.iptv.wiseplayer.exception.BadRequestException("Invalid current password");
+        }
+
+        admin.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        adminRepository.save(admin);
+    }
 }

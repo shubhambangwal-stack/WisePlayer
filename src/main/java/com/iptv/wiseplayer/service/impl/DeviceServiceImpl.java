@@ -318,8 +318,14 @@ public class DeviceServiceImpl implements DeviceService {
 
         // 2. Try as Fingerprint (MAC)
         String fingerprintHash = hashFingerprint(trimmedIdentity);
-        return deviceRepository.findByFingerprintHash(fingerprintHash)
-                .map(Device::getDeviceId)
+        Optional<Device> device = deviceRepository.findByFingerprintHash(fingerprintHash);
+        
+        // 3. Try plain MAC address lookup as a final fallback
+        if (device.isEmpty()) {
+            device = deviceRepository.findByMacAddressIgnoreCase(trimmedIdentity);
+        }
+
+        return device.map(Device::getDeviceId)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found with identity: " + identity));
     }
 }

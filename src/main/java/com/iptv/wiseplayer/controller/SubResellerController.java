@@ -150,4 +150,18 @@ public class SubResellerController {
                         .map(com.iptv.wiseplayer.domain.entity.SuperAdmin::getId))
                 .orElseThrow(() -> new ResourceNotFoundException("Sub-Reseller not found for: " + username));
     }
+
+    @PutMapping("/profile")
+    @Operation(summary = "Update Profile", description = "Update sub-reseller profile details (full name only)")
+    public ResponseEntity<java.util.Map<String, Object>> updateProfile(@Valid @RequestBody com.iptv.wiseplayer.dto.request.UpdateProfileRequest request) {
+        resellerService.updateProfile(getCurrentSubResellerId(), request);
+        return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Profile updated successfully"));
+    }
+
+    @PutMapping("/change-password")
+    @Operation(summary = "Change Password", description = "Change sub-reseller password")
+    public ResponseEntity<java.util.Map<String, Object>> changePassword(@Valid @RequestBody com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {
+        resellerService.changePassword(getCurrentSubResellerId(), request);
+        return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Password changed successfully"));
+    }
 }

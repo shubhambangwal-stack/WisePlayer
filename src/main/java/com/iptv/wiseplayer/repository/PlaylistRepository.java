@@ -14,4 +14,6 @@ public interface PlaylistRepository extends JpaRepository<Playlist, UUID> {
     void deleteAllByDeviceId(UUID deviceId);
 
     void deleteByDeviceIdAndName(UUID deviceId, String name);
+
+    Optional<Playlist> findByIdAndDeviceId(UUID id, UUID deviceId);
 }

@@ -136,6 +136,13 @@ public class GlobalExceptionHandler {
                                 "Access Denied: You do not have permission to access this resource", request);
         }
 
+        @ExceptionHandler(com.iptv.wiseplayer.exception.AccessDeniedException.class)
+        public ResponseEntity<ErrorResponse> handleCustomAccessDeniedException(com.iptv.wiseplayer.exception.AccessDeniedException ex,
+                        HttpServletRequest request) {
+                log.warn("Access Denied: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+        }
+
         @ExceptionHandler(IllegalStateException.class)
         public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException ex,
                         HttpServletRequest request) {

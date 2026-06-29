@@ -73,4 +73,8 @@ public interface ResellerService {
      */
     void updateSubResellerPermissionsById(UUID resellerId, UUID subResellerId,
             com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request);
+
+    void updateProfile(UUID adminId, com.iptv.wiseplayer.dto.request.UpdateProfileRequest request);
+
+    void changePassword(UUID adminId, com.iptv.wiseplayer.dto.request.ChangePasswordRequest request);
 }
