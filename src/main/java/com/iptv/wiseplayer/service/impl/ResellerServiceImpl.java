@@ -196,7 +196,7 @@ public class ResellerServiceImpl implements ResellerService {
 
         Admin saved = reseller;
 
-        emailService.sendWelcomeEmail(saved.getEmail(), saved.getUsername(), saved.getFullName());
+        emailService.sendRegistrationSuccessEmail(saved.getEmail(), saved.getUsername(), saved.getFullName());
 
         String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole(), saved.isCanCreate(), saved.isCanRead(), saved.isCanUpdate(), saved.isCanDelete());
         return new AdminAuthResponse(true, token, saved.getEmail(), saved.getUsername(), saved.getFullName(),
@@ -311,6 +311,9 @@ public class ResellerServiceImpl implements ResellerService {
         if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResourceAlreadyExistsException("Username already exists");
         }
+        if (adminRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new ResourceAlreadyExistsException("Email already exists");
+        }
 
         String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         Admin currentAdmin = adminRepository.findByUsername(currentUsername)
@@ -333,8 +336,10 @@ public class ResellerServiceImpl implements ResellerService {
         Admin sub = new Admin();
         sub.setUsername(request.getUsername());
         sub.setFullName(request.getFullName());
+        sub.setEmail(request.getEmail());
         sub.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         sub.setRole(AdminRole.SUB_RESELLER);
+        sub.setActive(false);
         sub.setParentId(resellerId);
         sub.setCreatorId(resellerId);
         // Start from role defaults, then overlay any explicit overrides from the request
@@ -355,7 +360,11 @@ public class ResellerServiceImpl implements ResellerService {
         if (!currentAdmin.isCanUpdate()) sub.setCanUpdate(false);
         if (!currentAdmin.isCanDelete()) sub.setCanDelete(false);
 
-        return adminRepository.save(sub);
+        Admin savedSub = adminRepository.save(sub);
+        
+        emailService.sendRegistrationSuccessEmail(savedSub.getEmail(), savedSub.getUsername(), savedSub.getFullName());
+        
+        return savedSub;
     }
 
     @Override
@@ -720,6 +729,8 @@ public class ResellerServiceImpl implements ResellerService {
         admin.setActive(true);
         adminRepository.save(admin);
         resellerEmailOtpRepository.deleteByAdminId(admin.getId());
+        
+        emailService.sendAccountVerifiedEmail(admin.getEmail(), admin.getUsername(), admin.getFullName());
 
         return Map.of("success", "true", "message", "Email verified. You can now login.");
     }

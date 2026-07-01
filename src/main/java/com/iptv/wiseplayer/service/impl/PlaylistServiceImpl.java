@@ -170,6 +170,18 @@ public class PlaylistServiceImpl implements PlaylistService {
             }
         }
 
+        if (request.getM3uUrl() == null || request.getM3uUrl().trim().isEmpty()) {
+            throw new BadRequestException("M3U URL is required");
+        }
+
+        // Smart Promotion Check - only plain M3U URLs get HEAD-validated here;
+        // Xtream-style URLs are validated downstream via xtreamClient.authenticate()
+        var xtreamDetails = xtreamUrlParser.parse(request.getM3uUrl());
+        if (xtreamDetails == null) {
+            log.info("Validating M3U URL for public playlist '{}' on device {}", request.getName(), device.getDeviceId());
+            validateM3uUrl(request.getM3uUrl());
+        }
+
         // Construct a standard M3uPlaylistRequest to reuse existing logic (including
         // Xtream Promotion)
         M3uPlaylistRequest m3uRequest = new M3uPlaylistRequest();
