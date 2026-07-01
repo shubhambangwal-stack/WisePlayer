@@ -12,6 +12,10 @@ public class SubResellerCreateRequest {
     @NotBlank(message = "Full name is required")
     private String fullName;
 
+    @NotBlank(message = "Email is required")
+    @jakarta.validation.constraints.Email(message = "Invalid email format")
+    private String email;
+
     private Boolean canCreate;
     private Boolean canRead;
     private Boolean canUpdate;
@@ -39,6 +43,14 @@ public class SubResellerCreateRequest {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public Boolean getCanCreate() {
