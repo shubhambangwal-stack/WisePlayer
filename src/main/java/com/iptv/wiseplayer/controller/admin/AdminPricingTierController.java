@@ -17,7 +17,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/pricing-tiers")
-@PreAuthorize("hasAuthority('SUPER_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_SUPER_ADMIN')")
 @RequiredArgsConstructor
 @Tag(name = "Admin Pricing Tiers API", description = "Endpoints for managing reseller pricing tiers by Super Admin")
 public class AdminPricingTierController {
