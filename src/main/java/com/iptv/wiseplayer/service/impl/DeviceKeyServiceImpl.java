@@ -153,6 +153,11 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
         LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
         subscriptionService.initializeTrial(device.getDeviceId(), expiresAt);
 
+        // ✅ FIX: Stamp the activatedAt timestamp on the device record.
+        // Previously this was never set, leaving activated_at NULL in the DB for all devices.
+        device.setActivatedAt(LocalDateTime.now());
+        deviceRepository.save(device);
+
         // Audit Logging
         DeviceAuditLog auditLog = new DeviceAuditLog(device.getDeviceId(), oldStatus, DeviceStatus.ACTIVE,
                 "ACTIVATION", "Device activated via 6-digit code. 7-day trial started.");

@@ -147,11 +147,19 @@ public class DeviceServiceImpl implements DeviceService {
         // Determine access permission based on device status and expiry
         boolean allowed = false;
         if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
-            if (device.getExpiresAt() != null && LocalDateTime.now().isBefore(device.getExpiresAt())) {
+            if (device.getExpiresAt() == null) {
+                // ✅ FIX: expiresAt should never be null for an ACTIVE device, but if it is
+                // (data integrity gap from a failed subscription write), still grant access
+                // rather than silently blocking a legitimately activated device.
+                // Log a warning so this can be investigated in production.
+                org.slf4j.LoggerFactory.getLogger(getClass()).warn(
+                        "ACTIVE device {} has null expiresAt — granting access but this should be investigated.",
+                        device.getDeviceId());
+                allowed = true;
+            } else if (LocalDateTime.now().isBefore(device.getExpiresAt())) {
                 allowed = true;
             } else {
-                // Access denied but status stays ACTIVE (Requirement: Only subscription
-                // expires)
+                // Subscription genuinely expired — access denied but status stays ACTIVE
                 logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.ACTIVE, "ACCESS_DENIED",
                         "Subscription expired during validation");
             }
