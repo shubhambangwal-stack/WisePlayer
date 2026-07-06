@@ -137,9 +137,17 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
         if (subStatus.getStatus() == SubscriptionStatus.ACTIVE || 
            (subStatus.getStatus() == SubscriptionStatus.TRIAL && subStatus.getEndDate() != null && subStatus.getEndDate().isAfter(LocalDateTime.now()))) {
             
-            // Device is already active. Do not allow duplicate activation.
+            // Device already has an active subscription/trial. Activate device status if needed.
+            if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
+                device.setDeviceStatus(DeviceStatus.ACTIVE);
+                deviceRepository.save(device);
+                
+                DeviceAuditLog auditLog = new DeviceAuditLog(device.getDeviceId(), oldStatus, DeviceStatus.ACTIVE,
+                        "ACTIVATION", "Device activated via 6-digit code (re-linked active subscription/trial).");
+                auditRepository.save(auditLog);
+            }
             deviceKeyRepository.delete(deviceKey);
-            return new DeviceActivationResponse(false, "Device already has an active subscription.", device.getDeviceStatus());
+            return new DeviceActivationResponse(true, "Device activated successfully", DeviceStatus.ACTIVE);
             
         } else if (subStatus.getStatus() == SubscriptionStatus.EXPIRED || 
                   (subStatus.getStatus() == SubscriptionStatus.TRIAL && subStatus.getEndDate() != null && subStatus.getEndDate().isBefore(LocalDateTime.now()))) {
