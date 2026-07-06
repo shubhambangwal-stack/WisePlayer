@@ -32,11 +32,13 @@ public class AdminTokenUtil {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
+    public String generateToken(String username, AdminRole role, boolean canCreate, boolean canRead, boolean canUpdate, boolean canDelete) {
+        return generateToken(username, role);
+    }
+
     public String generateToken(String username, AdminRole role) {
         Date issuedAt = new Date();
-       // Date expiration = new Date(issuedAt.getTime() + (60 * 1000L)); // 1 minute
-       Date expiration = new Date(issuedAt.getTime() + (24 * 60 * 60 * 1000L)); // 24 hours
-
+        Date expiration = new Date(issuedAt.getTime() + (24 * 60 * 60 * 1000L));
         return Jwts.builder()
                 .subject(username)
                 .claim("role", role.name())
@@ -46,7 +48,7 @@ public class AdminTokenUtil {
                 .compact();
     }
 
-    public String[] verifyAndExtract(String token) {
+    public java.util.Map<String, Object> verifyAndExtractClaims(String token) {
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(getSigningKey())
@@ -54,11 +56,11 @@ public class AdminTokenUtil {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            String username = claims.getSubject();
-            String role = claims.get("role", String.class);
-            long expiry = claims.getExpiration().getTime();
-
-            return new String[] { username, role, String.valueOf(expiry) };
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("username", claims.getSubject());
+            map.put("role", claims.get("role", String.class));
+            map.put("expiry", claims.getExpiration().getTime());
+            return map;
         } catch (Exception e) {
             throw new RuntimeException("Invalid or expired admin token", e);
         }

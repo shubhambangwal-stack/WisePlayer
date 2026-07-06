@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.controller.admin;
 
 import com.iptv.wiseplayer.dto.response.ResellerResponse;
+import com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest;
 import com.iptv.wiseplayer.service.AdminResellerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -80,5 +81,34 @@ public class AdminResellerController {
             @PathVariable UUID id,
             Pageable pageable) {
         return ResponseEntity.ok(adminResellerService.getSubResellers(id, pageable));
+    }
+    @Operation(summary = "Delete Reseller", description = "Permanently deletes a reseller and all associated data.")
+    @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('ROLE_SUPER_ADMIN')")
+    public ResponseEntity<Map<String, Object>> deleteReseller(@PathVariable UUID id) {
+        adminResellerService.deleteReseller(id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Reseller deleted successfully"));
+    }
+
+    @Operation(summary = "Bulk Update Role Permissions",
+               description = "Updates permissions for all existing admins of a specific role at once AND syncs the role_permissions defaults table so future registrations are also affected.")
+    @PutMapping("/crud-permissions/{role}")
+    public ResponseEntity<?> updateRolePermissions(
+            @PathVariable com.iptv.wiseplayer.domain.enums.AdminRole role,
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+        adminResellerService.updateRolePermissions(role, request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Permissions updated for all existing " + role.name() + "s and saved as new default."));
+    }
+
+    @Operation(summary = "Update Permissions for a Single Admin",
+               description = "Changes only the CRUD flags (canCreate/canRead/canUpdate/canDelete) for a specific admin by UUID. " +
+                             "The caller must be higher-ranked than the target and cannot grant flags they do not themselves possess. " +
+                             "Null fields are ignored (partial update).")
+    @PatchMapping("/{id}/permissions")
+    public ResponseEntity<?> updateAdminPermissions(
+            @PathVariable UUID id,
+            @RequestBody UpdateRolePermissionRequest request) {
+        adminResellerService.updateAdminPermissionsById(id, request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Permissions updated for admin " + id));
     }
 }

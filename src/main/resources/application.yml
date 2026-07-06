@@ -1,8 +1,8 @@
 spring:
   application:
     name: wiseplayer
-  #profiles:
-    #active: dev
+#  profiles:
+#      active: dev
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -36,16 +36,17 @@ paypal:
   mode: ${PAYPAL_MODE:sandbox}
   client-id: ${PAYPAL_CLIENT_ID}
   client-secret: ${PAYPAL_CLIENT_SECRET}
-  return-url: ${APP_BASE_URL}/api/payment/paypal/success
-  cancel-url: ${APP_BASE_URL}/api/payment/paypal/cancel
-  webhook-url: ${APP_BASE_URL}/api/payment/paypal/webhook
+  return-url: ${APP_BASE_URL:http://localhost:8080}/api/payment/paypal/success
+  cancel-url: ${APP_BASE_URL:http://localhost:8080}/api/payment/paypal/cancel
+  webhook-url: ${APP_BASE_URL:http://localhost:8080}/api/payment/paypal/webhook
   webhook-id: ${PAYPAL_WEBHOOK_ID}
   frontend-url: ${FRONTEND_URL:https://wise-player.com}
 
 server:
-  port: ${SERVER_PORT}
+  port: ${SERVER_PORT:8081}
 
 app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   security:
     seed-secret: ${SEED_SECRET:super-secret-seed-key}
     token-secrets:

@@ -77,6 +77,13 @@ public class AdminPlanService {
         planConfigRepository.save(plan);
     }
 
+    @Transactional
+    public void deletePlan(UUID id) {
+        SubscriptionPlanConfig plan = planConfigRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found"));
+        planConfigRepository.delete(plan);
+    }
+
     private PlanResponse convertToResponse(SubscriptionPlanConfig plan) {
         PlanResponse response = new PlanResponse();
         response.setId(plan.getId());

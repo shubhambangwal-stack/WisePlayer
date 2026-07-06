@@ -8,6 +8,11 @@ public class SubResellerUpdateRequest {
 
     private String password;
 
+    private Boolean canCreate;
+    private Boolean canRead;
+    private Boolean canUpdate;
+    private Boolean canDelete;
+
     public String getFullName() {
         return fullName;
     }
@@ -22,5 +27,37 @@ public class SubResellerUpdateRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public Boolean getCanCreate() {
+        return canCreate;
+    }
+
+    public void setCanCreate(Boolean canCreate) {
+        this.canCreate = canCreate;
+    }
+
+    public Boolean getCanRead() {
+        return canRead;
+    }
+
+    public void setCanRead(Boolean canRead) {
+        this.canRead = canRead;
+    }
+
+    public Boolean getCanUpdate() {
+        return canUpdate;
+    }
+
+    public void setCanUpdate(Boolean canUpdate) {
+        this.canUpdate = canUpdate;
+    }
+
+    public Boolean getCanDelete() {
+        return canDelete;
+    }
+
+    public void setCanDelete(Boolean canDelete) {
+        this.canDelete = canDelete;
     }
 }

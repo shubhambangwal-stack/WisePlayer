@@ -1,5 +1,9 @@
 package com.iptv.wiseplayer.service;
 
+import com.iptv.wiseplayer.dto.response.CreditTransactionResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -39,8 +43,10 @@ public interface CreditService {
      * Gets the transaction history for a reseller.
      */
     org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse> getTransactionHistory(
-            UUID resellerId, org.springframework.data.domain.Pageable pageable);
-
+            UUID resellerId, String search, String type,
+            java.time.LocalDate fromDate, java.time.LocalDate toDate,
+            java.math.BigDecimal minAmount, java.math.BigDecimal maxAmount,
+            org.springframework.data.domain.Pageable pageable);
     /**
      * Transfers credits from one reseller to another (typically parent to child).
      */

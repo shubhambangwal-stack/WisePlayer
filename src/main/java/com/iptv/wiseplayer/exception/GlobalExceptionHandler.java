@@ -46,6 +46,22 @@ public class GlobalExceptionHandler {
                 return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, ex.getMessage(), request);
         }
 
+        @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+        public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupportedException(
+                        org.springframework.web.HttpMediaTypeNotSupportedException ex,
+                        HttpServletRequest request) {
+                log.warn("Unsupported Media Type: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage(), request);
+        }
+
+        @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+        public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotAcceptableException(
+                        org.springframework.web.HttpMediaTypeNotAcceptableException ex,
+                        HttpServletRequest request) {
+                log.warn("Not Acceptable Media Type: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), request);
+        }
+
         @ExceptionHandler(DeviceAuthenticationException.class)
         public ResponseEntity<ErrorResponse> handleDeviceAuthenticationException(DeviceAuthenticationException ex,
                         HttpServletRequest request) {
@@ -118,6 +134,13 @@ public class GlobalExceptionHandler {
                 log.warn("Access Denied: {}", ex.getMessage());
                 return buildErrorResponse(HttpStatus.FORBIDDEN,
                                 "Access Denied: You do not have permission to access this resource", request);
+        }
+
+        @ExceptionHandler(com.iptv.wiseplayer.exception.AccessDeniedException.class)
+        public ResponseEntity<ErrorResponse> handleCustomAccessDeniedException(com.iptv.wiseplayer.exception.AccessDeniedException ex,
+                        HttpServletRequest request) {
+                log.warn("Access Denied: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
         }
 
         @ExceptionHandler(IllegalStateException.class)

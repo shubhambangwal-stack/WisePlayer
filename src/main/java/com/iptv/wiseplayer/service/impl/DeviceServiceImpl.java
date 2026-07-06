@@ -108,7 +108,7 @@ public class DeviceServiceImpl implements DeviceService {
         String rawSecret = tokenUtil.generateRefreshToken();
         newDevice.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
 
-        // Save device to database
+        // Save     device to database
         Device savedDevice = deviceRepository.save(newDevice);
 
         logAudit(savedDevice.getDeviceId(), null, DeviceStatus.INACTIVE, "DEVICE_REGISTERED",
@@ -144,7 +144,19 @@ public class DeviceServiceImpl implements DeviceService {
         device.setLastSeenAt(LocalDateTime.now());
         deviceRepository.save(device);
 
-        // Determine access permission based on device status and expiry
+// LOCK CHECK — reseller lock device
+        if (!device.isActive()) {
+            return new DeviceValidationResponse(
+                    device.getDeviceId(),
+                    device.getDeviceStatus(),
+                    device.getSubscriptionType(),
+                    null,
+                    false,
+                    "Your account has been locked. Please contact your reseller.",
+                    device.getLastSeenAt());
+        }
+
+// Determine access permission based on device status and expiry
         boolean allowed = false;
         if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
             if (device.getExpiresAt() == null) {
@@ -314,8 +326,14 @@ public class DeviceServiceImpl implements DeviceService {
 
         // 2. Try as Fingerprint (MAC)
         String fingerprintHash = hashFingerprint(trimmedIdentity);
-        return deviceRepository.findByFingerprintHash(fingerprintHash)
-                .map(Device::getDeviceId)
+        Optional<Device> device = deviceRepository.findByFingerprintHash(fingerprintHash);
+        
+        // 3. Try plain MAC address lookup as a final fallback
+        if (device.isEmpty()) {
+            device = deviceRepository.findByMacAddressIgnoreCase(trimmedIdentity);
+        }
+
+        return device.map(Device::getDeviceId)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found with identity: " + identity));
     }
 }

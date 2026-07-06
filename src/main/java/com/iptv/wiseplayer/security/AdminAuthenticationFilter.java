@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.iptv.wiseplayer.repository.AdminRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,12 +29,14 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
 
     private final AdminTokenUtil adminTokenUtil;
     private final ObjectMapper objectMapper;
+    private final AdminRepository adminRepository;
 
-    public AdminAuthenticationFilter(AdminTokenUtil adminTokenUtil, ObjectMapper objectMapper) {
+    public AdminAuthenticationFilter(AdminTokenUtil adminTokenUtil, ObjectMapper objectMapper,
+                                     AdminRepository adminRepository) {
         this.adminTokenUtil = adminTokenUtil;
         this.objectMapper = objectMapper;
+        this.adminRepository = adminRepository;
     }
-
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
@@ -44,12 +47,13 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/api/admin/auth/reset-password") ||
                 path.equals("/api/reseller/login") ||
                 path.equals("/api/reseller/register") ||
+                path.equals("/api/reseller/forgot-password") ||
+                path.equals("/api/reseller/reset-password") ||
                 path.equals("/api/admin/management/invite/verify") ||
                 path.equals("/api/admin/management/setup/complete") ||
                 path.equals("/wp-admin-monitor/health")) {
             return true;
         }
-
         // Only filter admin, reseller, monitoring and documentation API paths
         return !(path.startsWith("/api/admin") || path.startsWith("/api/reseller")
                 || path.startsWith("/api/sub-reseller")
@@ -77,10 +81,45 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            String[] claims = adminTokenUtil.verifyAndExtract(token);
-            String username = claims[0];
-            String role = claims[1];
-            log.info("Admin authenticated: username={}, role={}, path={}", username, role, request.getRequestURI());
+            java.util.Map<String, Object> claims = adminTokenUtil.verifyAndExtractClaims(token);
+            String username = (String) claims.get("username");
+            String role = (String) claims.get("role");
+            String method = request.getMethod();
+            String path = request.getRequestURI();
+
+            if (!"SUPER_ADMIN".equals(role)) {
+                com.iptv.wiseplayer.domain.entity.Admin admin =
+                        adminRepository.findByUsername(username).orElse(null);
+
+                if (admin != null) {
+                    boolean blocked = false;
+                    String reason = "";
+
+                    switch (method.toUpperCase()) {
+                        case "GET":
+                            if (!admin.isCanRead()) { blocked = true; reason = "Access Denied: Read permission revoked."; }
+                            break;
+                        case "POST":
+                            if (!admin.isCanCreate()) { blocked = true; reason = "Access Denied: Create permission revoked."; }
+                            break;
+                        case "PUT":
+                        case "PATCH":
+                            if (!admin.isCanUpdate() && !path.contains("/crud-permissions")) { blocked = true; reason = "Access Denied: Update permission revoked."; }
+                            break;
+                        case "DELETE":
+                            if (!admin.isCanDelete()) { blocked = true; reason = "Access Denied: Delete permission revoked."; }
+                            break;
+                    }
+
+                    if (blocked) {
+                        log.warn("RBAC block: username={}, role={}, method={}, path={}", username, role, method, path);
+                        handleForbiddenAuthenticationFailure(response, reason);
+                        return;
+                    }
+                }
+            }
+
+            log.info("Admin authenticated: username={}, role={}, path={}", username, role, path);
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     username, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
@@ -94,6 +133,21 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
+
+    private void handleForbiddenAuthenticationFailure(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpStatus.FORBIDDEN.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("success", false);
+        errorDetails.put("message", message);
+        errorDetails.put("status", 403);
+        errorDetails.put("error", "PERMISSION_DENIED");
+        errorDetails.put("action", "LOGOUT");
+
+        response.getWriter().write(objectMapper.writeValueAsString(errorDetails));
+    }
+
     private void handleAuthenticationFailure(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -105,4 +159,6 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
 
         response.getWriter().write(objectMapper.writeValueAsString(errorDetails));
     }
+
+
 }

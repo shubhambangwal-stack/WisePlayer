@@ -39,10 +39,10 @@ public class SubResellerController {
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
 
     public SubResellerController(ResellerService resellerService,
-            CreditService creditService,
-            PaymentService paymentService,
-            AdminRepository adminRepository,
-            com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
+                                 CreditService creditService,
+                                 PaymentService paymentService,
+                                 AdminRepository adminRepository,
+                                 com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
         this.resellerService = resellerService;
         this.creditService = creditService;
         this.paymentService = paymentService;
@@ -59,8 +59,15 @@ public class SubResellerController {
     @GetMapping("/credits/transactions")
     @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in sub-reseller")
     public ResponseEntity<Page<CreditTransactionResponse>> getTransactionHistory(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minAmount,
+            @RequestParam(required = false) java.math.BigDecimal maxAmount,
             Pageable pageable) {
-        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentSubResellerId(), pageable));
+        return ResponseEntity.ok(creditService.getTransactionHistory(
+                getCurrentSubResellerId(), search, type, fromDate, toDate, minAmount, maxAmount, pageable));
     }
 
     @PostMapping("/credits/purchase")
@@ -84,12 +91,27 @@ public class SubResellerController {
     }
 
     @GetMapping("/users")
-    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this sub-reseller with optional search and status filtering")
+    @Operation(summary = "Get Users", description = "Get devices managed by this sub-reseller with filters for status, plan, registered and expiry date range")
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            @RequestParam(required = false) String subscription,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredTo,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresTo,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentSubResellerId(), search, status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerUsers(
+                getCurrentSubResellerId(), search, status, subscription,
+                registeredFrom, registeredTo, expiresFrom, expiresTo, pageable));
     }
 
     @PutMapping("/users/{deviceId}/disable")
@@ -108,9 +130,16 @@ public class SubResellerController {
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this sub-reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String planName,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentSubResellerId(), status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(
+                getCurrentSubResellerId(), search, status, planName, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
     private UUID getCurrentSubResellerId() {
@@ -120,5 +149,19 @@ public class SubResellerController {
                 .or(() -> superAdminRepository.findByUsername(username)
                         .map(com.iptv.wiseplayer.domain.entity.SuperAdmin::getId))
                 .orElseThrow(() -> new ResourceNotFoundException("Sub-Reseller not found for: " + username));
+    }
+
+    @PutMapping("/profile")
+    @Operation(summary = "Update Profile", description = "Update sub-reseller profile details (full name only)")
+    public ResponseEntity<java.util.Map<String, Object>> updateProfile(@Valid @RequestBody com.iptv.wiseplayer.dto.request.UpdateProfileRequest request) {
+        resellerService.updateProfile(getCurrentSubResellerId(), request);
+        return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Profile updated successfully"));
+    }
+
+    @PutMapping("/change-password")
+    @Operation(summary = "Change Password", description = "Change sub-reseller password")
+    public ResponseEntity<java.util.Map<String, Object>> changePassword(@Valid @RequestBody com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {
+        resellerService.changePassword(getCurrentSubResellerId(), request);
+        return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Password changed successfully"));
     }
 }

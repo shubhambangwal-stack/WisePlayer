@@ -23,7 +23,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.iptv.wiseplayer.dto.request.VerifyOtpRequest;
+import com.iptv.wiseplayer.dto.request.ResellerForgotPasswordRequest;
+import com.iptv.wiseplayer.dto.request.ResellerResetPasswordRequest;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -59,6 +63,34 @@ public class ResellerController {
         return ResponseEntity.ok(resellerService.register(request));
     }
 
+    @PostMapping("/verify-email")
+    @Operation(summary = "Verify Email OTP", description = "Send JWT from register + OTP from email")
+    public ResponseEntity<Map<String, String>> verifyEmail(@Valid @RequestBody VerifyOtpRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(resellerService.verifyEmail(request, username));
+    }
+
+    @PostMapping("/resend-otp")
+    @Operation(summary = "Resend OTP", description = "Resend verification OTP. Requires JWT from login response.")
+    public ResponseEntity<Map<String, String>> resendOtp() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(resellerService.resendOtp(username));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Forgot Password", description = "Send password reset link to reseller email")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ResellerForgotPasswordRequest request) {
+        resellerService.forgotPassword(request);
+        return ResponseEntity.ok(Map.of("success", "true", "message", "Reset link sent to your email"));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset Password", description = "Reset reseller password using token from email")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResellerResetPasswordRequest request) {
+        resellerService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("success", "true", "message", "Password reset successfully"));
+    }
+
     // --- Reseller Management Endpoints ---
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
@@ -78,12 +110,27 @@ public class ResellerController {
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/users")
-    @Operation(summary = "Get Users", description = "Get a list of all devices/users managed by this reseller with optional search and status filtering")
+    @Operation(summary = "Get Users", description = "Get devices managed by this reseller with filters for status, plan, registered and expiry date range")
     public ResponseEntity<org.springframework.data.domain.Page<Device>> getUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            @RequestParam(required = false) String subscription,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate registeredTo,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresFrom,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresTo,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerUsers(getCurrentResellerId(), search, status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerUsers(
+                getCurrentResellerId(), search, status, subscription,
+                registeredFrom, registeredTo, expiresFrom, expiresTo, pageable));
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
@@ -103,10 +150,16 @@ public class ResellerController {
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/sub-resellers")
-    @Operation(summary = "Get Sub-Resellers", description = "Get a list of all sub-resellers created by this reseller")
     public ResponseEntity<org.springframework.data.domain.Page<Admin>> getSubResellers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getSubResellers(getCurrentResellerId(), pageable));
+        return ResponseEntity.ok(resellerService.getSubResellers(
+                getCurrentResellerId(), search, status, fromDate, toDate, minCredits, maxCredits, pageable));
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
@@ -127,6 +180,14 @@ public class ResellerController {
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @DeleteMapping("/sub-resellers/{id}")
+    @Operation(summary = "Delete Sub-Reseller", description = "Permanently delete a sub-reseller under this reseller")
+    public ResponseEntity<Map<String, Object>> deleteSubReseller(@PathVariable UUID id) {
+        resellerService.deleteSubReseller(getCurrentResellerId(), id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Sub-reseller deleted successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @PostMapping("/activation-request")
     @Operation(summary = "Submit Activation Request", description = "Submit a request to activate a user/device subscription")
     public ResponseEntity<ActivationRequest> submitRequest(@Valid @RequestBody ResellerActivationRequestDto request) {
@@ -137,9 +198,24 @@ public class ResellerController {
     @GetMapping("/activation-request")
     @Operation(summary = "Get Activation Requests", description = "Get a list of all activation requests submitted by this reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.ActivationRequestResponse>> getRequests(
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String planName,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minCredits,
+            @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getResellerRequests(getCurrentResellerId(), status, pageable));
+        return ResponseEntity.ok(resellerService.getResellerRequests(
+                getCurrentResellerId(), search, status, planName, fromDate, toDate, minCredits, maxCredits, pageable));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @DeleteMapping("/activation-request/{id}")
+    @Operation(summary = "Delete Activation Request", description = "Delete a pending or rejected activation request")
+    public ResponseEntity<Map<String, Object>> deleteActivationRequest(@PathVariable UUID id) {
+        resellerService.deleteActivationRequest(getCurrentResellerId(), id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request deleted successfully"));
     }
 
     private UUID getCurrentResellerId() {
@@ -149,5 +225,101 @@ public class ResellerController {
                 .or(() -> superAdminRepository.findByUsername(identifier)
                         .map(com.iptv.wiseplayer.domain.entity.SuperAdmin::getId))
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found for: " + identifier));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @DeleteMapping("/users/{deviceId}/detach")
+    @Operation(summary = "Detach Device", description = "Remove device from reseller. Subscription stays intact.")
+    public ResponseEntity<Map<String, Object>> detachDevice(@PathVariable UUID deviceId) {
+        resellerService.detachDevice(getCurrentResellerId(), deviceId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Device detached successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PatchMapping("/users/{deviceId}/lock")
+    @Operation(summary = "Lock/Unlock Device", description = "Lock device to block all access. Call again to unlock.")
+    public ResponseEntity<Map<String, Object>> lockDevice(@PathVariable UUID deviceId) {
+        resellerService.disableUser(getCurrentResellerId(), deviceId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Device lock status toggled"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PatchMapping("/users/{deviceId}/cancel-subscription")
+    @Operation(summary = "Cancel Subscription", description = "Permanently cancel subscription. Cannot be renewed.")
+    public ResponseEntity<Map<String, Object>> cancelSubscription(@PathVariable UUID deviceId) {
+        resellerService.cancelSubscription(getCurrentResellerId(), deviceId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Subscription cancelled successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PatchMapping("/users/{deviceId}/pause-subscription")
+    @Operation(summary = "Pause/Resume Subscription", description = "Toggle subscription between PAUSED and ACTIVE.")
+    public ResponseEntity<Map<String, Object>> pauseResumeSubscription(@PathVariable UUID deviceId) {
+        resellerService.pauseResumeSubscription(getCurrentResellerId(), deviceId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Subscription pause/resume toggled"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PutMapping("/sub-resellers/bulk-permissions")
+    @Operation(summary = "Bulk Update Sub-Reseller Permissions", description = "Updates permissions for all sub-resellers under this reseller at once.")
+    public ResponseEntity<?> updateSubResellersBulkPermissions(
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+        resellerService.updateSubResellersBulkPermissions(getCurrentResellerId(), request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Permissions updated successfully for all sub-resellers"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Consistent crud-permissions endpoints
+    // -------------------------------------------------------------------------
+
+    @Operation(
+        summary = "Bulk: update CRUD for ALL sub-resellers under this reseller",
+        description = "Updates canCreate/canRead/canUpdate/canDelete for every sub-reseller belonging to this reseller. " +
+                      "Escalation rule: caller cannot grant flags they don't own. Null fields are skipped."
+    )
+    @PutMapping("/crud-permissions/bulk")
+    public ResponseEntity<?> bulkUpdateSubResellerPermissions(
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request) {
+        // Convert to UpdateResellerRequest for the existing service method
+        com.iptv.wiseplayer.dto.request.UpdateResellerRequest bulk =
+                new com.iptv.wiseplayer.dto.request.UpdateResellerRequest();
+        bulk.setCanCreate(request.getCanCreate());
+        bulk.setCanRead(request.getCanRead());
+        bulk.setCanUpdate(request.getCanUpdate());
+        bulk.setCanDelete(request.getCanDelete());
+        resellerService.updateSubResellersBulkPermissions(getCurrentResellerId(), bulk);
+        return ResponseEntity.ok(Map.of("success", true,
+                "message", "CRUD permissions updated for all sub-resellers."));
+    }
+
+    @Operation(
+        summary = "Individual: update CRUD for a specific sub-reseller by ID",
+        description = "Changes only the CRUD flags for a specific sub-reseller identified by UUID. " +
+                      "Ownership rule: the sub-reseller must belong to the calling reseller. " +
+                      "Escalation rule: caller cannot grant flags they don't own. Null fields are skipped."
+    )
+    @PatchMapping("/crud-permissions/{id}")
+    public ResponseEntity<?> updateSubResellerPermissionsById(
+            @PathVariable UUID id,
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest request) {
+        resellerService.updateSubResellerPermissionsById(getCurrentResellerId(), id, request);
+        return ResponseEntity.ok(Map.of("success", true,
+                "message", "CRUD permissions updated for sub-reseller " + id));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PutMapping("/profile")
+    @Operation(summary = "Update Profile", description = "Update reseller profile details (full name only)")
+    public ResponseEntity<Map<String, Object>> updateProfile(@Valid @RequestBody com.iptv.wiseplayer.dto.request.UpdateProfileRequest request) {
+        resellerService.updateProfile(getCurrentResellerId(), request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Profile updated successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @PutMapping("/change-password")
+    @Operation(summary = "Change Password", description = "Change reseller password")
+    public ResponseEntity<Map<String, Object>> changePassword(@Valid @RequestBody com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {
+        resellerService.changePassword(getCurrentResellerId(), request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Password changed successfully"));
     }
 }

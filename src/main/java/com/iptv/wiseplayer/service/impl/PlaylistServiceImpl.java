@@ -144,8 +144,16 @@ public class PlaylistServiceImpl implements PlaylistService {
         // 2. Try as Fingerprint (MAC) if UUID didn't work
         if (device == null) {
             String fingerprintHash = tokenUtil.hashFingerprint(identity);
-            device = deviceRepository.findByFingerprintHash(fingerprintHash)
-                    .orElseThrow(() -> new ResourceNotFoundException("Device not found with identity: " + identity));
+            device = deviceRepository.findByFingerprintHash(fingerprintHash).orElse(null);
+        }
+
+        // 3. Try plain MAC address lookup as a final fallback
+        if (device == null) {
+            device = deviceRepository.findByMacAddressIgnoreCase(identity).orElse(null);
+        }
+
+        if (device == null) {
+            throw new ResourceNotFoundException("Device not found with identity: " + identity);
         }
 
         // REQUIRED: MUST BE ACTIVE AND NOT EXPIRED
@@ -155,7 +163,23 @@ public class PlaylistServiceImpl implements PlaylistService {
         }
 
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
-            throw new AccessDeniedException("Upload failed: Device subscription has expired");
+            if (device.getSubscriptionType() == com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL) {
+                throw new AccessDeniedException("Upload failed: Free trial has ended. Please subscribe to continue.");
+            } else {
+                throw new AccessDeniedException("Upload failed: Device subscription has expired. Please renew.");
+            }
+        }
+
+        if (request.getM3uUrl() == null || request.getM3uUrl().trim().isEmpty()) {
+            throw new BadRequestException("M3U URL is required");
+        }
+
+        // Smart Promotion Check - only plain M3U URLs get HEAD-validated here;
+        // Xtream-style URLs are validated downstream via xtreamClient.authenticate()
+        var xtreamDetails = xtreamUrlParser.parse(request.getM3uUrl());
+        if (xtreamDetails == null) {
+            log.info("Validating M3U URL for public playlist '{}' on device {}", request.getName(), device.getDeviceId());
+            validateM3uUrl(request.getM3uUrl());
         }
 
         // Construct a standard M3uPlaylistRequest to reuse existing logic (including
@@ -181,6 +205,71 @@ public class PlaylistServiceImpl implements PlaylistService {
         return playlistRepository.findByDeviceId(deviceId).stream()
                 .map(this::mapToResponse)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    private Device resolveDevice(String deviceId) {
+        if (deviceId == null || deviceId.trim().isEmpty()) {
+            throw new BadRequestException("Device ID is required");
+        }
+
+        String identity = deviceId.trim();
+        Device device = null;
+
+        try {
+            UUID uuid = UUID.fromString(identity);
+            device = deviceRepository.findByDeviceId(uuid).orElse(null);
+        } catch (IllegalArgumentException e) {
+            // Not a UUID
+        }
+
+        if (device == null) {
+            String fingerprintHash = tokenUtil.hashFingerprint(identity);
+            device = deviceRepository.findByFingerprintHash(fingerprintHash).orElse(null);
+        }
+
+        if (device == null) {
+            device = deviceRepository.findByMacAddressIgnoreCase(identity).orElse(null);
+        }
+
+        if (device == null) {
+            throw new ResourceNotFoundException("Device not found with identity: " + identity);
+        }
+
+        return device;
+    }
+
+    @Override
+    public java.util.List<PlaylistResponse> getPublicPlaylists(String deviceId) {
+        Device device = resolveDevice(deviceId);
+        return getPlaylists(device.getDeviceId());
+    }
+
+    @Override
+    @Transactional
+    public void deletePublicPlaylist(String deviceId, UUID playlistId) {
+        Device device = resolveDevice(deviceId);
+
+        Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, device.getDeviceId())
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+                
+        playlistRepository.delete(playlist);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse updatePublicM3uPlaylist(String deviceId, UUID playlistId, M3uPlaylistRequest request) {
+        Device device = resolveDevice(deviceId);
+        
+        Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, device.getDeviceId())
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+        
+        validateM3uUrl(request.getM3uUrl());
+        
+        playlist.setName(request.getName());
+        playlist.setM3uUrl(encryptionUtil.encrypt(request.getM3uUrl()));
+        
+        Playlist updated = playlistRepository.save(playlist);
+        return mapToResponse(updated);
     }
 
     private PlaylistResponse mapToResponse(Playlist playlist) {

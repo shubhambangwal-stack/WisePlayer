@@ -5,6 +5,7 @@ import com.iptv.wiseplayer.domain.entity.SuperAdmin;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.SuperAdminRepository;
+import com.iptv.wiseplayer.service.RolePermissionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,11 +27,17 @@ public class DataInitializer {
     private final SuperAdminRepository superRepo;
     private final AdminRepository adminRepo;
     private final PasswordEncoder encoder;
+    private final RolePermissionService rolePermissionService;
+    private final com.iptv.wiseplayer.repository.ResellerPricingTierRepository pricingTierRepository;
 
-    public DataInitializer(SuperAdminRepository superRepo, AdminRepository adminRepo, PasswordEncoder encoder) {
+    public DataInitializer(SuperAdminRepository superRepo, AdminRepository adminRepo,
+                           PasswordEncoder encoder, RolePermissionService rolePermissionService,
+                           com.iptv.wiseplayer.repository.ResellerPricingTierRepository pricingTierRepository) {
         this.superRepo = superRepo;
         this.adminRepo = adminRepo;
         this.encoder = encoder;
+        this.rolePermissionService = rolePermissionService;
+        this.pricingTierRepository = pricingTierRepository;
     }
 
     /**
@@ -41,6 +48,10 @@ public class DataInitializer {
     @Transactional
     public List<String> seedData() {
         List<String> results = new ArrayList<>();
+
+        // Seed role_permissions defaults (idempotent – skips existing rows)
+        rolePermissionService.seedDefaults();
+        results.add("Role permission defaults seeded.");
 
         // Seed SuperAdmin
         if (superRepo.count() == 0) {
@@ -83,6 +94,24 @@ public class DataInitializer {
             results.add("Test Reseller seeded: reseller@test.com");
         } else {
             results.add("Test Reseller already exists, skipping.");
+        }
+
+        // Seed Default Pricing Tiers
+        if (pricingTierRepository.count() == 0) {
+            java.util.List<com.iptv.wiseplayer.domain.entity.ResellerPricingTier> tiers = java.util.List.of(
+                com.iptv.wiseplayer.domain.entity.ResellerPricingTier.builder().name("STANDARD").minQuantity(10).maxQuantity(10).unitPrice(new java.math.BigDecimal("2.50")).build(),
+                com.iptv.wiseplayer.domain.entity.ResellerPricingTier.builder().name("STARTER").minQuantity(11).maxQuantity(49).unitPrice(new java.math.BigDecimal("2.20")).build(),
+                com.iptv.wiseplayer.domain.entity.ResellerPricingTier.builder().name("PRO").minQuantity(50).maxQuantity(99).unitPrice(new java.math.BigDecimal("2.00")).build(),
+                com.iptv.wiseplayer.domain.entity.ResellerPricingTier.builder().name("ELITE").minQuantity(100).maxQuantity(199).unitPrice(new java.math.BigDecimal("1.75")).build(),
+                com.iptv.wiseplayer.domain.entity.ResellerPricingTier.builder().name("WHOLESALE").minQuantity(200).maxQuantity(499).unitPrice(new java.math.BigDecimal("1.50")).build(),
+                com.iptv.wiseplayer.domain.entity.ResellerPricingTier.builder().name("MEGA").minQuantity(500).maxQuantity(999).unitPrice(new java.math.BigDecimal("1.25")).build(),
+                com.iptv.wiseplayer.domain.entity.ResellerPricingTier.builder().name("ENTERPRISE").minQuantity(1000).maxQuantity(null).unitPrice(new java.math.BigDecimal("1.00")).build()
+            );
+            pricingTierRepository.saveAll(tiers);
+            log.info("Default Reseller Pricing Tiers seeded.");
+            results.add("Default Reseller Pricing Tiers seeded.");
+        } else {
+            results.add("Reseller Pricing Tiers already exist, skipping.");
         }
 
         return results;
