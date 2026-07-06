@@ -136,6 +136,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
                         // Reseller Endpoints
+                        .requestMatchers("/api/reseller/verify-email", "/api/reseller/resend-otp")
+                        .hasAnyAuthority("ROLE_RESELLER", "ROLE_SUB_RESELLER")
                         .requestMatchers("/api/reseller/**")
                         .hasAuthority("ROLE_RESELLER")
 
