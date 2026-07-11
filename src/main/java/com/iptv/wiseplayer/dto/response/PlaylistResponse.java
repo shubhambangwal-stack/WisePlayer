@@ -13,12 +13,13 @@ public class PlaylistResponse {
     private String username;
     private String password;
     private String m3uUrl;
+    private boolean pinned;
 
     public PlaylistResponse() {
     }
 
     public PlaylistResponse(UUID id, UUID deviceId, String name, PlaylistType type, String serverUrl, String username,
-            String password, String m3uUrl) {
+            String password, String m3uUrl, boolean pinned) {
         this.id = id;
         this.deviceId = deviceId;
         this.name = name;
@@ -27,6 +28,7 @@ public class PlaylistResponse {
         this.username = username;
         this.password = password;
         this.m3uUrl = m3uUrl;
+        this.pinned = pinned;
     }
 
     public UUID getId() {
@@ -91,5 +93,13 @@ public class PlaylistResponse {
 
     public void setM3uUrl(String m3uUrl) {
         this.m3uUrl = m3uUrl;
+    }
+
+    public boolean isPinned() {
+        return pinned;
+    }
+
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
     }
 }

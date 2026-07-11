@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -202,7 +204,7 @@ public class PlaylistServiceImpl implements PlaylistService {
             throw new AccessDeniedException("Access Denied: Your device status is " + device.getDeviceStatus());
         }
 
-        return playlistRepository.findByDeviceId(deviceId).stream()
+        return playlistRepository.findByDeviceIdOrderByPinnedDescCreatedAtDesc(deviceId).stream()
                 .map(this::mapToResponse)
                 .collect(java.util.stream.Collectors.toList());
     }
@@ -290,7 +292,8 @@ public class PlaylistServiceImpl implements PlaylistService {
                 serverUrl,
                 username,
                 password,
-                m3uUrl);
+                m3uUrl,
+                playlist.isPinned());
     }
 
     private void validateM3uUrl(String urlString) {
@@ -332,5 +335,75 @@ public class PlaylistServiceImpl implements PlaylistService {
             log.error("Network error during M3U validation: {}", e.getMessage());
             throw new BadRequestException("Error connecting to the M3U URL: " + e.getMessage());
         }
+    }
+
+    // ── Pin / Unpin ──────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public PlaylistResponse pinPlaylist(UUID deviceId, UUID playlistId) {
+        log.info("Pinning playlist {} for device {}", playlistId, deviceId);
+
+        // Unpin any currently pinned playlist for this device (one-pin-per-device)
+        playlistRepository.findByDeviceIdAndPinnedTrue(deviceId).ifPresent(current -> {
+            if (!current.getId().equals(playlistId)) {
+                current.setPinned(false);
+                playlistRepository.save(current);
+                log.debug("Auto-unpinned previous playlist {} for device {}", current.getId(), deviceId);
+            }
+        });
+
+        Playlist target = playlistRepository.findByIdAndDeviceId(playlistId, deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+
+        target.setPinned(true);
+        return mapToResponse(playlistRepository.save(target));
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse unpinPlaylist(UUID deviceId, UUID playlistId) {
+        log.info("Unpinning playlist {} for device {}", playlistId, deviceId);
+
+        Playlist target = playlistRepository.findByIdAndDeviceId(playlistId, deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+
+        target.setPinned(false);
+        return mapToResponse(playlistRepository.save(target));
+    }
+
+    @Override
+    public Optional<PlaylistResponse> getPinnedPlaylist(UUID deviceId) {
+        // Validate device is active first
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Internal Security Error: Authenticated device not found in database"));
+
+        if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
+            throw new AccessDeniedException("Access Denied: Your device status is " + device.getDeviceStatus());
+        }
+
+        return playlistRepository.findByDeviceIdAndPinnedTrue(deviceId)
+                .map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse pinPublicPlaylist(String deviceId, UUID playlistId) {
+        Device device = resolveDevice(deviceId);
+        return pinPlaylist(device.getDeviceId(), playlistId);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse unpinPublicPlaylist(String deviceId, UUID playlistId) {
+        Device device = resolveDevice(deviceId);
+        return unpinPlaylist(device.getDeviceId(), playlistId);
+    }
+
+    @Override
+    public Optional<PlaylistResponse> getPublicPinnedPlaylist(String deviceId) {
+        Device device = resolveDevice(deviceId);
+        return getPinnedPlaylist(device.getDeviceId());
     }
 }
