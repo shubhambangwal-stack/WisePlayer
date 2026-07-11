@@ -1,16 +1,19 @@
 package com.iptv.wiseplayer.controller.admin;
 
+import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.dto.request.AssignPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
-import com.iptv.wiseplayer.security.AdminTokenUtil;
+import com.iptv.wiseplayer.exception.ResourceNotFoundException;
+import com.iptv.wiseplayer.repository.AdminRepository;
+import com.iptv.wiseplayer.repository.SuperAdminRepository;
 import com.iptv.wiseplayer.service.AdminPlaylistService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,20 +26,28 @@ import java.util.UUID;
 public class AdminPlaylistController {
 
     private final AdminPlaylistService adminPlaylistService;
-    private final AdminTokenUtil adminTokenUtil;
+    private final AdminRepository adminRepository;
+    private final SuperAdminRepository superAdminRepository;
 
-    public AdminPlaylistController(AdminPlaylistService adminPlaylistService, AdminTokenUtil adminTokenUtil) {
+    public AdminPlaylistController(AdminPlaylistService adminPlaylistService,
+                                   AdminRepository adminRepository,
+                                   SuperAdminRepository superAdminRepository) {
         this.adminPlaylistService = adminPlaylistService;
-        this.adminTokenUtil = adminTokenUtil;
+        this.adminRepository = adminRepository;
+        this.superAdminRepository = superAdminRepository;
     }
 
-    private UUID getAdminId(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            return adminTokenUtil.extractAdminId(token);
-        }
-        throw new RuntimeException("Unauthorized");
+    /**
+     * Resolves the current admin's UUID from the Spring Security context.
+     * Tries AdminRepository first, then SuperAdminRepository.
+     */
+    private UUID getCurrentAdminId() {
+        String identifier = SecurityContextHolder.getContext().getAuthentication().getName();
+        return adminRepository.findByUsername(identifier)
+                .map(Admin::getId)
+                .or(() -> superAdminRepository.findByUsername(identifier)
+                        .map(com.iptv.wiseplayer.domain.entity.SuperAdmin::getId))
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found for: " + identifier));
     }
 
     @Operation(summary = "Get all playlists")
@@ -47,15 +58,15 @@ public class AdminPlaylistController {
 
     @Operation(summary = "Create Xtream playlist")
     @PostMapping("/xtream")
-    public ResponseEntity<?> createXtreamPlaylist(HttpServletRequest httpRequest, @Valid @RequestBody XtreamPlaylistRequest request) {
-        PlaylistResponse response = adminPlaylistService.createXtreamPlaylist(getAdminId(httpRequest), request);
+    public ResponseEntity<?> createXtreamPlaylist(@Valid @RequestBody XtreamPlaylistRequest request) {
+        PlaylistResponse response = adminPlaylistService.createXtreamPlaylist(getCurrentAdminId(), request);
         return ResponseEntity.ok(Map.of("success", true, "data", response));
     }
 
     @Operation(summary = "Create M3U playlist")
     @PostMapping("/m3u")
-    public ResponseEntity<?> createM3uPlaylist(HttpServletRequest httpRequest, @Valid @RequestBody M3uPlaylistRequest request) {
-        PlaylistResponse response = adminPlaylistService.createM3uPlaylist(getAdminId(httpRequest), request);
+    public ResponseEntity<?> createM3uPlaylist(@Valid @RequestBody M3uPlaylistRequest request) {
+        PlaylistResponse response = adminPlaylistService.createM3uPlaylist(getCurrentAdminId(), request);
         return ResponseEntity.ok(Map.of("success", true, "data", response));
     }
 
