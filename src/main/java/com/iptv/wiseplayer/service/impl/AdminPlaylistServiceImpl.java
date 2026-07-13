@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -83,11 +84,33 @@ public class AdminPlaylistServiceImpl implements AdminPlaylistService {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
 
-        Device device = deviceRepository.findById(request.getDeviceId())
-                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        Device device = resolveDevice(request.getDeviceId());
 
         playlist.setDeviceId(device.getDeviceId());
         return mapToResponse(playlistRepository.save(playlist));
+    }
+
+    /**
+     * Resolve a device by either its UUID or its MAC address.
+     *
+     * @param deviceIdentifier a UUID string (36 chars) or a MAC address (XX:XX:XX:XX:XX:XX)
+     * @return the matching Device
+     * @throws ResourceNotFoundException if no device matches
+     */
+    private Device resolveDevice(String deviceIdentifier) {
+        Optional<Device> device;
+        if (deviceIdentifier != null && deviceIdentifier.contains("-")) {
+            // Treat as UUID
+            try {
+                device = deviceRepository.findById(UUID.fromString(deviceIdentifier));
+            } catch (IllegalArgumentException e) {
+                throw new ResourceNotFoundException("Device not found: invalid UUID format");
+            }
+        } else {
+            // Treat as MAC address
+            device = deviceRepository.findByMacAddressIgnoreCase(deviceIdentifier);
+        }
+        return device.orElseThrow(() -> new ResourceNotFoundException("Device not found"));
     }
 
     @Override
