@@ -3,6 +3,7 @@ package com.iptv.wiseplayer.controller.admin;
 import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.dto.request.AssignPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
+import com.iptv.wiseplayer.dto.request.UpdatePlaylistRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
@@ -56,6 +57,13 @@ public class AdminPlaylistController {
         return ResponseEntity.ok(adminPlaylistService.getAllPlaylists());
     }
 
+    @Operation(summary = "Get playlist by ID")
+    @GetMapping("/{playlistId}")
+    public ResponseEntity<?> getPlaylistById(@PathVariable UUID playlistId) {
+        PlaylistResponse response = adminPlaylistService.getPlaylistById(playlistId);
+        return ResponseEntity.ok(Map.of("success", true, "data", response));
+    }
+
     @Operation(summary = "Create Xtream playlist")
     @PostMapping("/xtream")
     public ResponseEntity<?> createXtreamPlaylist(@Valid @RequestBody XtreamPlaylistRequest request) {
@@ -70,11 +78,34 @@ public class AdminPlaylistController {
         return ResponseEntity.ok(Map.of("success", true, "data", response));
     }
 
+    @Operation(summary = "Update playlist (partial update — only include fields to change)")
+    @PatchMapping("/{playlistId}")
+    public ResponseEntity<?> updatePlaylist(@PathVariable UUID playlistId,
+                                            @RequestBody UpdatePlaylistRequest request) {
+        PlaylistResponse response = adminPlaylistService.updatePlaylist(playlistId, request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Playlist updated successfully", "data", response));
+    }
+
     @Operation(summary = "Assign playlist to device")
     @PutMapping("/{playlistId}/assign")
     public ResponseEntity<?> assignPlaylist(@PathVariable UUID playlistId, @Valid @RequestBody AssignPlaylistRequest request) {
         PlaylistResponse response = adminPlaylistService.assignPlaylist(playlistId, request);
         return ResponseEntity.ok(Map.of("success", true, "message", "Playlist assigned successfully", "data", response));
+    }
+
+    @Operation(summary = "Unassign playlist from its current device")
+    @DeleteMapping("/{playlistId}/assign")
+    public ResponseEntity<?> unassignPlaylist(@PathVariable UUID playlistId) {
+        PlaylistResponse response = adminPlaylistService.unassignPlaylist(playlistId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Playlist unassigned successfully", "data", response));
+    }
+
+    @Operation(summary = "Toggle pin state of a playlist")
+    @PatchMapping("/{playlistId}/pin")
+    public ResponseEntity<?> togglePin(@PathVariable UUID playlistId) {
+        PlaylistResponse response = adminPlaylistService.togglePin(playlistId);
+        String message = response.isPinned() ? "Playlist pinned successfully" : "Playlist unpinned successfully";
+        return ResponseEntity.ok(Map.of("success", true, "message", message, "data", response));
     }
 
     @Operation(summary = "Delete playlist")

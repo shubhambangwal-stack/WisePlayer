@@ -6,6 +6,7 @@ import com.iptv.wiseplayer.domain.enums.OwnerType;
 import com.iptv.wiseplayer.domain.enums.PlaylistType;
 import com.iptv.wiseplayer.dto.request.AssignPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
+import com.iptv.wiseplayer.dto.request.UpdatePlaylistRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import com.iptv.wiseplayer.exception.AccessDeniedException;
@@ -39,12 +40,23 @@ public class ResellerPlaylistServiceImpl implements ResellerPlaylistService {
         this.xtreamClient = xtreamClient;
     }
 
+    // ─── Read ────────────────────────────────────────────────────────────────
+
     @Override
     public List<PlaylistResponse> getPlaylists(UUID resellerId, OwnerType ownerType) {
         return playlistRepository.findByOwnerIdAndOwnerTypeOrderByCreatedAtDesc(resellerId, ownerType).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public PlaylistResponse getPlaylistById(UUID resellerId, OwnerType ownerType, UUID playlistId) {
+        Playlist playlist = playlistRepository.findByIdAndOwnerIdAndOwnerType(playlistId, resellerId, ownerType)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or you don't have permission to view it"));
+        return mapToResponse(playlist);
+    }
+
+    // ─── Create ──────────────────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -79,6 +91,39 @@ public class ResellerPlaylistServiceImpl implements ResellerPlaylistService {
         return mapToResponse(saved);
     }
 
+    // ─── Update ──────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public PlaylistResponse updatePlaylist(UUID resellerId, OwnerType ownerType, UUID playlistId, UpdatePlaylistRequest request) {
+        Playlist playlist = playlistRepository.findByIdAndOwnerIdAndOwnerType(playlistId, resellerId, ownerType)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or you don't have permission to update it"));
+
+        if (request.getName() != null && !request.getName().isBlank()) {
+            playlist.setName(request.getName());
+        }
+
+        if (playlist.getType() == PlaylistType.XTREAM) {
+            if (request.getServerUrl() != null && !request.getServerUrl().isBlank()) {
+                playlist.setServerUrl(encryptionUtil.encrypt(request.getServerUrl()));
+            }
+            if (request.getUsername() != null && !request.getUsername().isBlank()) {
+                playlist.setUsername(encryptionUtil.encrypt(request.getUsername()));
+            }
+            if (request.getPassword() != null && !request.getPassword().isBlank()) {
+                playlist.setPassword(encryptionUtil.encrypt(request.getPassword()));
+            }
+        } else if (playlist.getType() == PlaylistType.M3U) {
+            if (request.getM3uUrl() != null && !request.getM3uUrl().isBlank()) {
+                playlist.setM3uUrl(encryptionUtil.encrypt(request.getM3uUrl()));
+            }
+        }
+
+        return mapToResponse(playlistRepository.save(playlist));
+    }
+
+    // ─── Assign / Unassign ───────────────────────────────────────────────────
+
     @Override
     @Transactional
     public PlaylistResponse assignPlaylist(UUID resellerId, OwnerType ownerType, UUID playlistId, AssignPlaylistRequest request) {
@@ -94,6 +139,40 @@ public class ResellerPlaylistServiceImpl implements ResellerPlaylistService {
         playlist.setDeviceId(device.getDeviceId());
         return mapToResponse(playlistRepository.save(playlist));
     }
+
+    @Override
+    @Transactional
+    public PlaylistResponse unassignPlaylist(UUID resellerId, OwnerType ownerType, UUID playlistId) {
+        Playlist playlist = playlistRepository.findByIdAndOwnerIdAndOwnerType(playlistId, resellerId, ownerType)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or you don't have permission to unassign it"));
+
+        playlist.setDeviceId(null);
+        return mapToResponse(playlistRepository.save(playlist));
+    }
+
+    // ─── Pin ─────────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public PlaylistResponse togglePin(UUID resellerId, OwnerType ownerType, UUID playlistId) {
+        Playlist playlist = playlistRepository.findByIdAndOwnerIdAndOwnerType(playlistId, resellerId, ownerType)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or you don't have permission to pin it"));
+
+        playlist.setPinned(!playlist.isPinned());
+        return mapToResponse(playlistRepository.save(playlist));
+    }
+
+    // ─── Delete ──────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void deletePlaylist(UUID resellerId, OwnerType ownerType, UUID playlistId) {
+        Playlist playlist = playlistRepository.findByIdAndOwnerIdAndOwnerType(playlistId, resellerId, ownerType)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or you don't have permission to delete it"));
+        playlistRepository.delete(playlist);
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     /**
      * Resolve a device by either its UUID or its MAC address.
@@ -116,14 +195,6 @@ public class ResellerPlaylistServiceImpl implements ResellerPlaylistService {
             device = deviceRepository.findByMacAddressIgnoreCase(deviceIdentifier);
         }
         return device.orElseThrow(() -> new ResourceNotFoundException("Device not found"));
-    }
-
-    @Override
-    @Transactional
-    public void deletePlaylist(UUID resellerId, OwnerType ownerType, UUID playlistId) {
-        Playlist playlist = playlistRepository.findByIdAndOwnerIdAndOwnerType(playlistId, resellerId, ownerType)
-                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or you don't have permission to delete it"));
-        playlistRepository.delete(playlist);
     }
 
     private PlaylistResponse mapToResponse(Playlist playlist) {

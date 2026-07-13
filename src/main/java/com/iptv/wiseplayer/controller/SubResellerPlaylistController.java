@@ -4,6 +4,7 @@ import com.iptv.wiseplayer.domain.entity.Admin;
 import com.iptv.wiseplayer.domain.enums.OwnerType;
 import com.iptv.wiseplayer.dto.request.AssignPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
+import com.iptv.wiseplayer.dto.request.UpdatePlaylistRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
@@ -13,7 +14,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,6 +51,13 @@ public class SubResellerPlaylistController {
         return ResponseEntity.ok(resellerPlaylistService.getPlaylists(getCurrentSubResellerId(), OwnerType.SUB_RESELLER));
     }
 
+    @GetMapping("/{playlistId}")
+    @Operation(summary = "Get playlist by ID")
+    public ResponseEntity<?> getPlaylistById(@PathVariable UUID playlistId) {
+        PlaylistResponse response = resellerPlaylistService.getPlaylistById(getCurrentSubResellerId(), OwnerType.SUB_RESELLER, playlistId);
+        return ResponseEntity.ok(Map.of("success", true, "data", response));
+    }
+
     @PostMapping("/xtream")
     @Operation(summary = "Create Xtream playlist")
     public ResponseEntity<?> createXtreamPlaylist(@Valid @RequestBody XtreamPlaylistRequest request) {
@@ -65,11 +72,34 @@ public class SubResellerPlaylistController {
         return ResponseEntity.ok(Map.of("success", true, "data", response));
     }
 
+    @PatchMapping("/{playlistId}")
+    @Operation(summary = "Update playlist (partial update — only include fields to change)")
+    public ResponseEntity<?> updatePlaylist(@PathVariable UUID playlistId,
+                                            @RequestBody UpdatePlaylistRequest request) {
+        PlaylistResponse response = resellerPlaylistService.updatePlaylist(getCurrentSubResellerId(), OwnerType.SUB_RESELLER, playlistId, request);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Playlist updated successfully", "data", response));
+    }
+
     @PutMapping("/{playlistId}/assign")
     @Operation(summary = "Assign playlist to a device")
     public ResponseEntity<?> assignPlaylist(@PathVariable UUID playlistId, @Valid @RequestBody AssignPlaylistRequest request) {
         PlaylistResponse response = resellerPlaylistService.assignPlaylist(getCurrentSubResellerId(), OwnerType.SUB_RESELLER, playlistId, request);
         return ResponseEntity.ok(Map.of("success", true, "message", "Playlist assigned successfully", "data", response));
+    }
+
+    @DeleteMapping("/{playlistId}/assign")
+    @Operation(summary = "Unassign playlist from its current device")
+    public ResponseEntity<?> unassignPlaylist(@PathVariable UUID playlistId) {
+        PlaylistResponse response = resellerPlaylistService.unassignPlaylist(getCurrentSubResellerId(), OwnerType.SUB_RESELLER, playlistId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Playlist unassigned successfully", "data", response));
+    }
+
+    @PatchMapping("/{playlistId}/pin")
+    @Operation(summary = "Toggle pin state of a playlist")
+    public ResponseEntity<?> togglePin(@PathVariable UUID playlistId) {
+        PlaylistResponse response = resellerPlaylistService.togglePin(getCurrentSubResellerId(), OwnerType.SUB_RESELLER, playlistId);
+        String message = response.isPinned() ? "Playlist pinned successfully" : "Playlist unpinned successfully";
+        return ResponseEntity.ok(Map.of("success", true, "message", message, "data", response));
     }
 
     @DeleteMapping("/{playlistId}")

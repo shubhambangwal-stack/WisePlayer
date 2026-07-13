@@ -1,0 +1,338 @@
+{
+  "info": {
+    "name": "WisePlayer Playlist Management",
+    "_postman_id": "wiseplayer-playlist-collection-v2",
+    "description": "Complete CRUD playlist management for Admin, Reseller, and Sub-Reseller roles.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",           "value": "http://localhost:8081" },
+    { "key": "adminToken",        "value": "" },
+    { "key": "resellerToken",     "value": "" },
+    { "key": "subResellerToken",  "value": "" },
+    { "key": "adminPlaylistId",   "value": "" },
+    { "key": "resellerPlaylistId","value": "" },
+    { "key": "subResellerPlaylistId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get All Playlists",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists"] }
+          }
+        },
+        {
+          "name": "Get Playlist By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists/{{adminPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","{{adminPlaylistId}}"] }
+          }
+        },
+        {
+          "name": "Create Xtream Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Xtream Playlist\",\n  \"serverUrl\": \"http://xtream-server.com\",\n  \"username\": \"xtream_user\",\n  \"password\": \"xtream_pass\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists/xtream", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","xtream"] }
+          }
+        },
+        {
+          "name": "Create M3U Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My M3U Playlist\",\n  \"m3uUrl\": \"http://example.com/playlist.m3u\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists/m3u", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","m3u"] }
+          }
+        },
+        {
+          "name": "Update Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Playlist Name\",\n  \"serverUrl\": \"http://new-server.com\",\n  \"username\": \"new_user\",\n  \"password\": \"new_pass\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists/{{adminPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","{{adminPlaylistId}}"] },
+            "description": "Partial update — only include fields you want to change. For M3U playlists use 'm3uUrl' instead of Xtream fields."
+          }
+        },
+        {
+          "name": "Assign Playlist to Device",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"3e2b1c4d-39a5-4f73-b6a1-e87a2521091d\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists/{{adminPlaylistId}}/assign", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","{{adminPlaylistId}}","assign"] },
+            "description": "Accepts UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) or MAC address (XX:XX:XX:XX:XX:XX)."
+          }
+        },
+        {
+          "name": "Unassign Playlist from Device",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists/{{adminPlaylistId}}/assign", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","{{adminPlaylistId}}","assign"] }
+          }
+        },
+        {
+          "name": "Toggle Pin Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists/{{adminPlaylistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","{{adminPlaylistId}}","pin"] },
+            "description": "Toggles pinned state. Call again to unpin."
+          }
+        },
+        {
+          "name": "Delete Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/playlists/{{adminPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","{{adminPlaylistId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reseller",
+      "item": [
+        {
+          "name": "Get Reseller Playlists",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists"] }
+          }
+        },
+        {
+          "name": "Get Playlist By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists/{{resellerPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists","{{resellerPlaylistId}}"] }
+          }
+        },
+        {
+          "name": "Create Xtream Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Xtream Playlist\",\n  \"serverUrl\": \"http://xtream-server.com\",\n  \"username\": \"xtream_user\",\n  \"password\": \"xtream_pass\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists/xtream", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists","xtream"] }
+          }
+        },
+        {
+          "name": "Create M3U Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My M3U Playlist\",\n  \"m3uUrl\": \"http://example.com/playlist.m3u\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists/m3u", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists","m3u"] }
+          }
+        },
+        {
+          "name": "Update Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Playlist Name\",\n  \"serverUrl\": \"http://new-server.com\",\n  \"username\": \"new_user\",\n  \"password\": \"new_pass\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists/{{resellerPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists","{{resellerPlaylistId}}"] }
+          }
+        },
+        {
+          "name": "Assign Playlist to Device",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"3E:B0:BD:00:DE:9B\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists/{{resellerPlaylistId}}/assign", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists","{{resellerPlaylistId}}","assign"] },
+            "description": "Accepts UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) or MAC address (XX:XX:XX:XX:XX:XX)."
+          }
+        },
+        {
+          "name": "Unassign Playlist from Device",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists/{{resellerPlaylistId}}/assign", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists","{{resellerPlaylistId}}","assign"] }
+          }
+        },
+        {
+          "name": "Toggle Pin Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists/{{resellerPlaylistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists","{{resellerPlaylistId}}","pin"] }
+          }
+        },
+        {
+          "name": "Delete Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reseller/playlists/{{resellerPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","reseller","playlists","{{resellerPlaylistId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sub-Reseller",
+      "item": [
+        {
+          "name": "Get Sub-Reseller Playlists",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists"] }
+          }
+        },
+        {
+          "name": "Get Playlist By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{subResellerPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists","{{subResellerPlaylistId}}"] }
+          }
+        },
+        {
+          "name": "Create Xtream Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Xtream Playlist\",\n  \"serverUrl\": \"http://xtream-server.com\",\n  \"username\": \"xtream_user\",\n  \"password\": \"xtream_pass\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists/xtream", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists","xtream"] }
+          }
+        },
+        {
+          "name": "Create M3U Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My M3U Playlist\",\n  \"m3uUrl\": \"http://example.com/playlist.m3u\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists/m3u", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists","m3u"] }
+          }
+        },
+        {
+          "name": "Update Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Playlist Name\",\n  \"m3uUrl\": \"http://example.com/new-playlist.m3u\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{subResellerPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists","{{subResellerPlaylistId}}"] }
+          }
+        },
+        {
+          "name": "Assign Playlist to Device",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"3E:B0:BD:00:DE:9B\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{subResellerPlaylistId}}/assign", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists","{{subResellerPlaylistId}}","assign"] }
+          }
+        },
+        {
+          "name": "Unassign Playlist from Device",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{subResellerPlaylistId}}/assign", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists","{{subResellerPlaylistId}}","assign"] }
+          }
+        },
+        {
+          "name": "Toggle Pin Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{subResellerPlaylistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists","{{subResellerPlaylistId}}","pin"] }
+          }
+        },
+        {
+          "name": "Delete Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{subResellerPlaylistId}}", "host": ["{{baseUrl}}"], "path": ["api","sub-reseller","playlists","{{subResellerPlaylistId}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}
