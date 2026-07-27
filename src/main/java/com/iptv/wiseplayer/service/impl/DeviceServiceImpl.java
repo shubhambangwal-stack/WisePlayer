@@ -179,14 +179,17 @@ public class DeviceServiceImpl implements DeviceService {
 
         String message = determineValidationMessage(device);
 
+        DeviceStatus responseStatus = device.getDeviceStatus();
         SubscriptionType responseType = device.getSubscriptionType();
+        
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
             responseType = SubscriptionType.EXPIRED;
+            responseStatus = DeviceStatus.INACTIVE;
         }
 
         DeviceValidationResponse response = new DeviceValidationResponse(
                 device.getDeviceId(),
-                device.getDeviceStatus(),
+                responseStatus,
                 responseType,
                 null,
                 allowed,
@@ -285,14 +288,17 @@ public class DeviceServiceImpl implements DeviceService {
         }
         String message = determineValidationMessage(device);
 
+        DeviceStatus responseStatus = device.getDeviceStatus();
         SubscriptionType responseType = device.getSubscriptionType();
+        
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
             responseType = SubscriptionType.EXPIRED;
+            responseStatus = DeviceStatus.INACTIVE;
         }
 
         return new DeviceValidationResponse(
                 device.getDeviceId(),
-                device.getDeviceStatus(),
+                responseStatus,
                 responseType,
                 newAccessToken,
                 allowed,
