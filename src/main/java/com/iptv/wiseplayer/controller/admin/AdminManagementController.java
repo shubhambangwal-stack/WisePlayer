@@ -89,11 +89,13 @@ public class AdminManagementController {
         return ResponseEntity.ok("Admin account created successfully. You can now login.");
     }
 
-    @Operation(summary = "Get All Admins", description = "Retrieves a list of all admins. Accessible by SUPER_ADMIN.")
+    @Operation(summary = "Get All Admins", description = "Retrieves a list of all accounts where role = ADMIN. Accessible by SUPER_ADMIN.")
     @GetMapping("/all")
     public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.AdminResponse>> getAllAdmins() {
         return ResponseEntity.ok(adminManagementService.getAllAdmins());
     }
+
+
 
     @Operation(summary = "Get Admin by ID", description = "Retrieves details of a specific admin by UUID. Accessible by SUPER_ADMIN.")
     @GetMapping("/{id}")
