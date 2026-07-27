@@ -88,4 +88,47 @@ public class AdminManagementController {
 
         return ResponseEntity.ok("Admin account created successfully. You can now login.");
     }
+
+    @Operation(summary = "Get All Admins", description = "Retrieves a list of all admins. Accessible by SUPER_ADMIN.")
+    @GetMapping("/all")
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.AdminResponse>> getAllAdmins() {
+        return ResponseEntity.ok(adminManagementService.getAllAdmins());
+    }
+
+    @Operation(summary = "Get Admin by ID", description = "Retrieves details of a specific admin by UUID. Accessible by SUPER_ADMIN.")
+    @GetMapping("/{id}")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.AdminResponse> getAdminById(@PathVariable UUID id) {
+        return ResponseEntity.ok(adminManagementService.getAdminById(id));
+    }
+
+    @Operation(summary = "Create Admin Direct", description = "Directly creates a new admin account without email invite workflow. Accessible by SUPER_ADMIN.")
+    @PostMapping("/create")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.AdminResponse> createAdminDirect(@Valid @RequestBody com.iptv.wiseplayer.dto.request.CreateAdminRequest request) {
+        return ResponseEntity.ok(adminManagementService.createAdminDirect(request));
+    }
+
+    @Operation(summary = "Update Admin", description = "Updates details, role, permissions, status or credits of an existing admin by UUID. Accessible by SUPER_ADMIN.")
+    @PutMapping("/{id}")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.AdminResponse> updateAdmin(
+            @PathVariable UUID id,
+            @RequestBody com.iptv.wiseplayer.dto.request.UpdateAdminRequest request) {
+        return ResponseEntity.ok(adminManagementService.updateAdmin(id, request));
+    }
+
+    @Operation(summary = "Toggle Admin Status", description = "Toggles active/inactive status of an admin by UUID. Accessible by SUPER_ADMIN.")
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.AdminResponse> toggleAdminStatus(@PathVariable UUID id) {
+        return ResponseEntity.ok(adminManagementService.toggleAdminStatus(id));
+    }
+
+    @Operation(summary = "Delete Admin", description = "Permanently deletes an admin account by UUID. Accessible by SUPER_ADMIN.")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> deleteAdmin(@PathVariable UUID id) {
+        adminManagementService.deleteAdmin(id);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Admin deleted successfully"
+        ));
+    }
 }
+

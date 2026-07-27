@@ -41,6 +41,15 @@ public class DataInitializer {
     }
 
     /**
+     * Automatically run seed data when the application starts.
+     */
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public void seedOnStartup() {
+        log.info("Application started. Running auto-seed...");
+        seedData();
+    }
+
+    /**
      * Seeds default SuperAdmin, Admin, and Test Reseller accounts if they don't already exist.
      *
      * @return List of messages describing what was seeded.

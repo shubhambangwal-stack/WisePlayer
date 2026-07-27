@@ -70,9 +70,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(java.util.List.of("*"));
-        configuration.setAllowedMethods(java.util.List.of("*"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
-        configuration.setAllowCredentials(false);
+        configuration.setExposedHeaders(java.util.List.of("Authorization", "Link", "X-Total-Count", "ngrok-skip-browser-warning"));
+        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

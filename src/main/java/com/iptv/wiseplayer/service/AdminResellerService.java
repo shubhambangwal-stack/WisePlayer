@@ -14,6 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.iptv.wiseplayer.security.CrudOperation;
 import com.iptv.wiseplayer.security.CrudPermissionGuard;
 import com.iptv.wiseplayer.security.RequiresCrud;
+import com.iptv.wiseplayer.repository.AdminAuditLogRepository;
+import com.iptv.wiseplayer.dto.response.CrudPermissionViewResponse;
+import com.iptv.wiseplayer.dto.response.RolePermissionViewDTO;
+import com.iptv.wiseplayer.dto.response.AdminPermissionViewDTO;
+import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,6 +37,7 @@ public class AdminResellerService {
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
     private final com.iptv.wiseplayer.repository.RolePermissionRepository rolePermissionRepository;
     private final CrudPermissionGuard crudPermissionGuard;
+    private final AdminAuditLogRepository adminAuditLogRepository;
 
     public AdminResellerService(AdminRepository adminRepository,
                                 DeviceRepository deviceRepository,
@@ -40,7 +47,8 @@ public class AdminResellerService {
                                 com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
                                 com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository,
                                 com.iptv.wiseplayer.repository.RolePermissionRepository rolePermissionRepository,
-                                CrudPermissionGuard crudPermissionGuard) {
+                                CrudPermissionGuard crudPermissionGuard,
+                                AdminAuditLogRepository adminAuditLogRepository) {
         this.adminRepository = adminRepository;
         this.deviceRepository = deviceRepository;
         this.creditTransactionRepository = creditTransactionRepository;
@@ -50,6 +58,7 @@ public class AdminResellerService {
         this.superAdminRepository = superAdminRepository;
         this.rolePermissionRepository = rolePermissionRepository;
         this.crudPermissionGuard = crudPermissionGuard;
+        this.adminAuditLogRepository = adminAuditLogRepository;
     }
 
     public Page<ResellerResponse> getAllResellers(
@@ -295,6 +304,12 @@ public class AdminResellerService {
         adminRepository.updatePermissionsByRole(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
         // 2. Sync the role_permissions defaults table so future registrations are consistent
         syncRolePermissionsTable(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
+
+        // 3. Log the audit action
+        com.iptv.wiseplayer.domain.entity.AdminAuditLog log = new com.iptv.wiseplayer.domain.entity.AdminAuditLog(
+                currentAdmin.getId(), "ROLE_" + targetRole.name(), "CRUD_UPDATE", null
+        );
+        adminAuditLogRepository.save(log);
     }
 
     /**
@@ -334,6 +349,16 @@ public class AdminResellerService {
         if (request.getCanDelete() != null) target.setCanDelete(request.getCanDelete());
 
         adminRepository.save(target);
+
+        if (superAdminOpt.isEmpty()) {
+            Admin currentAdmin = adminRepository.findByUsername(currentUsername).orElse(null);
+            if (currentAdmin != null) {
+                com.iptv.wiseplayer.domain.entity.AdminAuditLog log = new com.iptv.wiseplayer.domain.entity.AdminAuditLog(
+                        currentAdmin.getId(), target.getEmail(), "CRUD_UPDATE", null
+                );
+                adminAuditLogRepository.save(log);
+            }
+        }
     }
 
     /**
@@ -365,5 +390,77 @@ public class AdminResellerService {
         response.setTotalUsers(deviceRepository.countByResellerId(admin.getId()));
         response.setCredits(admin.getCredits());
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public CrudPermissionViewResponse getCrudPermissionsView() {
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        
+        AdminRole currentRole;
+        UUID currentAdminId = null;
+        
+        java.util.Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository.findByUsername(currentUsername);
+        if (superAdminOpt.isPresent()) {
+            currentRole = AdminRole.SUPER_ADMIN;
+        } else {
+            Admin currentAdmin = adminRepository.findByUsername(currentUsername)
+                    .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
+            currentRole = currentAdmin.getRole();
+            currentAdminId = currentAdmin.getId();
+        }
+
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        final UUID performerId = currentAdminId;
+
+        // 1. Role Defaults for lower roles
+        List<RolePermissionViewDTO> rolePermissions = Arrays.stream(AdminRole.values())
+                .filter(role -> currentRole.canManage(role))
+                .map(role -> {
+                    com.iptv.wiseplayer.domain.entity.RolePermission rp = rolePermissionRepository.findByRole(role)
+                            .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(role));
+                    
+                    RolePermissionViewDTO dto = new RolePermissionViewDTO();
+                    dto.setRole(role);
+                    dto.setCanCreate(rp.isCanCreate());
+                    dto.setCanRead(rp.isCanRead());
+                    dto.setCanUpdate(rp.isCanUpdate());
+                    dto.setCanDelete(rp.isCanDelete());
+                    dto.setUpdatedAt(rp.getUpdatedAt());
+                    
+                    if (performerId != null) {
+                        dto.setRecentlyChangedByMe(adminAuditLogRepository.hasRecentAction(performerId, "ROLE_" + role.name(), "CRUD_UPDATE", sevenDaysAgo));
+                    }
+                    return dto;
+                }).collect(Collectors.toList());
+
+        // 2. Individual Admin Permissions for lower roles
+        List<Admin> lowerAdmins;
+        if (currentRole == AdminRole.SUPER_ADMIN) {
+            lowerAdmins = adminRepository.findAll();
+        } else {
+            lowerAdmins = adminRepository.findAll().stream()
+                .filter(a -> currentRole.canManage(a.getRole()) && (a.getParentId() != null && a.getParentId().equals(performerId)))
+                .collect(Collectors.toList());
+        }
+
+        List<AdminPermissionViewDTO> individualPermissions = lowerAdmins.stream().map(admin -> {
+            AdminPermissionViewDTO dto = new AdminPermissionViewDTO();
+            dto.setAdminId(admin.getId());
+            dto.setEmail(admin.getEmail());
+            dto.setUsername(admin.getUsername());
+            dto.setRole(admin.getRole());
+            dto.setCanCreate(admin.isCanCreate());
+            dto.setCanRead(admin.isCanRead());
+            dto.setCanUpdate(admin.isCanUpdate());
+            dto.setCanDelete(admin.isCanDelete());
+            dto.setUpdatedAt(admin.getUpdatedAt());
+            
+            if (performerId != null) {
+                dto.setRecentlyChangedByMe(adminAuditLogRepository.hasRecentAction(performerId, admin.getEmail(), "CRUD_UPDATE", sevenDaysAgo));
+            }
+            return dto;
+        }).collect(Collectors.toList());
+
+        return new CrudPermissionViewResponse(rolePermissions, individualPermissions);
     }
 }
