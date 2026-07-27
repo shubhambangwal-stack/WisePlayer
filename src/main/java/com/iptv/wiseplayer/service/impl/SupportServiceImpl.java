@@ -31,7 +31,7 @@ public class SupportServiceImpl implements SupportService {
 
     @Override
     @Transactional
-    public SupportTicketResponse createTicket(SupportTicketRequest request) {
+       public SupportTicketResponse createTicket(SupportTicketRequest request) {
         SupportTicket ticket = new SupportTicket();
         ticket.setFirstName(request.getFirstName());
         ticket.setLastName(request.getLastName());

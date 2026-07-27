@@ -40,6 +40,15 @@ public class AdminCrudPermissionController {
         this.rolePermissionService = rolePermissionService;
     }
 
+    @Operation(
+        summary = "View CRUD permissions for lower roles",
+        description = "Returns the CRUD permissions for all lower roles and lower-ranking individual admins, including a flag indicating if the permission was recently changed by the caller."
+    )
+    @GetMapping
+    public ResponseEntity<com.iptv.wiseplayer.dto.response.CrudPermissionViewResponse> getCrudPermissions() {
+        return ResponseEntity.ok(adminResellerService.getCrudPermissionsView());
+    }
+
     // -------------------------------------------------------------------------
     // BULK — change ALL admins of a role
     // -------------------------------------------------------------------------

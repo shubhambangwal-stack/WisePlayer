@@ -90,6 +90,8 @@ public class Admin {
     public void setActive(boolean active) { this.active = active; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public UUID getParentId() { return parentId; }
     public void setParentId(UUID parentId) { this.parentId = parentId; }
     public UUID getCreatorId() { return creatorId; }
