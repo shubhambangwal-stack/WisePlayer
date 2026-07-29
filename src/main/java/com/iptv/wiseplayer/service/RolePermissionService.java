@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.service;
 
 import com.iptv.wiseplayer.domain.entity.Admin;
+import com.iptv.wiseplayer.domain.entity.AdminAuditLog;
 import com.iptv.wiseplayer.domain.entity.RolePermission;
 import com.iptv.wiseplayer.domain.entity.SuperAdmin;
 import com.iptv.wiseplayer.domain.enums.AdminRole;
@@ -8,6 +9,7 @@ import com.iptv.wiseplayer.dto.request.UpdateRolePermissionRequest;
 import com.iptv.wiseplayer.dto.response.RolePermissionResponse;
 import com.iptv.wiseplayer.exception.AccessDeniedException;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
+import com.iptv.wiseplayer.repository.AdminAuditLogRepository;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.repository.RolePermissionRepository;
 import com.iptv.wiseplayer.repository.SuperAdminRepository;
@@ -43,15 +45,18 @@ public class RolePermissionService {
     private final AdminRepository adminRepository;
     private final SuperAdminRepository superAdminRepository;
     private final CrudPermissionGuard crudPermissionGuard;
+    private final AdminAuditLogRepository adminAuditLogRepository;
 
     public RolePermissionService(RolePermissionRepository rolePermissionRepository,
                                  AdminRepository adminRepository,
                                  SuperAdminRepository superAdminRepository,
-                                 CrudPermissionGuard crudPermissionGuard) {
+                                 CrudPermissionGuard crudPermissionGuard,
+                                 AdminAuditLogRepository adminAuditLogRepository) {
         this.rolePermissionRepository = rolePermissionRepository;
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
         this.crudPermissionGuard = crudPermissionGuard;
+        this.adminAuditLogRepository = adminAuditLogRepository;
     }
 
     // -------------------------------------------------------------------------
@@ -106,7 +111,8 @@ public class RolePermissionService {
     public RolePermissionResponse updateRoleDefaults(AdminRole role, UpdateRolePermissionRequest request) {
         // --- Hierarchy & escalation check ---
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        boolean isSuperAdmin = superAdminRepository.findByUsername(currentUsername).isPresent();
+        SuperAdmin superAdminEntity = superAdminRepository.findByUsername(currentUsername).orElse(null);
+        boolean isSuperAdmin = superAdminEntity != null;
 
         if (!isSuperAdmin) {
             Admin caller = adminRepository.findByUsername(currentUsername)
@@ -144,6 +150,20 @@ public class RolePermissionService {
                 request.getCanUpdate(),
                 request.getCanDelete());
         log.info("Bulk-updated existing admins with role={} to match new defaults", role);
+
+        // --- Audit log so recentlyChangedByMe works on the GET permissions view ---
+        if (isSuperAdmin) {
+            AdminAuditLog auditLog = new AdminAuditLog(
+                    superAdminEntity.getId(), "ROLE_" + role.name(), "CRUD_UPDATE", null);
+            adminAuditLogRepository.save(auditLog);
+        } else {
+            Admin caller = adminRepository.findByUsername(currentUsername).orElse(null);
+            if (caller != null) {
+                AdminAuditLog auditLog = new AdminAuditLog(
+                        caller.getId(), "ROLE_" + role.name(), "CRUD_UPDATE", null);
+                adminAuditLogRepository.save(auditLog);
+            }
+        }
 
         return toResponse(rp);
     }
