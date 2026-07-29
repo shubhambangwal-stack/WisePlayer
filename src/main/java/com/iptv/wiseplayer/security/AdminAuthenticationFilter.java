@@ -97,7 +97,7 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
 
                     switch (method.toUpperCase()) {
                         case "GET":
-                            if (!admin.isCanRead()) { blocked = true; reason = "Access Denied: Read permission revoked."; }
+                            if (!admin.isCanRead() && !path.contains("/crud-permissions")) { blocked = true; reason = "Access Denied: Read permission revoked."; }
                             break;
                         case "POST":
                             if (!admin.isCanCreate()) { blocked = true; reason = "Access Denied: Create permission revoked."; }

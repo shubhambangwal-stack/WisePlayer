@@ -134,6 +134,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/activation-requests/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
                         .requestMatchers("/api/admin/reports/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                        // Any authenticated admin-type role can view their own CRUD permissions view
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/crud-permissions")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN", "ROLE_RESELLER", "ROLE_SUB_RESELLER")
                         .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
                         // Reseller Endpoints

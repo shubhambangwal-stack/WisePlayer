@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -288,6 +289,11 @@ public class AdminResellerService {
             adminRepository.updatePermissionsByRole(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
             // 2. Sync the role_permissions defaults table so future registrations are consistent
             syncRolePermissionsTable(targetRole, request.getCanCreate(), request.getCanRead(), request.getCanUpdate(), request.getCanDelete());
+            // 3. Audit log for SuperAdmin so recentlyChangedByMe works
+            com.iptv.wiseplayer.domain.entity.AdminAuditLog superLog = new com.iptv.wiseplayer.domain.entity.AdminAuditLog(
+                    superAdminOpt.get().getId(), "ROLE_" + targetRole.name(), "CRUD_UPDATE", null
+            );
+            adminAuditLogRepository.save(superLog);
             return;
         }
 
@@ -350,13 +356,23 @@ public class AdminResellerService {
 
         adminRepository.save(target);
 
-        if (superAdminOpt.isEmpty()) {
+        // Audit log for both SuperAdmin and regular Admin callers
+        if (superAdminOpt.isPresent()) {
+            com.iptv.wiseplayer.domain.entity.AdminAuditLog auditLog = new com.iptv.wiseplayer.domain.entity.AdminAuditLog(
+                    superAdminOpt.get().getId(),
+                    target.getEmail() != null ? target.getEmail() : target.getUsername(),
+                    "CRUD_UPDATE", null
+            );
+            adminAuditLogRepository.save(auditLog);
+        } else {
             Admin currentAdmin = adminRepository.findByUsername(currentUsername).orElse(null);
             if (currentAdmin != null) {
-                com.iptv.wiseplayer.domain.entity.AdminAuditLog log = new com.iptv.wiseplayer.domain.entity.AdminAuditLog(
-                        currentAdmin.getId(), target.getEmail(), "CRUD_UPDATE", null
+                com.iptv.wiseplayer.domain.entity.AdminAuditLog auditLog = new com.iptv.wiseplayer.domain.entity.AdminAuditLog(
+                        currentAdmin.getId(),
+                        target.getEmail() != null ? target.getEmail() : target.getUsername(),
+                        "CRUD_UPDATE", null
                 );
-                adminAuditLogRepository.save(log);
+                adminAuditLogRepository.save(auditLog);
             }
         }
     }
@@ -395,13 +411,16 @@ public class AdminResellerService {
     @Transactional(readOnly = true)
     public CrudPermissionViewResponse getCrudPermissionsView() {
         String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
-        
+
         AdminRole currentRole;
         UUID currentAdminId = null;
-        
-        java.util.Optional<com.iptv.wiseplayer.domain.entity.SuperAdmin> superAdminOpt = superAdminRepository.findByUsername(currentUsername);
-        if (superAdminOpt.isPresent()) {
+
+        com.iptv.wiseplayer.domain.entity.SuperAdmin superAdminEntity =
+                superAdminRepository.findByUsername(currentUsername).orElse(null);
+        if (superAdminEntity != null) {
             currentRole = AdminRole.SUPER_ADMIN;
+            // Use the SuperAdmin's actual UUID so recentlyChangedByMe lookup works
+            currentAdminId = superAdminEntity.getId();
         } else {
             Admin currentAdmin = adminRepository.findByUsername(currentUsername)
                     .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
@@ -412,13 +431,13 @@ public class AdminResellerService {
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
         final UUID performerId = currentAdminId;
 
-        // 1. Role Defaults for lower roles
+        // 1. Role Defaults — show defaults for every role the caller can manage
         List<RolePermissionViewDTO> rolePermissions = Arrays.stream(AdminRole.values())
                 .filter(role -> currentRole.canManage(role))
                 .map(role -> {
                     com.iptv.wiseplayer.domain.entity.RolePermission rp = rolePermissionRepository.findByRole(role)
                             .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(role));
-                    
+
                     RolePermissionViewDTO dto = new RolePermissionViewDTO();
                     dto.setRole(role);
                     dto.setCanCreate(rp.isCanCreate());
@@ -426,21 +445,32 @@ public class AdminResellerService {
                     dto.setCanUpdate(rp.isCanUpdate());
                     dto.setCanDelete(rp.isCanDelete());
                     dto.setUpdatedAt(rp.getUpdatedAt());
-                    
+
+                    // Check audit log: did the caller make a bulk CRUD update for this role recently?
+                    // Uses a target-email-independent query since bulk role changes store "ROLE_XXX" as target
                     if (performerId != null) {
-                        dto.setRecentlyChangedByMe(adminAuditLogRepository.hasRecentAction(performerId, "ROLE_" + role.name(), "CRUD_UPDATE", sevenDaysAgo));
+                        dto.setRecentlyChangedByMe(
+                                adminAuditLogRepository.hasRecentAction(
+                                        performerId, "ROLE_" + role.name(), "CRUD_UPDATE", sevenDaysAgo));
                     }
                     return dto;
                 }).collect(Collectors.toList());
 
-        // 2. Individual Admin Permissions for lower roles
+        // 2. Individual Admin Permissions — filtered by role hierarchy
         List<Admin> lowerAdmins;
         if (currentRole == AdminRole.SUPER_ADMIN) {
+            // SuperAdmin sees ALL admins in the system
             lowerAdmins = adminRepository.findAll();
+        } else if (currentRole == AdminRole.ADMIN) {
+            // ADMIN manages RESELLER and SUB_RESELLER across the system
+            lowerAdmins = adminRepository.findAllByRoleIn(
+                    java.util.List.of(AdminRole.RESELLER, AdminRole.SUB_RESELLER));
+        } else if (currentRole == AdminRole.RESELLER) {
+            // RESELLER only sees their own direct sub-resellers
+            lowerAdmins = adminRepository.findAllByParentId(performerId);
         } else {
-            lowerAdmins = adminRepository.findAll().stream()
-                .filter(a -> currentRole.canManage(a.getRole()) && (a.getParentId() != null && a.getParentId().equals(performerId)))
-                .collect(Collectors.toList());
+            // SUB_RESELLER has no lower roles to manage
+            lowerAdmins = java.util.Collections.emptyList();
         }
 
         List<AdminPermissionViewDTO> individualPermissions = lowerAdmins.stream().map(admin -> {
@@ -454,9 +484,13 @@ public class AdminResellerService {
             dto.setCanUpdate(admin.isCanUpdate());
             dto.setCanDelete(admin.isCanDelete());
             dto.setUpdatedAt(admin.getUpdatedAt());
-            
+
+            // Check audit log: did the caller make an individual CRUD update for this admin recently?
             if (performerId != null) {
-                dto.setRecentlyChangedByMe(adminAuditLogRepository.hasRecentAction(performerId, admin.getEmail(), "CRUD_UPDATE", sevenDaysAgo));
+                String target = admin.getEmail() != null ? admin.getEmail() : admin.getUsername();
+                dto.setRecentlyChangedByMe(
+                        adminAuditLogRepository.hasRecentAction(
+                                performerId, target, "CRUD_UPDATE", sevenDaysAgo));
             }
             return dto;
         }).collect(Collectors.toList());
