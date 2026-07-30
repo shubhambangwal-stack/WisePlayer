@@ -40,13 +40,16 @@ public class ResellerController {
     private final ResellerService resellerService;
     private final AdminRepository adminRepository;
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
+    private final com.iptv.wiseplayer.util.BulkPermissionUtil bulkPermissionUtil;
 
     public ResellerController(ResellerService resellerService,
             AdminRepository adminRepository,
-            com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
+            com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository,
+            com.iptv.wiseplayer.util.BulkPermissionUtil bulkPermissionUtil) {
         this.resellerService = resellerService;
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
+        this.bulkPermissionUtil = bulkPermissionUtil;
     }
 
     // --- Authentication Endpoints ---
@@ -150,7 +153,7 @@ public class ResellerController {
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
     @GetMapping("/sub-resellers")
-    public ResponseEntity<org.springframework.data.domain.Page<Admin>> getSubResellers(
+    public ResponseEntity<Map<String, Object>> getSubResellers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean status,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
@@ -158,8 +161,9 @@ public class ResellerController {
             @RequestParam(required = false) java.math.BigDecimal minCredits,
             @RequestParam(required = false) java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(resellerService.getSubResellers(
-                getCurrentResellerId(), search, status, fromDate, toDate, minCredits, maxCredits, pageable));
+        org.springframework.data.domain.Page<Admin> page = resellerService.getSubResellers(
+                getCurrentResellerId(), search, status, fromDate, toDate, minCredits, maxCredits, pageable);
+        return ResponseEntity.ok(bulkPermissionUtil.wrapPageWithBulkPermissions(com.iptv.wiseplayer.domain.enums.AdminRole.SUB_RESELLER, page));
     }
 
     @PreAuthorize("hasAuthority('ROLE_RESELLER')")
