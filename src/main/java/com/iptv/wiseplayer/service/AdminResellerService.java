@@ -67,7 +67,7 @@ public class AdminResellerService {
             String fullName,
             String email,
             Pageable pageable) {
-        List<AdminRole> roles = Arrays.asList(AdminRole.RESELLER, AdminRole.SUB_RESELLER);
+        List<AdminRole> roles = Collections.singletonList(AdminRole.RESELLER);
         return adminRepository.searchResellers(roles, username, fullName, email, pageable)
                 .map(this::convertToResponse);
     }

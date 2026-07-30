@@ -27,13 +27,16 @@ public class AdminManagementController {
     private final AdminManagementService adminManagementService;
     private final AdminRepository adminRepository;
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
+    private final com.iptv.wiseplayer.util.BulkPermissionUtil bulkPermissionUtil;
 
     public AdminManagementController(AdminManagementService adminManagementService,
             AdminRepository adminRepository,
-            com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
+            com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository,
+            com.iptv.wiseplayer.util.BulkPermissionUtil bulkPermissionUtil) {
         this.adminManagementService = adminManagementService;
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
+        this.bulkPermissionUtil = bulkPermissionUtil;
     }
 
     @Operation(summary = "Invite Admin", description = "Generates an invitation link for a new admin. Only accessible by SUPER_ADMIN.")
@@ -89,10 +92,11 @@ public class AdminManagementController {
         return ResponseEntity.ok("Admin account created successfully. You can now login.");
     }
 
-    @Operation(summary = "Get All Admins", description = "Retrieves a list of all accounts where role = ADMIN. Accessible by SUPER_ADMIN.")
+    @Operation(summary = "Get All Admins", description = "Retrieves a list of all accounts where role = ADMIN along with bulk permissions for ADMIN role. Accessible by SUPER_ADMIN.")
     @GetMapping("/all")
-    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.AdminResponse>> getAllAdmins() {
-        return ResponseEntity.ok(adminManagementService.getAllAdmins());
+    public ResponseEntity<Map<String, Object>> getAllAdmins() {
+        java.util.List<com.iptv.wiseplayer.dto.response.AdminResponse> list = adminManagementService.getAllAdmins();
+        return ResponseEntity.ok(bulkPermissionUtil.wrapListWithBulkPermissions(com.iptv.wiseplayer.domain.enums.AdminRole.ADMIN, list));
     }
 
 
