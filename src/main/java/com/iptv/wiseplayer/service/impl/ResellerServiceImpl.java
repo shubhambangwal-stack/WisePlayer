@@ -838,7 +838,7 @@ public class ResellerServiceImpl implements ResellerService {
         Boolean canRead = !reseller.isCanRead() ? false : request.getCanRead();
         Boolean canUpdate = !reseller.isCanUpdate() ? false : request.getCanUpdate();
         Boolean canDelete = !reseller.isCanDelete() ? false : request.getCanDelete();
-
+    
         adminRepository.updatePermissionsByParentId(resellerId, canCreate, canRead, canUpdate, canDelete);
     }
 
