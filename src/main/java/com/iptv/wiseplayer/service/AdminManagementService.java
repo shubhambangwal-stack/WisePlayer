@@ -229,7 +229,7 @@ public class AdminManagementService {
         return adminRepository.findAllByRoleIn(java.util.List.of(AdminRole.ADMIN)).stream()
                 .map(this::mapToAdminResponse)
                 .toList();
-    }
+                }
 
 
 
