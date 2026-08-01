@@ -171,8 +171,10 @@ public class DeviceServiceImpl implements DeviceService {
             } else if (LocalDateTime.now().isBefore(device.getExpiresAt())) {
                 allowed = true;
             } else {
-                // Subscription genuinely expired — access denied but status stays ACTIVE
-                logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.ACTIVE, "ACCESS_DENIED",
+                // Subscription genuinely expired — access denied, update status to INACTIVE
+                device.setDeviceStatus(DeviceStatus.INACTIVE);
+                deviceRepository.save(device);
+                logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.INACTIVE, "ACCESS_DENIED",
                         "Subscription expired during validation");
             }
         }
@@ -251,9 +253,13 @@ public class DeviceServiceImpl implements DeviceService {
         device.setDeviceStatus(status);
         device.setSubscriptionType(type);
         device.setExpiresAt(expiresAt);
-        // Force status to ACTIVE if a valid future expiration is provided
-        if (expiresAt != null && expiresAt.isAfter(LocalDateTime.now())) {
-            device.setDeviceStatus(DeviceStatus.ACTIVE);
+        // Force status based on expiration date
+        if (expiresAt != null) {
+            if (expiresAt.isAfter(LocalDateTime.now())) {
+                device.setDeviceStatus(DeviceStatus.ACTIVE);
+            } else {
+                device.setDeviceStatus(DeviceStatus.INACTIVE);
+            }
         }
         deviceRepository.save(device);
 
@@ -282,8 +288,16 @@ public class DeviceServiceImpl implements DeviceService {
 
         boolean allowed = false;
         if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
-            if (device.getExpiresAt() != null && LocalDateTime.now().isBefore(device.getExpiresAt())) {
-                allowed = true;
+            if (device.getExpiresAt() != null) {
+                if (LocalDateTime.now().isBefore(device.getExpiresAt())) {
+                    allowed = true;
+                } else {
+                    // Subscription genuinely expired
+                    device.setDeviceStatus(DeviceStatus.INACTIVE);
+                    deviceRepository.save(device);
+                    logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.INACTIVE, "ACCESS_DENIED",
+                            "Subscription expired during token refresh");
+                }
             }
         }
         String message = determineValidationMessage(device);

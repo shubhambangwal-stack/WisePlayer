@@ -162,7 +162,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
             deviceService.updateDeviceSubscription(
                     sub.getDeviceId(),
-                    com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
+                    com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE,
                     type,
                     sub.getEndDate());
         }
@@ -241,7 +241,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         deviceService.updateDeviceSubscription(
                 resolvedDeviceId,
-                com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
+                com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE,
                 SubscriptionType.TRIAL,
                 LocalDateTime.now().minusSeconds(1));
 
