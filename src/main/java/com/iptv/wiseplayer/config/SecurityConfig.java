@@ -70,9 +70,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(java.util.List.of("*"));
-        configuration.setAllowedMethods(java.util.List.of("*"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
-        configuration.setAllowCredentials(false);
+        configuration.setExposedHeaders(java.util.List.of("Authorization", "Link", "X-Total-Count", "ngrok-skip-browser-warning"));
+        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -87,6 +88,7 @@ public class SecurityConfig {
         http
                 // Enable CORS using the configured source
 //                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
 
                 // Disable CSRF using the new lambda style
                 .csrf(AbstractHttpConfigurer::disable)
@@ -133,6 +135,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/activation-requests/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
                         .requestMatchers("/api/admin/reports/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                        // Any authenticated admin-type role can view their own CRUD permissions view
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/crud-permissions")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN", "ROLE_RESELLER", "ROLE_SUB_RESELLER")
                         .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
                         // Reseller Endpoints

@@ -463,7 +463,7 @@ public class ResellerServiceImpl implements ResellerService {
     @RequiresCrud(CrudOperation.UPDATE)
     public void toggleSubResellerStatus(UUID resellerId, UUID subResellerId) {
         Admin sub = adminRepository.findById(subResellerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
+                     .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
 
         if (!resellerId.equals(sub.getParentId())) {
             throw new AccessDeniedException("Permission denied: Not your sub-reseller");
@@ -557,7 +557,7 @@ public class ResellerServiceImpl implements ResellerService {
         request.setStatus(targetStatus);
 
         ActivationRequest saved = activationRequestRepository.save(request);
-
+    
         // Deduct credits
         try {
             creditService.deductCredits(resellerId, planName, saved.getId());
@@ -869,3 +869,4 @@ public class ResellerServiceImpl implements ResellerService {
         adminRepository.save(admin);
     }
 }
+    

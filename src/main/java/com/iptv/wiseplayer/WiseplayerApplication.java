@@ -15,7 +15,6 @@ public class WiseplayerApplication {
 	static {
 		TimeZone.setDefault(TimeZone.getTimeZone("Asia/Kolkata"));
 	}
-
 	public static void main(String[] args) {
 		SpringApplication.run(WiseplayerApplication.class, args);
 	}

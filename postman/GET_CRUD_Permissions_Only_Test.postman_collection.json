@@ -1,0 +1,121 @@
+{
+	"info": {
+		"_postman_id": "c1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b7d",
+		"name": "WisePlayer - GET CRUD Permissions Only Test",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1a. Login (SuperAdmin / Admin)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"if (jsonData.token) {",
+							"    pm.environment.set(\"jwt_token\", jsonData.token);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"admin_username\",\n  \"password\": \"your_password\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/admin/auth/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"admin",
+						"auth",
+						"login"
+					]
+				}
+			}
+		},
+		{
+			"name": "1b. Login (Reseller)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"if (jsonData.token) {",
+							"    pm.environment.set(\"jwt_token\", jsonData.token);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"reseller_username\",\n  \"password\": \"your_password\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/reseller/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"reseller",
+						"login"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Get CRUD Permissions (Admin Endpoint)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/admin/crud-permissions",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"admin",
+						"crud-permissions"
+					]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080"
+		}
+	]
+}
