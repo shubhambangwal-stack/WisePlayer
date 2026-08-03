@@ -147,15 +147,25 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         resp.setType(device.getSubscriptionType());
         
         // Use activatedAt or fallback to registeredAt/createdAt
+        LocalDateTime end = device.getExpiresAt() != null ? device.getExpiresAt() : LocalDateTime.now();
+        resp.setEndDate(end);
+
+        LocalDateTime start;
         if (device.getActivatedAt() != null) {
-            resp.setStartDate(device.getActivatedAt());
+            start = device.getActivatedAt();
         } else if (device.getRegisteredAt() != null) {
-            resp.setStartDate(device.getRegisteredAt());
+            start = device.getRegisteredAt();
         } else {
-            resp.setStartDate(device.getCreatedAt() != null ? device.getCreatedAt() : LocalDateTime.now());
+            start = device.getCreatedAt() != null ? device.getCreatedAt() : end.minusDays(7);
+        }
+
+        // For trial accounts falling back to this logic, ensure it reflects a 7-day period
+        if (device.getSubscriptionType() == SubscriptionType.TRIAL) {
+            start = end.minusDays(7);
         }
         
-        resp.setEndDate(device.getExpiresAt() != null ? device.getExpiresAt() : LocalDateTime.now());
+        resp.setStartDate(start);
+        
         return resp;
     }
 
