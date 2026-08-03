@@ -159,12 +159,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             }
         } else {
             // Device has NOT been activated yet — no expires_at set
-            // Show trial window based on registration date
-            LocalDateTime registeredAt = device.getRegisteredAt() != null
-                    ? device.getRegisteredAt()
-                    : (device.getCreatedAt() != null ? device.getCreatedAt() : LocalDateTime.now());
-            resp.setStartDate(registeredAt);
-            resp.setEndDate(registeredAt.plusDays(7));
+            // startDate and endDate will be set during activation
+            resp.setStartDate(null);
+            resp.setEndDate(null);
             resp.setStatus(SubscriptionStatus.TRIAL);
         }
 
