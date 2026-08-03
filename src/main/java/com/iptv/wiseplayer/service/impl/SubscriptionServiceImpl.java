@@ -138,12 +138,24 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .orElseThrow(() -> new com.iptv.wiseplayer.exception.DeviceNotFoundException("Device not found"));
 
         SubscriptionResponse resp = new SubscriptionResponse();
+        resp.setSubscriptionId(java.util.UUID.randomUUID()); // Dummy ID for fallback
         resp.setDeviceId(resolvedDeviceId);
+        resp.setPlanName(device.getSubscriptionType() != null ? device.getSubscriptionType().name() : "TRIAL");
         resp.setStatus(device.getSubscriptionType() == SubscriptionType.TRIAL
                 ? SubscriptionStatus.TRIAL
                 : SubscriptionStatus.EXPIRED);
         resp.setType(device.getSubscriptionType());
-        resp.setEndDate(device.getExpiresAt());
+        
+        // Use activatedAt or fallback to registeredAt/createdAt
+        if (device.getActivatedAt() != null) {
+            resp.setStartDate(device.getActivatedAt());
+        } else if (device.getRegisteredAt() != null) {
+            resp.setStartDate(device.getRegisteredAt());
+        } else {
+            resp.setStartDate(device.getCreatedAt() != null ? device.getCreatedAt() : LocalDateTime.now());
+        }
+        
+        resp.setEndDate(device.getExpiresAt() != null ? device.getExpiresAt() : LocalDateTime.now());
         return resp;
     }
 
