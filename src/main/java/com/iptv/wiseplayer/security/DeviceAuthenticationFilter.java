@@ -93,9 +93,6 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
             Device device = deviceRepository.findByDeviceId(deviceId)
                     .orElseThrow(() -> new DeviceAuthenticationException("Device not found"));
 
-            if (device.getDeviceStatus() == DeviceStatus.INACTIVE) {
-                throw new DeviceAuthenticationException("Device is inactive or subscription expired");
-            }
 
             // 3. Verify expiration for ACTIVE devices
             boolean isExpired = device.getDeviceStatus() == DeviceStatus.ACTIVE &&
