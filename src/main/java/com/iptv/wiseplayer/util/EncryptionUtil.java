@@ -3,7 +3,7 @@ package com.iptv.wiseplayer.util;
 import org.springframework.stereotype.Component;
 
 @Component
-public class EncryptionUtil {
+public class    EncryptionUtil {
 
     public EncryptionUtil() {
     }
