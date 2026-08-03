@@ -133,39 +133,41 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             return mapToResponse(sub);
         }
 
-        // Fallback for devices without a subscription record (old devices)
+        // Fallback for devices without a subscription record (not yet activated or legacy devices)
         com.iptv.wiseplayer.domain.entity.Device device = deviceRepository.findByDeviceId(resolvedDeviceId)
                 .orElseThrow(() -> new com.iptv.wiseplayer.exception.DeviceNotFoundException("Device not found"));
 
         SubscriptionResponse resp = new SubscriptionResponse();
-        resp.setSubscriptionId(java.util.UUID.randomUUID()); // Dummy ID for fallback
+        resp.setSubscriptionId(resolvedDeviceId); // Use device ID as placeholder
         resp.setDeviceId(resolvedDeviceId);
         resp.setPlanName(device.getSubscriptionType() != null ? device.getSubscriptionType().name() : "TRIAL");
-        resp.setStatus(device.getSubscriptionType() == SubscriptionType.TRIAL
-                ? SubscriptionStatus.TRIAL
-                : SubscriptionStatus.EXPIRED);
-        resp.setType(device.getSubscriptionType());
-        
-        // Use activatedAt or fallback to registeredAt/createdAt
-        LocalDateTime end = device.getExpiresAt() != null ? device.getExpiresAt() : LocalDateTime.now();
-        resp.setEndDate(end);
+        resp.setType(device.getSubscriptionType() != null ? device.getSubscriptionType() : SubscriptionType.TRIAL);
 
-        LocalDateTime start;
-        if (device.getActivatedAt() != null) {
-            start = device.getActivatedAt();
-        } else if (device.getRegisteredAt() != null) {
-            start = device.getRegisteredAt();
+        // Determine dates and status based on device state
+        if (device.getExpiresAt() != null) {
+            // Device has a real expiry date (was activated at some point)
+            LocalDateTime start = device.getActivatedAt() != null ? device.getActivatedAt()
+                    : (device.getRegisteredAt() != null ? device.getRegisteredAt() : device.getExpiresAt().minusDays(7));
+            resp.setStartDate(start);
+            resp.setEndDate(device.getExpiresAt());
+
+            if (LocalDateTime.now().isAfter(device.getExpiresAt())) {
+                resp.setStatus(SubscriptionStatus.EXPIRED);
+            } else {
+                resp.setStatus(device.getSubscriptionType() == SubscriptionType.TRIAL
+                        ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE);
+            }
         } else {
-            start = device.getCreatedAt() != null ? device.getCreatedAt() : end.minusDays(7);
+            // Device has NOT been activated yet — no expires_at set
+            // Show trial window based on registration date
+            LocalDateTime registeredAt = device.getRegisteredAt() != null
+                    ? device.getRegisteredAt()
+                    : (device.getCreatedAt() != null ? device.getCreatedAt() : LocalDateTime.now());
+            resp.setStartDate(registeredAt);
+            resp.setEndDate(registeredAt.plusDays(7));
+            resp.setStatus(SubscriptionStatus.TRIAL);
         }
 
-        // For trial accounts falling back to this logic, ensure it reflects a 7-day period
-        if (device.getSubscriptionType() == SubscriptionType.TRIAL) {
-            start = end.minusDays(7);
-        }
-        
-        resp.setStartDate(start);
-        
         return resp;
     }
 
