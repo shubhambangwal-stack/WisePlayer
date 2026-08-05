@@ -1,68 +1,95 @@
 {
   "info": {
-    "_postman_id": "wiseplayer-api-v2",
-    "name": "WisePlayer API – Complete Collection",
-    "description": "Full Postman collection for WisePlayer backend. Covers Device, Playlist, Live TV, Movies, Series, Stream, Subscription, Payment, Reseller, Credit, and all Admin endpoints.\n\nVariables:\n- {{baseUrl}} – e.g. http://localhost:8080\n- {{deviceToken}} – JWT from device validate/register\n- {{resellerToken}} – JWT from reseller login\n- {{adminToken}} – JWT from admin login\n- {{playlistId}} – UUID of a saved playlist\n- {{deviceId}} – UUID or MAC of a device",
+    "_postman_id": "wiseplayer-api-v3",
+    "name": "WisePlayer API – Fully Automated",
+    "description": "Zero-setup Postman collection. Run requests in order — every token, deviceId, playlistId, and secret is captured automatically from responses and injected into subsequent requests via collection variables.\n\n⚙️ Only change {{baseUrl}} if your server runs on a different port.\n\n🔑 Auth flow:\n- Device: Register → Validate (auto-captures token + fingerprint + deviceSecret + deviceId)\n- Reseller: Login (auto-captures resellerToken)\n- Admin: Login (auto-captures adminToken)\n\nAll other headers/params are wired from those captured variables.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl",       "value": "http://localhost:8080", "type": "string" },
-    { "key": "deviceToken",   "value": "",                     "type": "string" },
-    { "key": "resellerToken", "value": "",                     "type": "string" },
-    { "key": "adminToken",    "value": "",                     "type": "string" },
-    { "key": "playlistId",    "value": "",                     "type": "string" },
-    { "key": "deviceId",      "value": "",                     "type": "string" }
+    { "key": "baseUrl",            "value": "http://localhost:8081",   "type": "string", "description": "Server base URL — change if different" },
+    { "key": "deviceToken",        "value": "",                        "type": "string", "description": "Auto-set from Register or Validate" },
+    { "key": "deviceFingerprint",  "value": "test-device-fingerprint", "type": "string", "description": "Must match what was sent at register/validate" },
+    { "key": "deviceId",           "value": "",                        "type": "string", "description": "Auto-set from Register/Validate response" },
+    { "key": "deviceMac",          "value": "AA:BB:CC:DD:EE:FF",       "type": "string", "description": "MAC address used in Register/Validate body" },
+    { "key": "deviceSecret",       "value": "",                        "type": "string", "description": "Auto-set from Register response" },
+    { "key": "playlistId",         "value": "",                        "type": "string", "description": "Auto-set from Save Xtream/M3U Playlist" },
+    { "key": "resellerToken",      "value": "",                        "type": "string", "description": "Auto-set from Reseller Login" },
+    { "key": "adminToken",         "value": "",                        "type": "string", "description": "Auto-set from Admin Login" }
   ],
   "item": [
 
     {
       "name": "🔌 Device",
+      "description": "Run in order: Register → Validate. Tokens and IDs are auto-captured.",
       "item": [
         {
-          "name": "Register Device",
+          "name": "1. Register Device",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "var j = pm.response.json();",
+                "if (j.token)        pm.collectionVariables.set('deviceToken',  j.token);",
+                "if (j.deviceSecret) pm.collectionVariables.set('deviceSecret', j.deviceSecret);",
+                "if (j.deviceId)     pm.collectionVariables.set('deviceId',     j.deviceId);",
+                "console.log('✅ Device Registered — token & secret captured');"
+              ]
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/api/device/register", "host": ["{{baseUrl}}"], "path": ["api","device","register"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"AA:BB:CC:DD:EE:FF\",\n  \"model\": \"Samsung Galaxy S21\",\n  \"platform\": \"Android\",\n  \"appVersion\": \"1.0.0\"\n}"
+              "raw": "{\n  \"deviceId\": \"{{deviceMac}}\",\n  \"model\": \"Samsung Galaxy S21\",\n  \"platform\": \"Android\",\n  \"appVersion\": \"1.0.0\",\n  \"fingerprint\": \"{{deviceFingerprint}}\"\n}"
             }
           }
         },
         {
-          "name": "Validate Device",
-          "event": [{ "listen": "test", "script": { "exec": [
-            "var j = pm.response.json();",
-            "if (j.token) pm.collectionVariables.set('deviceToken', j.token);"
-          ], "type": "text/javascript" } }],
+          "name": "2. Validate Device",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "var j = pm.response.json();",
+                "if (j.token)        pm.collectionVariables.set('deviceToken',  j.token);",
+                "if (j.deviceSecret) pm.collectionVariables.set('deviceSecret', j.deviceSecret);",
+                "if (j.deviceId)     pm.collectionVariables.set('deviceId',     j.deviceId);",
+                "console.log('✅ Device Validated — token captured, TTL: 45 min');"
+              ]
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/api/device/validate", "host": ["{{baseUrl}}"], "path": ["api","device","validate"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"AA:BB:CC:DD:EE:FF\"\n}"
+              "raw": "{\n  \"deviceId\": \"{{deviceMac}}\",\n  \"fingerprint\": \"{{deviceFingerprint}}\"\n}"
             }
           }
         },
         {
-          "name": "Generate Activation Key",
+          "name": "3. Generate Activation Key",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{deviceToken}}" }
+              { "key": "Content-Type",        "value": "application/json" },
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
             ],
             "url": { "raw": "{{baseUrl}}/api/device/key", "host": ["{{baseUrl}}"], "path": ["api","device","key"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"AA:BB:CC:DD:EE:FF\"\n}"
+              "raw": "{\n  \"deviceId\": \"{{deviceMac}}\"\n}"
             }
           }
         },
         {
-          "name": "Activate Device",
+          "name": "4. Activate Device",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -74,20 +101,34 @@
           }
         },
         {
-          "name": "Get Key Status",
+          "name": "5. Get Key Status",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": { "raw": "{{baseUrl}}/api/device/key/status", "host": ["{{baseUrl}}"], "path": ["api","device","key","status"] }
           }
         },
         {
-          "name": "Refresh Device Token",
+          "name": "6. Refresh Device Token",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "var j = pm.response.json();",
+                "if (j.token) pm.collectionVariables.set('deviceToken', j.token);",
+                "console.log('✅ Device token refreshed');"
+              ]
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Device-Secret",      "value": "<device-secret>" },
-              { "key": "X-Device-Fingerprint", "value": "<fingerprint>" }
+              { "key": "X-Device-Secret",      "value": "{{deviceSecret}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
             ],
             "url": { "raw": "{{baseUrl}}/api/device/refresh", "host": ["{{baseUrl}}"], "path": ["api","device","refresh"] }
           }
@@ -97,14 +138,27 @@
 
     {
       "name": "📋 Playlist",
+      "description": "Save a playlist first — playlistId is auto-captured from the response.",
       "item": [
         {
           "name": "Save Xtream Playlist",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "var j = pm.response.json();",
+                "var id = j.data && j.data.id ? j.data.id : (j.id || '');",
+                "if (id) { pm.collectionVariables.set('playlistId', id); console.log('✅ playlistId captured: ' + id); }"
+              ]
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type",  "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{deviceToken}}" }
+              { "key": "Content-Type",        "value": "application/json" },
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
             ],
             "url": { "raw": "{{baseUrl}}/api/playlist/xtream", "host": ["{{baseUrl}}"], "path": ["api","playlist","xtream"] },
             "body": {
@@ -115,11 +169,23 @@
         },
         {
           "name": "Save M3U Playlist",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "var j = pm.response.json();",
+                "var id = j.data && j.data.id ? j.data.id : (j.id || '');",
+                "if (id) { pm.collectionVariables.set('playlistId', id); console.log('✅ playlistId captured: ' + id); }"
+              ]
+            }
+          }],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type",  "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{deviceToken}}" }
+              { "key": "Content-Type",        "value": "application/json" },
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
             ],
             "url": { "raw": "{{baseUrl}}/api/playlist/m3u", "host": ["{{baseUrl}}"], "path": ["api","playlist","m3u"] },
             "body": {
@@ -133,7 +199,7 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/m3u", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceId}}","m3u"] },
+            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceMac}}/m3u", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceMac}}","m3u"] },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"url\": \"http://provider.example.com/get.php?username=u&password=p&type=m3u_plus\",\n  \"name\": \"Public M3U\"\n}"
@@ -144,7 +210,10 @@
           "name": "Get All Playlists",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": { "raw": "{{baseUrl}}/api/playlist", "host": ["{{baseUrl}}"], "path": ["api","playlist"] }
           }
         },
@@ -152,33 +221,28 @@
           "name": "Get Public Playlists",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceId}}"] }
+            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceMac}}", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceMac}}"] }
           }
         },
         {
-          "name": "Update Public M3U Playlist",
+          "name": "Get Pinned Playlist",
           "request": {
-            "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceId}}","{{playlistId}}"] },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"url\": \"http://provider.example.com/new.m3u\",\n  \"name\": \"Updated M3U\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Delete Public Playlist",
-          "request": {
-            "method": "DELETE",
-            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceId}}","{{playlistId}}"] }
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/playlist/pinned", "host": ["{{baseUrl}}"], "path": ["api","playlist","pinned"] }
           }
         },
         {
           "name": "Pin Playlist",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": { "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","playlist","{{playlistId}}","pin"] }
           }
         },
@@ -186,40 +250,66 @@
           "name": "Unpin Playlist",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": { "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","playlist","{{playlistId}}","pin"] }
           }
         },
         {
-          "name": "Get Pinned Playlist",
+          "name": "Update Public M3U Playlist",
           "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/playlist/pinned", "host": ["{{baseUrl}}"], "path": ["api","playlist","pinned"] }
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceMac}}/{{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceMac}}","{{playlistId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"url\": \"http://provider.example.com/new.m3u\",\n  \"name\": \"Updated M3U\"\n}" }
           }
         },
         {
           "name": "Pin Public Playlist",
           "request": {
             "method": "PUT",
-            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceId}}","{{playlistId}}","pin"] }
+            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceMac}}/{{playlistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceMac}}","{{playlistId}}","pin"] }
           }
         },
         {
           "name": "Unpin Public Playlist",
           "request": {
             "method": "DELETE",
-            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceId}}","{{playlistId}}","pin"] }
+            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceMac}}/{{playlistId}}/pin", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceMac}}","{{playlistId}}","pin"] }
           }
         },
         {
           "name": "Get Public Pinned Playlist",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/pinned", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceId}}","pinned"] }
+            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceMac}}/pinned", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceMac}}","pinned"] }
+          }
+        },
+        {
+          "name": "Delete Public Playlist",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/playlist/public/{{deviceMac}}/{{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","playlist","public","{{deviceMac}}","{{playlistId}}"] }
           }
         }
       ]
+    },
+
+    {
+      "name": "🔐 Xtream Auth",
+      "item": [{
+        "name": "Check Xtream Auth",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+            { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+          ],
+          "url": { "raw": "{{baseUrl}}/api/xtream/auth?playlistId={{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","xtream","auth"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }] }
+        }
+      }]
     },
 
     {
@@ -229,24 +319,41 @@
           "name": "Get Live Categories",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": { "raw": "{{baseUrl}}/api/live?playlistId={{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","live"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }] }
           }
         },
         {
-          "name": "Get Live Channels by Category",
+          "name": "Get Channels by Category",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/live?playlistId={{playlistId}}&categoryId=1", "host": ["{{baseUrl}}"], "path": ["api","live"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "categoryId", "value": "1" }] }
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/live?playlistId={{playlistId}}&categoryId=1",
+              "host": ["{{baseUrl}}"], "path": ["api","live"],
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "categoryId", "value": "1" }]
+            }
           }
         },
         {
           "name": "Get Live Stream URL",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/live?playlistId={{playlistId}}&streamId=12345", "host": ["{{baseUrl}}"], "path": ["api","live"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "streamId", "value": "12345" }] }
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/live?playlistId={{playlistId}}&streamId=12345",
+              "host": ["{{baseUrl}}"], "path": ["api","live"],
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "streamId", "value": "12345" }]
+            }
           }
         }
       ]
@@ -259,7 +366,10 @@
           "name": "Get VOD Categories",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": { "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","movie"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }] }
           }
         },
@@ -267,16 +377,30 @@
           "name": "Get VOD Streams by Category",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}&categoryId=1", "host": ["{{baseUrl}}"], "path": ["api","movie"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "categoryId", "value": "1" }] }
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}&categoryId=1",
+              "host": ["{{baseUrl}}"], "path": ["api","movie"],
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "categoryId", "value": "1" }]
+            }
           }
         },
         {
           "name": "Get VOD Stream URL",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}&streamId=99999", "host": ["{{baseUrl}}"], "path": ["api","movie"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "streamId", "value": "99999" }] }
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}&streamId=99999",
+              "host": ["{{baseUrl}}"], "path": ["api","movie"],
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "streamId", "value": "99999" }]
+            }
           }
         }
       ]
@@ -284,62 +408,64 @@
 
     {
       "name": "📂 Series",
-      "description": "Full 3-level browse flow:\n1. Get Series Categories\n2. Get Series list by category\n3. Get Series Info (seasons + episodes) by seriesId\n4. Resolve episode playback URL",
+      "description": "4-step flow: Categories → Series list → Series Info (seasons/episodes) → Episode playback URL.\nURL format: /series/{user}/{pass}/{episodeId}.{ext}",
       "item": [
         {
-          "name": "Get Series Categories",
+          "name": "1. Get Series Categories",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/series?playlistId={{playlistId}}",
-              "host": ["{{baseUrl}}"], "path": ["api","series"],
-              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }]
-            }
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/series?playlistId={{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","series"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }] }
           }
         },
         {
-          "name": "Get Series List by Category",
+          "name": "2. Get Series List by Category",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/series?playlistId={{playlistId}}&categoryId=5",
               "host": ["{{baseUrl}}"], "path": ["api","series"],
-              "query": [
-                { "key": "playlistId", "value": "{{playlistId}}" },
-                { "key": "categoryId", "value": "5", "description": "Replace with real category ID from step 1" }
-              ]
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "categoryId", "value": "5" }]
             }
           }
         },
         {
-          "name": "Get Series Info (Seasons + Episodes)",
+          "name": "3. Get Series Info (Seasons + Episodes)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/series?playlistId={{playlistId}}&seriesId=1001",
               "host": ["{{baseUrl}}"], "path": ["api","series"],
-              "query": [
-                { "key": "playlistId", "value": "{{playlistId}}" },
-                { "key": "seriesId",   "value": "1001", "description": "series_id / stream_id from series list (step 2)" }
-              ]
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }, { "key": "seriesId", "value": "1001" }]
             }
           }
         },
         {
-          "name": "Get Episode Playback URL",
+          "name": "4. Get Episode Playback URL",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/series/play?playlistId={{playlistId}}&episodeId=555001&containerExtension=mkv",
               "host": ["{{baseUrl}}"], "path": ["api","series","play"],
               "query": [
                 { "key": "playlistId",         "value": "{{playlistId}}" },
-                { "key": "episodeId",          "value": "555001",  "description": "Numeric episode id from get_series_info response" },
-                { "key": "containerExtension", "value": "mkv",     "description": "container_extension from episode metadata (mkv/mp4/ts)" }
+                { "key": "episodeId",          "value": "555001",  "description": "Numeric episode id from step 3 (get_series_info)" },
+                { "key": "containerExtension", "value": "mkv",     "description": "container_extension from episode object in step 3" }
               ]
             }
           }
@@ -348,58 +474,53 @@
     },
 
     {
-      "name": "▶️ Stream",
-      "item": [
-        {
-          "name": "Catchup / Timeshift Redirect (V2)",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/v2/stream/timeshift?playlistId={{playlistId}}&channelId=1001&timestamp=2026-08-01T20:00:00&duration=60&extension=ts",
-              "host": ["{{baseUrl}}"], "path": ["api","v2","stream","timeshift"],
-              "query": [
-                { "key": "playlistId", "value": "{{playlistId}}" },
-                { "key": "channelId",  "value": "1001" },
-                { "key": "timestamp",  "value": "2026-08-01T20:00:00" },
-                { "key": "duration",   "value": "60" },
-                { "key": "extension",  "value": "ts" }
-              ]
-            }
+      "name": "▶️ Stream V2",
+      "item": [{
+        "name": "Catchup / Timeshift Redirect",
+        "request": {
+          "method": "GET",
+          "header": [
+            { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+            { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+          ],
+          "url": {
+            "raw": "{{baseUrl}}/api/v2/stream/timeshift?playlistId={{playlistId}}&channelId=1001&timestamp=2026-08-01T20:00:00&duration=60&extension=ts",
+            "host": ["{{baseUrl}}"], "path": ["api","v2","stream","timeshift"],
+            "query": [
+              { "key": "playlistId", "value": "{{playlistId}}" },
+              { "key": "channelId",  "value": "1001" },
+              { "key": "timestamp",  "value": "2026-08-01T20:00:00" },
+              { "key": "duration",   "value": "60" },
+              { "key": "extension",  "value": "ts" }
+            ]
           }
         }
-      ]
-    },
-
-    {
-      "name": "🔐 Xtream Auth",
-      "item": [
-        {
-          "name": "Check Xtream Auth",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/xtream/auth?playlistId={{playlistId}}", "host": ["{{baseUrl}}"], "path": ["api","xtream","auth"], "query": [{ "key": "playlistId", "value": "{{playlistId}}" }] }
-          }
-        }
-      ]
+      }]
     },
 
     {
       "name": "💳 Subscription",
       "item": [
         {
+          "name": "Get Active Plans (Public)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/payment/public/plans", "host": ["{{baseUrl}}"], "path": ["api","payment","public","plans"] }
+          }
+        },
+        {
           "name": "Activate Subscription",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type",  "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{deviceToken}}" }
+              { "key": "Content-Type",        "value": "application/json" },
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
             ],
             "url": { "raw": "{{baseUrl}}/api/subscription/activate", "host": ["{{baseUrl}}"], "path": ["api","subscription","activate"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planId\": \"<plan-uuid>\"\n}"
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planId\": \"<plan-uuid-from-get-plans>\"\n}"
             }
           }
         },
@@ -407,7 +528,10 @@
           "name": "Get Subscription Status",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
             "url": { "raw": "{{baseUrl}}/api/subscription/status?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","subscription","status"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
           }
         }
@@ -418,25 +542,16 @@
       "name": "💰 Payment",
       "item": [
         {
-          "name": "Get Active Plans (Public)",
-          "request": {
-            "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/payment/public/plans", "host": ["{{baseUrl}}"], "path": ["api","payment","public","plans"] }
-          }
-        },
-        {
           "name": "Create Checkout Session",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type",  "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{deviceToken}}" }
+              { "key": "Content-Type",        "value": "application/json" },
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
             ],
             "url": { "raw": "{{baseUrl}}/api/payment/checkout", "host": ["{{baseUrl}}"], "path": ["api","payment","checkout"] },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planId\": \"<plan-uuid>\"\n}"
-            }
+            "body": { "mode": "raw", "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planId\": \"<plan-uuid>\"\n}" }
           }
         },
         {
@@ -445,10 +560,47 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/api/payment/public/checkout", "host": ["{{baseUrl}}"], "path": ["api","payment","public","checkout"] },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planId\": \"<plan-uuid>\"\n}"
-            }
+            "body": { "mode": "raw", "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planId\": \"<plan-uuid>\"\n}" }
+          }
+        },
+        {
+          "name": "Get All Invoices",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/payment/invoices?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","payment","invoices"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
+          }
+        },
+        {
+          "name": "Get Current Invoice",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/payment/invoice/current?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","payment","invoice","current"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
+          }
+        },
+        {
+          "name": "Download Invoice PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",      "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint","value": "{{deviceFingerprint}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/payment/invoice/INV-000001/pdf?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","payment","invoice","INV-000001","pdf"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
+          }
+        },
+        {
+          "name": "Download Invoice PDF (Public)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/payment/public/invoice/INV-000001/pdf?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","payment","public","invoice","INV-000001","pdf"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
           }
         },
         {
@@ -458,37 +610,6 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/api/payment/paypal/webhook", "host": ["{{baseUrl}}"], "path": ["api","payment","paypal","webhook"] },
             "body": { "mode": "raw", "raw": "{}" }
-          }
-        },
-        {
-          "name": "Get All Invoices",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/payment/invoices?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","payment","invoices"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
-          }
-        },
-        {
-          "name": "Get Current Invoice",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/payment/invoice/current?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","payment","invoice","current"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
-          }
-        },
-        {
-          "name": "Download Invoice PDF",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{deviceToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/payment/invoice/INV-000001/pdf?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","payment","invoice","INV-000001","pdf"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
-          }
-        },
-        {
-          "name": "Download Invoice PDF (Public)",
-          "request": {
-            "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/payment/public/invoice/INV-000001/pdf?deviceId={{deviceId}}", "host": ["{{baseUrl}}"], "path": ["api","payment","public","invoice","INV-000001","pdf"], "query": [{ "key": "deviceId", "value": "{{deviceId}}" }] }
           }
         }
       ]
@@ -502,10 +623,16 @@
           "item": [
             {
               "name": "Reseller Login",
-              "event": [{ "listen": "test", "script": { "exec": [
-                "var j = pm.response.json();",
-                "if (j.token) pm.collectionVariables.set('resellerToken', j.token);"
-              ], "type": "text/javascript" } }],
+              "event": [{
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": [
+                    "var j = pm.response.json();",
+                    "if (j.token) { pm.collectionVariables.set('resellerToken', j.token); console.log('✅ resellerToken captured'); }"
+                  ]
+                }
+              }],
               "request": {
                 "method": "POST",
                 "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -515,6 +642,16 @@
             },
             {
               "name": "Reseller Register",
+              "event": [{
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": [
+                    "var j = pm.response.json();",
+                    "if (j.token) { pm.collectionVariables.set('resellerToken', j.token); console.log('✅ resellerToken captured from register'); }"
+                  ]
+                }
+              }],
               "request": {
                 "method": "POST",
                 "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -557,7 +694,7 @@
                 "method": "POST",
                 "header": [{ "key": "Content-Type", "value": "application/json" }],
                 "url": { "raw": "{{baseUrl}}/api/reseller/reset-password", "host": ["{{baseUrl}}"], "path": ["api","reseller","reset-password"] },
-                "body": { "mode": "raw", "raw": "{\n  \"token\": \"<reset-token>\",\n  \"newPassword\": \"newSecure1!\"\n}" }
+                "body": { "mode": "raw", "raw": "{\n  \"token\": \"<reset-token-from-email>\",\n  \"newPassword\": \"newSecure1!\"\n}" }
               }
             },
             {
@@ -587,8 +724,16 @@
           ]
         },
         {
-          "name": "👥 Users & Devices",
+          "name": "👥 Users",
           "item": [
+            {
+              "name": "Get Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/reseller/dashboard", "host": ["{{baseUrl}}"], "path": ["api","reseller","dashboard"] }
+              }
+            },
             {
               "name": "Create End User",
               "request": {
@@ -602,42 +747,23 @@
               }
             },
             {
-              "name": "Get Dashboard",
-              "request": {
-                "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
-                "url": { "raw": "{{baseUrl}}/api/reseller/dashboard", "host": ["{{baseUrl}}"], "path": ["api","reseller","dashboard"] }
-              }
-            },
-            {
-              "name": "Get Users (Paginated + Filters)",
+              "name": "Get Users (Paginated)",
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
                 "url": {
-                  "raw": "{{baseUrl}}/api/reseller/users?search=&status=&subscription=&page=0&size=20",
+                  "raw": "{{baseUrl}}/api/reseller/users?page=0&size=20",
                   "host": ["{{baseUrl}}"], "path": ["api","reseller","users"],
-                  "query": [
-                    { "key": "search", "value": "" }, { "key": "status", "value": "" },
-                    { "key": "subscription", "value": "" }, { "key": "page", "value": "0" }, { "key": "size", "value": "20" }
-                  ]
+                  "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }]
                 }
               }
             },
             {
-              "name": "Toggle User Status (disable/enable)",
+              "name": "Toggle User Status",
               "request": {
                 "method": "PUT",
                 "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
                 "url": { "raw": "{{baseUrl}}/api/reseller/users/{{deviceId}}/disable", "host": ["{{baseUrl}}"], "path": ["api","reseller","users","{{deviceId}}","disable"] }
-              }
-            },
-            {
-              "name": "Detach Device",
-              "request": {
-                "method": "DELETE",
-                "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
-                "url": { "raw": "{{baseUrl}}/api/reseller/users/{{deviceId}}/detach", "host": ["{{baseUrl}}"], "path": ["api","reseller","users","{{deviceId}}","detach"] }
               }
             },
             {
@@ -663,12 +789,28 @@
                 "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
                 "url": { "raw": "{{baseUrl}}/api/reseller/users/{{deviceId}}/pause-subscription", "host": ["{{baseUrl}}"], "path": ["api","reseller","users","{{deviceId}}","pause-subscription"] }
               }
+            },
+            {
+              "name": "Detach Device",
+              "request": {
+                "method": "DELETE",
+                "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/reseller/users/{{deviceId}}/detach", "host": ["{{baseUrl}}"], "path": ["api","reseller","users","{{deviceId}}","detach"] }
+              }
             }
           ]
         },
         {
           "name": "🏪 Sub-Resellers",
           "item": [
+            {
+              "name": "Get Sub-Resellers",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+                "url": { "raw": "{{baseUrl}}/api/reseller/sub-resellers?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api","reseller","sub-resellers"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] }
+              }
+            },
             {
               "name": "Create Sub-Reseller",
               "request": {
@@ -679,14 +821,6 @@
                 ],
                 "url": { "raw": "{{baseUrl}}/api/reseller/sub-resellers", "host": ["{{baseUrl}}"], "path": ["api","reseller","sub-resellers"] },
                 "body": { "mode": "raw", "raw": "{\n  \"username\": \"subreseller1\",\n  \"email\": \"sub@example.com\",\n  \"password\": \"SubPass1!\",\n  \"fullName\": \"Sub Reseller One\"\n}" }
-              }
-            },
-            {
-              "name": "Get Sub-Resellers",
-              "request": {
-                "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
-                "url": { "raw": "{{baseUrl}}/api/reseller/sub-resellers?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api","reseller","sub-resellers"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] }
               }
             },
             {
@@ -718,7 +852,7 @@
               }
             },
             {
-              "name": "Bulk Update Sub-Reseller CRUD Permissions",
+              "name": "Bulk Update Sub-Reseller Permissions",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -730,7 +864,7 @@
               }
             },
             {
-              "name": "Update CRUD for Specific Sub-Reseller",
+              "name": "Update Permissions for Specific Sub-Reseller",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -755,7 +889,7 @@
                   { "key": "Authorization", "value": "Bearer {{resellerToken}}" }
                 ],
                 "url": { "raw": "{{baseUrl}}/api/reseller/activation-request", "host": ["{{baseUrl}}"], "path": ["api","reseller","activation-request"] },
-                "body": { "mode": "raw", "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planId\": \"<plan-uuid>\",\n  \"notes\": \"Customer requested 6-month plan\"\n}" }
+                "body": { "mode": "raw", "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"planId\": \"<plan-uuid>\"\n}" }
               }
             },
             {
@@ -791,19 +925,19 @@
           }
         },
         {
-          "name": "Get Credit Pricing (by quantity)",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/reseller/credits/pricing?quantity=100", "host": ["{{baseUrl}}"], "path": ["api","reseller","credits","pricing"], "query": [{ "key": "quantity", "value": "100" }] }
-          }
-        },
-        {
           "name": "Get All Pricing Tiers",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
             "url": { "raw": "{{baseUrl}}/api/reseller/credits/pricing-tiers", "host": ["{{baseUrl}}"], "path": ["api","reseller","credits","pricing-tiers"] }
+          }
+        },
+        {
+          "name": "Get Credit Pricing (by qty)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reseller/credits/pricing?quantity=100", "host": ["{{baseUrl}}"], "path": ["api","reseller","credits","pricing"], "query": [{ "key": "quantity", "value": "100" }] }
           }
         },
         {
@@ -815,7 +949,7 @@
           }
         },
         {
-          "name": "Purchase Credits (PayPal checkout)",
+          "name": "Purchase Credits (PayPal)",
           "request": {
             "method": "POST",
             "header": [
@@ -849,10 +983,16 @@
           "item": [
             {
               "name": "Admin Login",
-              "event": [{ "listen": "test", "script": { "exec": [
-                "var j = pm.response.json();",
-                "if (j.token) pm.collectionVariables.set('adminToken', j.token);"
-              ], "type": "text/javascript" } }],
+              "event": [{
+                "listen": "test",
+                "script": {
+                  "type": "text/javascript",
+                  "exec": [
+                    "var j = pm.response.json();",
+                    "if (j.token) { pm.collectionVariables.set('adminToken', j.token); console.log('✅ adminToken captured'); }"
+                  ]
+                }
+              }],
               "request": {
                 "method": "POST",
                 "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -875,7 +1015,7 @@
                 "method": "POST",
                 "header": [{ "key": "Content-Type", "value": "application/json" }],
                 "url": { "raw": "{{baseUrl}}/api/admin/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api","admin","auth","reset-password"] },
-                "body": { "mode": "raw", "raw": "{\n  \"token\": \"<reset-token>\",\n  \"newPassword\": \"newAdmin1!\"\n}" }
+                "body": { "mode": "raw", "raw": "{\n  \"token\": \"<reset-token-from-email>\",\n  \"newPassword\": \"newAdmin1!\"\n}" }
               }
             },
             {
@@ -893,7 +1033,7 @@
           ]
         },
         {
-          "name": "👤 Admin Management",
+          "name": "👤 Management",
           "item": [
             {
               "name": "Invite Admin",
@@ -960,7 +1100,7 @@
                   { "key": "Authorization", "value": "Bearer {{adminToken}}" }
                 ],
                 "url": { "raw": "{{baseUrl}}/api/admin/management/<admin-id>", "host": ["{{baseUrl}}"], "path": ["api","admin","management","<admin-id>"] },
-                "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Updated Admin Name\",\n  \"active\": true\n}" }
+                "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Updated Admin\"\n}" }
               }
             },
             {
@@ -1013,7 +1153,7 @@
               }
             },
             {
-              "name": "Delete Device Completely",
+              "name": "Delete Device",
               "request": {
                 "method": "DELETE",
                 "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
@@ -1054,18 +1194,6 @@
               }
             },
             {
-              "name": "Create M3U Playlist (Admin)",
-              "request": {
-                "method": "POST",
-                "header": [
-                  { "key": "Content-Type",  "value": "application/json" },
-                  { "key": "Authorization", "value": "Bearer {{adminToken}}" }
-                ],
-                "url": { "raw": "{{baseUrl}}/api/admin/playlists/m3u", "host": ["{{baseUrl}}"], "path": ["api","admin","playlists","m3u"] },
-                "body": { "mode": "raw", "raw": "{\n  \"url\": \"http://provider.example.com/playlist.m3u\",\n  \"name\": \"Admin M3U\"\n}" }
-              }
-            },
-            {
               "name": "Update Playlist (Partial)",
               "request": {
                 "method": "PATCH",
@@ -1098,7 +1226,7 @@
               }
             },
             {
-              "name": "Toggle Pin (Admin)",
+              "name": "Toggle Pin",
               "request": {
                 "method": "PATCH",
                 "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
@@ -1106,7 +1234,7 @@
               }
             },
             {
-              "name": "Delete Playlist (Admin)",
+              "name": "Delete Playlist",
               "request": {
                 "method": "DELETE",
                 "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
@@ -1149,7 +1277,7 @@
           ]
         },
         {
-          "name": "🤝 Resellers (Admin)",
+          "name": "🤝 Resellers",
           "item": [
             {
               "name": "List All Resellers",
@@ -1168,7 +1296,7 @@
               }
             },
             {
-              "name": "Update Reseller (SUPER_ADMIN only)",
+              "name": "Update Reseller (SUPER_ADMIN)",
               "request": {
                 "method": "PUT",
                 "header": [
@@ -1176,7 +1304,7 @@
                   { "key": "Authorization", "value": "Bearer {{adminToken}}" }
                 ],
                 "url": { "raw": "{{baseUrl}}/api/admin/resellers/<reseller-id>", "host": ["{{baseUrl}}"], "path": ["api","admin","resellers","<reseller-id>"] },
-                "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Updated Reseller\",\n  \"canCreate\": true\n}" }
+                "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Updated Reseller\"\n}" }
               }
             },
             {
@@ -1204,15 +1332,7 @@
               }
             },
             {
-              "name": "Get Sub-Resellers (under reseller)",
-              "request": {
-                "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
-                "url": { "raw": "{{baseUrl}}/api/admin/resellers/<reseller-id>/sub-resellers?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api","admin","resellers","<reseller-id>","sub-resellers"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] }
-              }
-            },
-            {
-              "name": "Delete Reseller (SUPER_ADMIN only)",
+              "name": "Delete Reseller (SUPER_ADMIN)",
               "request": {
                 "method": "DELETE",
                 "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],

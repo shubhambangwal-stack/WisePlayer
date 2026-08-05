@@ -50,7 +50,7 @@ app:
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXZz
       - d2lzZXBsYXllci1kZXZpY2Utc2VjdXJpdHktc2VjcmV0LWtleS0yMDI0LXXx
     seed-secret: "wiseplayer-internal-seed-secret-dev-2024"
-    token-ttl-minutes: 1
+    token-ttl-minutes: 45
     allowed-origins:
       - "http://localhost:3000"
       - "http://localhost:5173"
