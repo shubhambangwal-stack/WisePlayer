@@ -3,6 +3,7 @@ package com.iptv.wiseplayer.service.iptv;
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamLiveStream;
 import com.iptv.wiseplayer.dto.iptv.XtreamSeries;
+import com.iptv.wiseplayer.dto.iptv.XtreamSeriesInfo;
 import com.iptv.wiseplayer.dto.iptv.XtreamVodStream;
 import org.springframework.stereotype.Service;
 
@@ -48,5 +49,14 @@ public class XtreamCatalogService {
     public List<XtreamSeries> getSeries(UUID playlistId, String categoryId) {
         SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
         return xtreamClient.getSeries(creds.serverUrl(), creds.username(), creds.password(), categoryId);
+    }
+
+    /**
+     * Fetches full series info (seasons + episodes) by series ID.
+     * This calls the get_series_info action on the Xtream Codes API.
+     */
+    public XtreamSeriesInfo getSeriesInfo(UUID playlistId, int seriesId) {
+        SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
+        return xtreamClient.getSeriesInfo(creds.serverUrl(), creds.username(), creds.password(), seriesId);
     }
 }

@@ -4,6 +4,7 @@ import com.iptv.wiseplayer.dto.iptv.XtreamAuthResponse;
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamLiveStream;
 import com.iptv.wiseplayer.dto.iptv.XtreamSeries;
+import com.iptv.wiseplayer.dto.iptv.XtreamSeriesInfo;
 import com.iptv.wiseplayer.dto.iptv.XtreamVodStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,6 +191,25 @@ public class XtreamClient {
         } catch (Exception e) {
             logger.error("Error fetching Series: {}", e.getMessage());
             return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Fetches detailed Series info including seasons and episodes.
+     * Uses the get_series_info action with a series_id.
+     */
+    public XtreamSeriesInfo getSeriesInfo(String serverUrl, String username, String password, int seriesId) {
+        String url = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_series_info")
+                .queryParam("series_id", seriesId)
+                .toUriString();
+
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
+            return restTemplate.exchange(url, HttpMethod.GET, entity, XtreamSeriesInfo.class).getBody();
+        } catch (Exception e) {
+            logger.error("Error fetching Series info for series_id={}: {}", seriesId, e.getMessage());
+            return null;
         }
     }
 }
