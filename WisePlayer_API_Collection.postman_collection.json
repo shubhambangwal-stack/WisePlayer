@@ -19,6 +19,18 @@
   "item": [
 
     {
+      "name": "❤️ Health Check",
+      "description": "Public endpoint — no auth required. Use this to verify the API is alive and check the active tokenTtlMinutes value.",
+      "item": [{
+        "name": "Health Check",
+        "request": {
+          "method": "GET",
+          "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api","health"] }
+        }
+      }]
+    },
+
+    {
       "name": "🔌 Device",
       "description": "Run in order: Register → Validate. Tokens and IDs are auto-captured.",
       "item": [
