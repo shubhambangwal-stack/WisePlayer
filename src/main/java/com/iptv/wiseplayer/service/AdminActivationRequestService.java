@@ -74,58 +74,58 @@ public class AdminActivationRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException("Activation request not found"));
     }
 
-    @Transactional
-    public void approveRequest(UUID requestId, String adminNotes) {
-        ActivationRequest request = activationRequestRepository.findById(requestId)
-                .orElseThrow(() -> new ResourceNotFoundException("Activation request not found"));
-
-        if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
-            throw new BadRequestException("Only pending requests can be approved");
-        }
-
-        UUID adminId = getCurrentAdminId();
-
-        // Validate plan exists in subscription_plan_configs (no enum.valueOf needed)
-        planConfigRepository.findByName(request.getPlanName())
-                .orElseThrow(() -> new BadRequestException("Invalid plan name in request: " + request.getPlanName()));
-
-        SubscriptionActivationRequest activationDto = new SubscriptionActivationRequest();
-        activationDto.setDeviceId(request.getDeviceId().toString());
-        activationDto.setPlanName(request.getPlanName());
-
-        adminSubscriptionService.manualActivate(activationDto);
-
-        request.setStatus("APPROVED");
-        request.setAdminNotes(adminNotes);
-        request.setReviewedBy(adminId);
-        request.setReviewedAt(LocalDateTime.now());
-
-        activationRequestRepository.save(request);
-    }
-
-    @Transactional
-    public void rejectRequest(UUID requestId, String adminNotes) {
-        ActivationRequest request = activationRequestRepository.findById(requestId)
-                .orElseThrow(() -> new ResourceNotFoundException("Activation request not found"));
-
-        if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
-            throw new BadRequestException("Only pending requests can be rejected");
-        }
-
-        UUID adminId = getCurrentAdminId();
-
-        request.setStatus("REJECTED");
-        request.setAdminNotes(adminNotes);
-        request.setReviewedBy(adminId);
-        request.setReviewedAt(LocalDateTime.now());
-
-        activationRequestRepository.save(request);
-
-        // Refund credits if it was a reseller request
-        if (request.getResellerId() != null) {
-            creditService.refundCredits(request.getResellerId(), request.getId());
-        }
-    }
+//    @Transactional
+//    public void approveRequest(UUID requestId, String adminNotes) {
+//        ActivationRequest request = activationRequestRepository.findById(requestId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Activation request not found"));
+//
+//        if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
+//            throw new BadRequestException("Only pending requests can be approved");
+//        }
+//
+//        UUID adminId = getCurrentAdminId();
+//
+//        // Validate plan exists in subscription_plan_configs (no enum.valueOf needed)
+//        planConfigRepository.findByName(request.getPlanName())
+//                .orElseThrow(() -> new BadRequestException("Invalid plan name in request: " + request.getPlanName()));
+//
+//        SubscriptionActivationRequest activationDto = new SubscriptionActivationRequest();
+//        activationDto.setDeviceId(request.getDeviceId().toString());
+//        activationDto.setPlanName(request.getPlanName());
+//
+//        adminSubscriptionService.manualActivate(activationDto);
+//
+//        request.setStatus("APPROVED");
+//        request.setAdminNotes(adminNotes);
+//        request.setReviewedBy(adminId);
+//        request.setReviewedAt(LocalDateTime.now());
+//
+//        activationRequestRepository.save(request);
+//    }
+//
+//    @Transactional
+//    public void rejectRequest(UUID requestId, String adminNotes) {
+//        ActivationRequest request = activationRequestRepository.findById(requestId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Activation request not found"));
+//
+//        if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
+//            throw new BadRequestException("Only pending requests can be rejected");
+//        }
+//
+//        UUID adminId = getCurrentAdminId();
+//
+//        request.setStatus("REJECTED");
+//        request.setAdminNotes(adminNotes);
+//        request.setReviewedBy(adminId);
+//        request.setReviewedAt(LocalDateTime.now());
+//
+//        activationRequestRepository.save(request);
+//
+//        // Refund credits if it was a reseller request
+//        if (request.getResellerId() != null) {
+//            creditService.refundCredits(request.getResellerId(), request.getId());
+//        }
+//    }
 
     private ActivationRequestResponse convertToResponse(ActivationRequest request) {
         ActivationRequestResponse response = new ActivationRequestResponse();
