@@ -41,23 +41,23 @@ public class AdminActivationRequestController {
         return ResponseEntity.ok(adminActivationRequestService.getRequestById(id));
     }
 
-    @Operation(summary = "Approve Activation Request", description = "Approves a pending activation request and activates the subscription.")
-    @PostMapping("/{id}/approve")
-    public ResponseEntity<?> approveRequest(
-            @PathVariable UUID id,
-            @RequestBody(required = false) ApprovalActionRequest request) {
-        String notes = (request != null) ? request.getAdminNotes() : null;
-        adminActivationRequestService.approveRequest(id, notes);
-        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request approved and subscription activated"));
-    }
+//    @Operation(summary = "Approve Activation Request", description = "Approves a pending activation request and activates the subscription.")
+//    @PostMapping("/{id}/approve")
+//    public ResponseEntity<?> approveRequest(
+//            @PathVariable UUID id,
+//            @RequestBody(required = false) ApprovalActionRequest request) {
+//        String notes = (request != null) ? request.getAdminNotes() : null;
+//        adminActivationRequestService.approveRequest(id, notes);
+//        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request approved and subscription activated"));
+//    }
 
-    @Operation(summary = "Reject Activation Request", description = "Rejects a pending activation request.")
-    @PostMapping("/{id}/reject")
-    public ResponseEntity<?> rejectRequest(
-            @PathVariable UUID id,
-            @RequestBody(required = false) ApprovalActionRequest request) {
-        String notes = (request != null) ? request.getAdminNotes() : null;
-        adminActivationRequestService.rejectRequest(id, notes);
-        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request rejected"));
-    }
+//    @Operation(summary = "Reject Activation Request", description = "Rejects a pending activation request.")
+//    @PostMapping("/{id}/reject")
+//    public ResponseEntity<?> rejectRequest(
+//            @PathVariable UUID id,
+//            @RequestBody(required = false) ApprovalActionRequest request) {
+//        String notes = (request != null) ? request.getAdminNotes() : null;
+//        adminActivationRequestService.rejectRequest(id, notes);
+//        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request rejected"));
+//    }
 }
