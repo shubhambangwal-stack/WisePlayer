@@ -63,18 +63,25 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     @Transactional
     public PlaylistResponse saveXtreamPlaylist(UUID deviceId, XtreamPlaylistRequest request) {
-        log.info("Saving Xtream playlist '{}' for device {}", request.getName(), deviceId);
+        log.info("saveXtreamPlaylist starting. Name: '{}', serverUrl: {}, username: {}", request.getName(), request.getServerUrl(), request.getUsername());
         // Validate credentials before saving
-        xtreamClient.authenticate(request.getServerUrl(), request.getUsername(), request.getPassword())
-                .orElseThrow(() -> {
-                    log.warn("Xtream validation failed for '{}' on device {}", request.getName(), deviceId);
-                    return new BadRequestException("Invalid Xtream credentials or inactive account");
-                });
+        try {
+            xtreamClient.authenticate(request.getServerUrl(), request.getUsername(), request.getPassword())
+                    .orElseThrow(() -> {
+                        log.warn("Xtream validation returned empty response for '{}' on device {}", request.getName(), deviceId);
+                        return new BadRequestException("Invalid Xtream credentials or inactive account");
+                    });
+            log.info("Xtream credentials authenticated successfully.");
+        } catch (Exception authEx) {
+            log.error("Error validating Xtream credentials: {}", authEx.getMessage(), authEx);
+            throw authEx;
+        }
 
         Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
                 .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
                 .findFirst()
                 .orElseGet(() -> {
+                    log.info("No existing playlist with name '{}' found, creating a new one.", request.getName());
                     Playlist p = new Playlist();
                     p.setDeviceId(deviceId);
                     p.setName(request.getName());
@@ -88,15 +95,18 @@ public class PlaylistServiceImpl implements PlaylistService {
         playlist.setM3uUrl(null);
 
         Playlist saved = playlistRepository.save(playlist);
+        log.info("Xtream playlist '{}' saved successfully with ID: {}", saved.getName(), saved.getId());
         return mapToResponse(saved);
     }
 
     @Override
     @Transactional
     public PlaylistResponse saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request) {
+        log.info("saveM3uPlaylist starting. Name: '{}', m3uUrl: {}", request.getName(), request.getM3uUrl());
         // Smart Promotion Check
         var xtreamDetails = xtreamUrlParser.parse(request.getM3uUrl());
         if (xtreamDetails != null) {
+            log.info("URL is Xtream-compatible. Promoting M3U to Xtream Codes playlist format.");
             XtreamPlaylistRequest xtreamRequest = new XtreamPlaylistRequest();
             xtreamRequest.setName(request.getName());
             xtreamRequest.setServerUrl(xtreamDetails.getServerUrl());
@@ -106,13 +116,14 @@ public class PlaylistServiceImpl implements PlaylistService {
         }
 
         // Validate M3U URL with a lightweight HEAD request
-        log.info("Validating M3U URL for playlist '{}'", request.getName());
+        log.info("Validating M3U URL with network request for playlist '{}'", request.getName());
         validateM3uUrl(request.getM3uUrl());
 
         Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
                 .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
                 .findFirst()
                 .orElseGet(() -> {
+                    log.info("No existing playlist with name '{}' found, creating a new one.", request.getName());
                     Playlist p = new Playlist();
                     p.setDeviceId(deviceId);
                     p.setName(request.getName());
@@ -126,6 +137,7 @@ public class PlaylistServiceImpl implements PlaylistService {
         playlist.setPassword(null);
 
         Playlist saved = playlistRepository.save(playlist);
+        log.info("M3U playlist '{}' saved successfully with ID: {}", saved.getName(), saved.getId());
         return mapToResponse(saved);
     }
 
