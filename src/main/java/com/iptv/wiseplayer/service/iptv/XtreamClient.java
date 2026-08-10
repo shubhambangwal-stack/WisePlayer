@@ -91,10 +91,12 @@ public class XtreamClient {
      */
     public List<XtreamLiveStream> getLiveStreams(String serverUrl, String username, String password,
             String categoryId) {
-        String url = buildBaseUrl(serverUrl, username, password)
-                .queryParam("action", "get_live_streams")
-                .queryParam("category_id", categoryId)
-                .toUriString();
+        UriComponentsBuilder builder = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_live_streams");
+        if (categoryId != null && !categoryId.trim().isEmpty()) {
+            builder.queryParam("category_id", categoryId);
+        }
+        String url = builder.toUriString();
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());

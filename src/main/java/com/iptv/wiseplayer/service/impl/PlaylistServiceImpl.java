@@ -311,19 +311,31 @@ public class PlaylistServiceImpl implements PlaylistService {
                 }
             }
 
-            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("HEAD");
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
-            connection.setRequestProperty("User-Agent", "WisePlayer/1.0");
-            int responseCode = connection.getResponseCode();
-            if (responseCode < 200 || responseCode >= 400) {
-                if (responseCode == 405 || responseCode == 403) {
-                    log.warn("M3U HEAD request returned {} for {}. Attempting soft pass.", responseCode, urlString);
-                    return;
+            int responseCode = -1;
+            try {
+                java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("HEAD");
+                connection.setConnectTimeout(4000);
+                connection.setReadTimeout(4000);
+                connection.setRequestProperty("User-Agent", "okhttp/4.9.0");
+                responseCode = connection.getResponseCode();
+
+                if (responseCode < 200 || responseCode >= 400) {
+                    java.net.HttpURLConnection getConn = (java.net.HttpURLConnection) url.openConnection();
+                    getConn.setRequestMethod("GET");
+                    getConn.setConnectTimeout(3000);
+                    getConn.setReadTimeout(3000);
+                    getConn.setRequestProperty("User-Agent", "okhttp/4.9.0");
+                    responseCode = getConn.getResponseCode();
                 }
-                log.error("M3U validation failed with status {} for URL: {}", responseCode, urlString);
-                throw new BadRequestException("Invalid M3U URL or server is unreachable. HTTP Status: " + responseCode);
+            } catch (Exception connEx) {
+                log.warn("Network check failed for M3U URL {}: {}. Performing soft pass since host resolved.", urlString, connEx.getMessage());
+                return; // Soft pass on connection exception
+            }
+
+            if (responseCode < 200 || responseCode >= 400) {
+                log.warn("M3U validation returned status {} for URL: {}. Performing soft pass.", responseCode, urlString);
+                return; // Soft pass on HTTP errors
             }
         } catch (java.net.UnknownHostException e) {
             log.error("Unknown host for M3U URL: {}", urlString);
@@ -331,9 +343,6 @@ public class PlaylistServiceImpl implements PlaylistService {
         } catch (java.net.MalformedURLException e) {
             log.error("Malformed M3U URL: {}", urlString);
             throw new BadRequestException("Invalid M3U URL format");
-        } catch (java.io.IOException e) {
-            log.error("Network error during M3U validation: {}", e.getMessage());
-            throw new BadRequestException("Error connecting to the M3U URL: " + e.getMessage());
         }
     }
 
