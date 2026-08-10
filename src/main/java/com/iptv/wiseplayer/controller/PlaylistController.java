@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
+import com.iptv.wiseplayer.dto.request.SetDevicePinRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 import com.iptv.wiseplayer.security.DeviceContext;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.Map;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * REST Controller for playlist management.
@@ -70,13 +72,41 @@ public class PlaylistController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Get All Public Playlists", description = "Retrieves all saved playlists for a specific MAC address/device ID.")
+    @Operation(
+        summary = "Get All Public Playlists",
+        description = "Retrieves all saved playlists for a specific MAC address/device ID. "
+            + "If the device has a PIN set, the correct 4-digit PIN must be supplied via the 'pin' query parameter.")
     @GetMapping("/public/{deviceId}")
-    public ResponseEntity<?> getPublicPlaylists(@PathVariable String deviceId) {
-        List<PlaylistResponse> response = playlistService.getPublicPlaylists(deviceId);
+    public ResponseEntity<?> getPublicPlaylists(
+            @PathVariable String deviceId,
+            @RequestParam(value = "pin", required = false) String pin) {
+        List<PlaylistResponse> response = playlistService.getPublicPlaylistsWithPin(deviceId, pin);
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "data", response));
+    }
+
+    @Operation(
+        summary = "Set Public Access PIN",
+        description = "Sets or updates the 4-digit PIN that protects the public playlist endpoint for this device. "
+            + "Requires an active device token. Send an empty-body DELETE to /pin to remove the PIN.")
+    @PostMapping("/pin")
+    public ResponseEntity<?> setDevicePin(@Valid @RequestBody SetDevicePinRequest request) {
+        playlistService.setDevicePin(deviceContext.getCurrentDeviceId(), request.getPin());
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Public access PIN set successfully"));
+    }
+
+    @Operation(
+        summary = "Remove Public Access PIN",
+        description = "Removes the PIN protection from this device's public playlist endpoint.")
+    @DeleteMapping("/pin")
+    public ResponseEntity<?> removeDevicePin() {
+        playlistService.removeDevicePin(deviceContext.getCurrentDeviceId());
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Public access PIN removed successfully"));
     }
 
     @Operation(summary = "Update Public M3U Playlist", description = "Updates an existing M3U playlist by ID for a specific MAC address/device ID.")

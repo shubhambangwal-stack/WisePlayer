@@ -19,6 +19,7 @@ import com.iptv.wiseplayer.util.EncryptionUtil;
 import java.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,19 +40,22 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final XtreamClient xtreamClient;
     private final com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser;
     private final DeviceTokenUtil tokenUtil;
+    private final PasswordEncoder passwordEncoder;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository,
             DeviceRepository deviceRepository,
             EncryptionUtil encryptionUtil,
             XtreamClient xtreamClient,
             com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser,
-            DeviceTokenUtil tokenUtil) {
+            DeviceTokenUtil tokenUtil,
+            PasswordEncoder passwordEncoder) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
         this.encryptionUtil = encryptionUtil;
         this.xtreamClient = xtreamClient;
         this.xtreamUrlParser = xtreamUrlParser;
         this.tokenUtil = tokenUtil;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -242,6 +246,48 @@ public class PlaylistServiceImpl implements PlaylistService {
     public java.util.List<PlaylistResponse> getPublicPlaylists(String deviceId) {
         Device device = resolveDevice(deviceId);
         return getPlaylists(device.getDeviceId());
+    }
+
+    @Override
+    public java.util.List<PlaylistResponse> getPublicPlaylistsWithPin(String deviceId, String pin) {
+        Device device = resolveDevice(deviceId);
+
+        String storedHash = device.getPublicPinHash();
+        if (storedHash != null) {
+            // PIN is set — caller must supply a correct PIN
+            if (pin == null || pin.isBlank()) {
+                throw new AccessDeniedException("This device is PIN-protected. Please provide the 4-digit PIN.");
+            }
+            if (!passwordEncoder.matches(pin, storedHash)) {
+                log.warn("Incorrect PIN attempt for device {}", device.getDeviceId());
+                throw new AccessDeniedException("Incorrect PIN. Access denied.");
+            }
+        }
+        // No PIN set → open access (backward-compatible)
+        return getPlaylists(device.getDeviceId());
+    }
+
+    @Override
+    @Transactional
+    public void setDevicePin(UUID deviceId, String pin) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Device not found: " + deviceId));
+        String hashed = passwordEncoder.encode(pin);
+        device.setPublicPinHash(hashed);
+        deviceRepository.save(device);
+        log.info("Public PIN set for device {}", deviceId);
+    }
+
+    @Override
+    @Transactional
+    public void removeDevicePin(UUID deviceId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Device not found: " + deviceId));
+        device.setPublicPinHash(null);
+        deviceRepository.save(device);
+        log.info("Public PIN removed for device {}", deviceId);
     }
 
     @Override
