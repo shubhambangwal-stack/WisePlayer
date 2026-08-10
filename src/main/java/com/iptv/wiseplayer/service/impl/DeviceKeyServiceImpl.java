@@ -137,9 +137,17 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
         if (subStatus.getStatus() == SubscriptionStatus.ACTIVE || 
            (subStatus.getStatus() == SubscriptionStatus.TRIAL && subStatus.getEndDate() != null && subStatus.getEndDate().isAfter(LocalDateTime.now()))) {
             
-            // Device is already active. Do not allow duplicate activation.
+            // Device already has an active subscription/trial. Activate device status if needed.
+            if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
+                device.setDeviceStatus(DeviceStatus.ACTIVE);
+                deviceRepository.save(device);
+                
+                DeviceAuditLog auditLog = new DeviceAuditLog(device.getDeviceId(), oldStatus, DeviceStatus.ACTIVE,
+                        "ACTIVATION", "Device activated via 6-digit code (re-linked active subscription/trial).");
+                auditRepository.save(auditLog);
+            }
             deviceKeyRepository.delete(deviceKey);
-            return new DeviceActivationResponse(false, "Device already has an active subscription.", device.getDeviceStatus());
+            return new DeviceActivationResponse(true, "Device activated successfully", DeviceStatus.ACTIVE);
             
         } else if (subStatus.getStatus() == SubscriptionStatus.EXPIRED || 
                   (subStatus.getStatus() == SubscriptionStatus.TRIAL && subStatus.getEndDate() != null && subStatus.getEndDate().isBefore(LocalDateTime.now()))) {
@@ -152,6 +160,11 @@ public class DeviceKeyServiceImpl implements DeviceKeyService {
         // 6. No active or expired subscription found, safe to start the 7-day trial
         LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
         subscriptionService.initializeTrial(device.getDeviceId(), expiresAt);
+
+        // ✅ FIX: Stamp the activatedAt timestamp on the device record.
+        // Previously this was never set, leaving activated_at NULL in the DB for all devices.
+        device.setActivatedAt(LocalDateTime.now());
+        deviceRepository.save(device);
 
         // Audit Logging
         DeviceAuditLog auditLog = new DeviceAuditLog(device.getDeviceId(), oldStatus, DeviceStatus.ACTIVE,

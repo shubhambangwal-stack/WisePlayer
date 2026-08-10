@@ -25,14 +25,14 @@ public class AdminActivationRequestController {
         this.adminActivationRequestService = adminActivationRequestService;
     }
 
-    @Operation(summary = "List All Activation Requests", description = "Retrieves a paginated list of activation requests, optionally filtered by status, deviceId, or planName.")
     @GetMapping
     public ResponseEntity<Page<ActivationRequestResponse>> getAllRequests(
+            @RequestParam(required = false) UUID resellerId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String deviceId,
             @RequestParam(required = false) String planName,
             Pageable pageable) {
-        return ResponseEntity.ok(adminActivationRequestService.getAllRequests(status, deviceId, planName, pageable));
+        return ResponseEntity.ok(adminActivationRequestService.getAllRequests(resellerId, status, deviceId, planName, pageable));
     }
 
     @Operation(summary = "Get Activation Request Details", description = "Retrieves detailed information for a specific activation request.")
@@ -41,23 +41,23 @@ public class AdminActivationRequestController {
         return ResponseEntity.ok(adminActivationRequestService.getRequestById(id));
     }
 
-    @Operation(summary = "Approve Activation Request", description = "Approves a pending activation request and activates the subscription.")
-    @PostMapping("/{id}/approve")
-    public ResponseEntity<?> approveRequest(
-            @PathVariable UUID id,
-            @RequestBody(required = false) ApprovalActionRequest request) {
-        String notes = (request != null) ? request.getAdminNotes() : null;
-        adminActivationRequestService.approveRequest(id, notes);
-        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request approved and subscription activated"));
-    }
+//    @Operation(summary = "Approve Activation Request", description = "Approves a pending activation request and activates the subscription.")
+//    @PostMapping("/{id}/approve")
+//    public ResponseEntity<?> approveRequest(
+//            @PathVariable UUID id,
+//            @RequestBody(required = false) ApprovalActionRequest request) {
+//        String notes = (request != null) ? request.getAdminNotes() : null;
+//        adminActivationRequestService.approveRequest(id, notes);
+//        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request approved and subscription activated"));
+//    }
 
-    @Operation(summary = "Reject Activation Request", description = "Rejects a pending activation request.")
-    @PostMapping("/{id}/reject")
-    public ResponseEntity<?> rejectRequest(
-            @PathVariable UUID id,
-            @RequestBody(required = false) ApprovalActionRequest request) {
-        String notes = (request != null) ? request.getAdminNotes() : null;
-        adminActivationRequestService.rejectRequest(id, notes);
-        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request rejected"));
-    }
+//    @Operation(summary = "Reject Activation Request", description = "Rejects a pending activation request.")
+//    @PostMapping("/{id}/reject")
+//    public ResponseEntity<?> rejectRequest(
+//            @PathVariable UUID id,
+//            @RequestBody(required = false) ApprovalActionRequest request) {
+//        String notes = (request != null) ? request.getAdminNotes() : null;
+//        adminActivationRequestService.rejectRequest(id, notes);
+//        return ResponseEntity.ok(Map.of("success", true, "message", "Activation request rejected"));
+//    }
 }

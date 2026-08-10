@@ -19,9 +19,12 @@ import com.iptv.wiseplayer.util.EncryptionUtil;
 import java.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -39,36 +42,46 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final XtreamClient xtreamClient;
     private final com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser;
     private final DeviceTokenUtil tokenUtil;
+    private final PasswordEncoder passwordEncoder;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository,
             DeviceRepository deviceRepository,
             EncryptionUtil encryptionUtil,
             XtreamClient xtreamClient,
             com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser,
-            DeviceTokenUtil tokenUtil) {
+            DeviceTokenUtil tokenUtil,
+            PasswordEncoder passwordEncoder) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
         this.encryptionUtil = encryptionUtil;
         this.xtreamClient = xtreamClient;
         this.xtreamUrlParser = xtreamUrlParser;
         this.tokenUtil = tokenUtil;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     @Transactional
     public PlaylistResponse saveXtreamPlaylist(UUID deviceId, XtreamPlaylistRequest request) {
-        log.info("Saving Xtream playlist '{}' for device {}", request.getName(), deviceId);
+        log.info("saveXtreamPlaylist starting. Name: '{}', serverUrl: {}, username: {}", request.getName(), request.getServerUrl(), request.getUsername());
         // Validate credentials before saving
-        xtreamClient.authenticate(request.getServerUrl(), request.getUsername(), request.getPassword())
-                .orElseThrow(() -> {
-                    log.warn("Xtream validation failed for '{}' on device {}", request.getName(), deviceId);
-                    return new BadRequestException("Invalid Xtream credentials or inactive account");
-                });
+        try {
+            xtreamClient.authenticate(request.getServerUrl(), request.getUsername(), request.getPassword())
+                    .orElseThrow(() -> {
+                        log.warn("Xtream validation returned empty response for '{}' on device {}", request.getName(), deviceId);
+                        return new BadRequestException("Invalid Xtream credentials or inactive account");
+                    });
+            log.info("Xtream credentials authenticated successfully.");
+        } catch (Exception authEx) {
+            log.error("Error validating Xtream credentials: {}", authEx.getMessage(), authEx);
+            throw authEx;
+        }
 
         Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
                 .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
                 .findFirst()
                 .orElseGet(() -> {
+                    log.info("No existing playlist with name '{}' found, creating a new one.", request.getName());
                     Playlist p = new Playlist();
                     p.setDeviceId(deviceId);
                     p.setName(request.getName());
@@ -82,15 +95,18 @@ public class PlaylistServiceImpl implements PlaylistService {
         playlist.setM3uUrl(null);
 
         Playlist saved = playlistRepository.save(playlist);
+        log.info("Xtream playlist '{}' saved successfully with ID: {}", saved.getName(), saved.getId());
         return mapToResponse(saved);
     }
 
     @Override
     @Transactional
     public PlaylistResponse saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request) {
+        log.info("saveM3uPlaylist starting. Name: '{}', m3uUrl: {}", request.getName(), request.getM3uUrl());
         // Smart Promotion Check
         var xtreamDetails = xtreamUrlParser.parse(request.getM3uUrl());
         if (xtreamDetails != null) {
+            log.info("URL is Xtream-compatible. Promoting M3U to Xtream Codes playlist format.");
             XtreamPlaylistRequest xtreamRequest = new XtreamPlaylistRequest();
             xtreamRequest.setName(request.getName());
             xtreamRequest.setServerUrl(xtreamDetails.getServerUrl());
@@ -100,13 +116,14 @@ public class PlaylistServiceImpl implements PlaylistService {
         }
 
         // Validate M3U URL with a lightweight HEAD request
-        log.info("Validating M3U URL for playlist '{}'", request.getName());
+        log.info("Validating M3U URL with network request for playlist '{}'", request.getName());
         validateM3uUrl(request.getM3uUrl());
 
         Playlist playlist = playlistRepository.findByDeviceId(deviceId).stream()
                 .filter(p -> p.getName().equalsIgnoreCase(request.getName()))
                 .findFirst()
                 .orElseGet(() -> {
+                    log.info("No existing playlist with name '{}' found, creating a new one.", request.getName());
                     Playlist p = new Playlist();
                     p.setDeviceId(deviceId);
                     p.setName(request.getName());
@@ -120,6 +137,7 @@ public class PlaylistServiceImpl implements PlaylistService {
         playlist.setPassword(null);
 
         Playlist saved = playlistRepository.save(playlist);
+        log.info("M3U playlist '{}' saved successfully with ID: {}", saved.getName(), saved.getId());
         return mapToResponse(saved);
     }
 
@@ -144,8 +162,16 @@ public class PlaylistServiceImpl implements PlaylistService {
         // 2. Try as Fingerprint (MAC) if UUID didn't work
         if (device == null) {
             String fingerprintHash = tokenUtil.hashFingerprint(identity);
-            device = deviceRepository.findByFingerprintHash(fingerprintHash)
-                    .orElseThrow(() -> new ResourceNotFoundException("Device not found with identity: " + identity));
+            device = deviceRepository.findByFingerprintHash(fingerprintHash).orElse(null);
+        }
+
+        // 3. Try plain MAC address lookup as a final fallback
+        if (device == null) {
+            device = deviceRepository.findByMacAddressIgnoreCase(identity).orElse(null);
+        }
+
+        if (device == null) {
+            throw new ResourceNotFoundException("Device not found with identity: " + identity);
         }
 
         // REQUIRED: MUST BE ACTIVE AND NOT EXPIRED
@@ -155,7 +181,23 @@ public class PlaylistServiceImpl implements PlaylistService {
         }
 
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
-            throw new AccessDeniedException("Upload failed: Device subscription has expired");
+            if (device.getSubscriptionType() == com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL) {
+                throw new AccessDeniedException("Upload failed: Free trial has ended. Please subscribe to continue.");
+            } else {
+                throw new AccessDeniedException("Upload failed: Device subscription has expired. Please renew.");
+            }
+        }
+
+        if (request.getM3uUrl() == null || request.getM3uUrl().trim().isEmpty()) {
+            throw new BadRequestException("M3U URL is required");
+        }
+
+        // Smart Promotion Check - only plain M3U URLs get HEAD-validated here;
+        // Xtream-style URLs are validated downstream via xtreamClient.authenticate()
+        var xtreamDetails = xtreamUrlParser.parse(request.getM3uUrl());
+        if (xtreamDetails == null) {
+            log.info("Validating M3U URL for public playlist '{}' on device {}", request.getName(), device.getDeviceId());
+            validateM3uUrl(request.getM3uUrl());
         }
 
         // Construct a standard M3uPlaylistRequest to reuse existing logic (including
@@ -178,9 +220,123 @@ public class PlaylistServiceImpl implements PlaylistService {
             throw new AccessDeniedException("Access Denied: Your device status is " + device.getDeviceStatus());
         }
 
-        return playlistRepository.findByDeviceId(deviceId).stream()
+        return playlistRepository.findByDeviceIdOrderByPinnedDescCreatedAtDesc(deviceId).stream()
                 .map(this::mapToResponse)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    private Device resolveDevice(String deviceId) {
+        if (deviceId == null || deviceId.trim().isEmpty()) {
+            throw new BadRequestException("Device ID is required");
+        }
+
+        String identity = deviceId.trim();
+        Device device = null;
+
+        try {
+            UUID uuid = UUID.fromString(identity);
+            device = deviceRepository.findByDeviceId(uuid).orElse(null);
+        } catch (IllegalArgumentException e) {
+            // Not a UUID
+        }
+
+        if (device == null) {
+            String fingerprintHash = tokenUtil.hashFingerprint(identity);
+            device = deviceRepository.findByFingerprintHash(fingerprintHash).orElse(null);
+        }
+
+        if (device == null) {
+            device = deviceRepository.findByMacAddressIgnoreCase(identity).orElse(null);
+        }
+
+        if (device == null) {
+            throw new ResourceNotFoundException("Device not found with identity: " + identity);
+        }
+
+        return device;
+    }
+
+    @Override
+    public java.util.List<PlaylistResponse> getPublicPlaylists(String deviceId) {
+        Device device = resolveDevice(deviceId);
+        return getPlaylists(device.getDeviceId());
+    }
+
+    @Override
+    public java.util.List<PlaylistResponse> getPublicPlaylistsWithPin(String deviceId, String pin) {
+        Device device = resolveDevice(deviceId);
+
+        String storedHash = device.getPublicPinHash();
+
+        // Strict mode: PIN must be configured on the device
+        if (storedHash == null) {
+            throw new AccessDeniedException(
+                    "This device has no public PIN configured. The device owner must set a PIN first.");
+        }
+
+        // PIN is set — caller must supply the correct PIN
+        if (pin == null || pin.isBlank()) {
+            throw new AccessDeniedException(
+                    "This device is PIN-protected. Please provide the 4-digit PIN.");
+        }
+
+        if (!passwordEncoder.matches(pin, storedHash)) {
+            log.warn("Incorrect PIN attempt for device {}", device.getDeviceId());
+            throw new AccessDeniedException("Incorrect PIN. Access denied.");
+        }
+
+        return getPlaylists(device.getDeviceId());
+    }
+
+    @Override
+    @Transactional
+    public void setDevicePin(UUID deviceId, String pin) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Device not found: " + deviceId));
+        String hashed = passwordEncoder.encode(pin);
+        device.setPublicPinHash(hashed);
+        deviceRepository.save(device);
+        log.info("Public PIN set for device {}", deviceId);
+    }
+
+    @Override
+    @Transactional
+    public void removeDevicePin(UUID deviceId) {
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Device not found: " + deviceId));
+        device.setPublicPinHash(null);
+        deviceRepository.save(device);
+        log.info("Public PIN removed for device {}", deviceId);
+    }
+
+    @Override
+    @Transactional
+    public void deletePublicPlaylist(String deviceId, UUID playlistId) {
+        Device device = resolveDevice(deviceId);
+
+        Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, device.getDeviceId())
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+                
+        playlistRepository.delete(playlist);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse updatePublicM3uPlaylist(String deviceId, UUID playlistId, M3uPlaylistRequest request) {
+        Device device = resolveDevice(deviceId);
+        
+        Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, device.getDeviceId())
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+        
+        validateM3uUrl(request.getM3uUrl());
+        
+        playlist.setName(request.getName());
+        playlist.setM3uUrl(encryptionUtil.encrypt(request.getM3uUrl()));
+        
+        Playlist updated = playlistRepository.save(playlist);
+        return mapToResponse(updated);
     }
 
     private PlaylistResponse mapToResponse(Playlist playlist) {
@@ -201,7 +357,8 @@ public class PlaylistServiceImpl implements PlaylistService {
                 serverUrl,
                 username,
                 password,
-                m3uUrl);
+                m3uUrl,
+                playlist.isPinned());
     }
 
     private void validateM3uUrl(String urlString) {
@@ -219,19 +376,31 @@ public class PlaylistServiceImpl implements PlaylistService {
                 }
             }
 
-            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("HEAD");
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
-            connection.setRequestProperty("User-Agent", "WisePlayer/1.0");
-            int responseCode = connection.getResponseCode();
-            if (responseCode < 200 || responseCode >= 400) {
-                if (responseCode == 405 || responseCode == 403) {
-                    log.warn("M3U HEAD request returned {} for {}. Attempting soft pass.", responseCode, urlString);
-                    return;
+            int responseCode = -1;
+            try {
+                java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("HEAD");
+                connection.setConnectTimeout(4000);
+                connection.setReadTimeout(4000);
+                connection.setRequestProperty("User-Agent", "okhttp/4.9.0");
+                responseCode = connection.getResponseCode();
+
+                if (responseCode < 200 || responseCode >= 400) {
+                    java.net.HttpURLConnection getConn = (java.net.HttpURLConnection) url.openConnection();
+                    getConn.setRequestMethod("GET");
+                    getConn.setConnectTimeout(3000);
+                    getConn.setReadTimeout(3000);
+                    getConn.setRequestProperty("User-Agent", "okhttp/4.9.0");
+                    responseCode = getConn.getResponseCode();
                 }
-                log.error("M3U validation failed with status {} for URL: {}", responseCode, urlString);
-                throw new BadRequestException("Invalid M3U URL or server is unreachable. HTTP Status: " + responseCode);
+            } catch (Exception connEx) {
+                log.warn("Network check failed for M3U URL {}: {}. Performing soft pass since host resolved.", urlString, connEx.getMessage());
+                return; // Soft pass on connection exception
+            }
+
+            if (responseCode < 200 || responseCode >= 400) {
+                log.warn("M3U validation returned status {} for URL: {}. Performing soft pass.", responseCode, urlString);
+                return; // Soft pass on HTTP errors
             }
         } catch (java.net.UnknownHostException e) {
             log.error("Unknown host for M3U URL: {}", urlString);
@@ -239,9 +408,76 @@ public class PlaylistServiceImpl implements PlaylistService {
         } catch (java.net.MalformedURLException e) {
             log.error("Malformed M3U URL: {}", urlString);
             throw new BadRequestException("Invalid M3U URL format");
-        } catch (java.io.IOException e) {
-            log.error("Network error during M3U validation: {}", e.getMessage());
-            throw new BadRequestException("Error connecting to the M3U URL: " + e.getMessage());
         }
+    }
+
+    // ── Pin / Unpin ──────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public PlaylistResponse pinPlaylist(UUID deviceId, UUID playlistId) {
+        log.info("Pinning playlist {} for device {}", playlistId, deviceId);
+
+        // Unpin any currently pinned playlist for this device (one-pin-per-device)
+        playlistRepository.findByDeviceIdAndPinnedTrue(deviceId).ifPresent(current -> {
+            if (!current.getId().equals(playlistId)) {
+                current.setPinned(false);
+                playlistRepository.save(current);
+                log.debug("Auto-unpinned previous playlist {} for device {}", current.getId(), deviceId);
+            }
+        });
+
+        Playlist target = playlistRepository.findByIdAndDeviceId(playlistId, deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+
+        target.setPinned(true);
+        return mapToResponse(playlistRepository.save(target));
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse unpinPlaylist(UUID deviceId, UUID playlistId) {
+        log.info("Unpinning playlist {} for device {}", playlistId, deviceId);
+
+        Playlist target = playlistRepository.findByIdAndDeviceId(playlistId, deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+
+        target.setPinned(false);
+        return mapToResponse(playlistRepository.save(target));
+    }
+
+    @Override
+    public Optional<PlaylistResponse> getPinnedPlaylist(UUID deviceId) {
+        // Validate device is active first
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Internal Security Error: Authenticated device not found in database"));
+
+        if (device.getDeviceStatus() != DeviceStatus.ACTIVE) {
+            throw new AccessDeniedException("Access Denied: Your device status is " + device.getDeviceStatus());
+        }
+
+        return playlistRepository.findByDeviceIdAndPinnedTrue(deviceId)
+                .map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse pinPublicPlaylist(String deviceId, UUID playlistId) {
+        Device device = resolveDevice(deviceId);
+        return pinPlaylist(device.getDeviceId(), playlistId);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse unpinPublicPlaylist(String deviceId, UUID playlistId) {
+        Device device = resolveDevice(deviceId);
+        return unpinPlaylist(device.getDeviceId(), playlistId);
+    }
+
+    @Override
+    public Optional<PlaylistResponse> getPublicPinnedPlaylist(String deviceId) {
+        Device device = resolveDevice(deviceId);
+        return getPinnedPlaylist(device.getDeviceId());
     }
 }

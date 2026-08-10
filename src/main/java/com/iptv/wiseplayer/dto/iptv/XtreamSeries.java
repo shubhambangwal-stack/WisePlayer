@@ -1,7 +1,13 @@
 package com.iptv.wiseplayer.dto.iptv;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class XtreamSeries {
     @JsonProperty("num")
@@ -30,6 +36,19 @@ public class XtreamSeries {
     private String rating;
     @JsonProperty("category_id")
     private String categoryId;
+
+    @JsonIgnore
+    private Map<String, Object> additionalProperties = new HashMap<>();
+
+    @JsonAnyGetter
+    public Map<String, Object> getAdditionalProperties() {
+        return this.additionalProperties;
+    }
+
+    @JsonAnySetter
+    public void setAdditionalProperty(String name, Object value) {
+        this.additionalProperties.put(name, value);
+    }
 
     public int getNum() {
         return num;

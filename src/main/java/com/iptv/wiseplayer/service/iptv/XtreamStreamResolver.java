@@ -10,13 +10,18 @@ public class XtreamStreamResolver {
     private final SecureCredentialStore credentialStore;
 
     public enum StreamType {
-        LIVE, VOD
+        LIVE, VOD, SERIES
     }
 
     public XtreamStreamResolver(SecureCredentialStore credentialStore) {
         this.credentialStore = credentialStore;
     }
 
+    /**
+     * Resolves a stream URL for Live or VOD streams using default extensions.
+     * For Series episodes, use {@link #resolveSeriesEpisodeUrl(UUID, int, String)} instead,
+     * since the container extension must come from the episode metadata.
+     */
     public String resolveStreamUrl(UUID playlistId, int streamId, StreamType type) {
         // Note: authentication is enforced by Spring Security before this point.
         // Making a live auth call here would reject legitimate channel switches
@@ -24,26 +29,49 @@ public class XtreamStreamResolver {
 
         SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
 
-        // Format:
-        // Live: /live/{username}/{password}/{stream_id}.ts
-        // VOD: /movie/{username}/{password}/{stream_id}.{ext} (usually mp4/mkv, but
-        // generic player often handles without ext or we default)
-        // Actually, Xtream play url for VOD is usually /movie/user/pass/id.mp4
+        String baseUrl = normalizeBaseUrl(creds.serverUrl());
 
-        String baseUrl = creds.serverUrl();
-        if (baseUrl.endsWith("/")) {
-            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        String typePath;
+        String extension;
+
+        switch (type) {
+            case LIVE:
+                typePath = "live";
+                extension = "ts";
+                break;
+            case VOD:
+                typePath = "movie";
+                extension = "mp4";
+                break;
+            default:
+                throw new IllegalArgumentException(
+                        "Use resolveSeriesEpisodeUrl() for SERIES streams — container extension is required.");
         }
 
-        String typePath = (type == StreamType.LIVE) ? "live" : "movie";
-        String extension = (type == StreamType.LIVE) ? "ts" : "mp4"; // Defaulting VOD to mp4, though it might differ.
-
         return String.format("%s/%s/%s/%s/%d.%s",
-                baseUrl,
-                typePath,
-                creds.username(),
-                creds.password(),
-                streamId,
-                extension);
+                baseUrl, typePath, creds.username(), creds.password(), streamId, extension);
+    }
+
+    /**
+     * Resolves a playback URL for a Series episode.
+     * Series URLs use the format: /series/{username}/{password}/{episode_id}.{container_extension}
+     *
+     * @param playlistId         the playlist / provider UUID
+     * @param episodeId          the numeric episode stream id from the get_series_info response
+     * @param containerExtension the container extension (e.g. "mkv", "mp4") from the episode metadata
+     * @return the full playback URL
+     */
+    public String resolveSeriesEpisodeUrl(UUID playlistId, int episodeId, String containerExtension) {
+        SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
+
+        String baseUrl = normalizeBaseUrl(creds.serverUrl());
+        String ext = (containerExtension != null && !containerExtension.isBlank()) ? containerExtension : "mkv";
+
+        return String.format("%s/series/%s/%s/%d.%s",
+                baseUrl, creds.username(), creds.password(), episodeId, ext);
+    }
+
+    private String normalizeBaseUrl(String serverUrl) {
+        return serverUrl.endsWith("/") ? serverUrl.substring(0, serverUrl.length() - 1) : serverUrl;
     }
 }

@@ -137,4 +137,117 @@ public class AdminManagementService {
                 request.getRemoteAddr());
         adminAuditLogRepository.save(auditLog);
     }
+
+    public com.iptv.wiseplayer.dto.response.AdminResponse getAdminById(UUID id) {
+        Admin admin = adminRepository.findById(id)
+                .filter(a -> a.getRole() == AdminRole.ADMIN)
+                .orElseThrow(() -> new com.iptv.wiseplayer.exception.ResourceNotFoundException("Admin not found with ID: " + id));
+        return mapToAdminResponse(admin);
+    }
+
+    @Transactional
+    public com.iptv.wiseplayer.dto.response.AdminResponse createAdminDirect(com.iptv.wiseplayer.dto.request.CreateAdminRequest request) {
+        if (request.getEmail() != null && (adminRepository.findByEmail(request.getEmail()).isPresent() || superAdminRepository.findByEmail(request.getEmail()).isPresent())) {
+            throw new ResourceAlreadyExistsException("User with this email already exists");
+        }
+        if (adminRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new ResourceAlreadyExistsException("Admin with this username already exists");
+        }
+
+        Admin admin = new Admin();
+        admin.setUsername(request.getUsername());
+        admin.setEmail(request.getEmail());
+        admin.setFullName(request.getFullName());
+        admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        admin.setRole(AdminRole.ADMIN);
+        admin.setActive(true);
+
+        adminRepository.save(admin);
+        return mapToAdminResponse(admin);
+    }
+
+    @Transactional
+    public com.iptv.wiseplayer.dto.response.AdminResponse updateAdmin(UUID id, com.iptv.wiseplayer.dto.request.UpdateAdminRequest request) {
+        Admin admin = adminRepository.findById(id)
+                .filter(a -> a.getRole() == AdminRole.ADMIN)
+                .orElseThrow(() -> new com.iptv.wiseplayer.exception.ResourceNotFoundException("Admin not found with ID: " + id));
+
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            admin.setUsername(request.getUsername());
+        }
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            admin.setEmail(request.getEmail());
+        }
+        if (request.getFullName() != null) {
+            admin.setFullName(request.getFullName());
+        }
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        }
+        if (request.getActive() != null) {
+            admin.setActive(request.getActive());
+        }
+        if (request.getCredits() != null) {
+            admin.setCredits(request.getCredits());
+        }
+        if (request.getCanCreate() != null) {
+            admin.setCanCreate(request.getCanCreate());
+        }
+        if (request.getCanRead() != null) {
+            admin.setCanRead(request.getCanRead());
+        }
+        if (request.getCanUpdate() != null) {
+            admin.setCanUpdate(request.getCanUpdate());
+        }
+        if (request.getCanDelete() != null) {
+            admin.setCanDelete(request.getCanDelete());
+        }
+
+        adminRepository.save(admin);
+        return mapToAdminResponse(admin);
+    }
+
+    @Transactional
+    public com.iptv.wiseplayer.dto.response.AdminResponse toggleAdminStatus(UUID id) {
+        Admin admin = adminRepository.findById(id)
+                .filter(a -> a.getRole() == AdminRole.ADMIN)
+                .orElseThrow(() -> new com.iptv.wiseplayer.exception.ResourceNotFoundException("Admin not found with ID: " + id));
+        admin.setActive(!admin.isActive());
+        adminRepository.save(admin);
+        return mapToAdminResponse(admin);
+    }
+
+    @Transactional
+    public void deleteAdmin(UUID id) {
+        Admin admin = adminRepository.findById(id)
+                .filter(a -> a.getRole() == AdminRole.ADMIN)
+                .orElseThrow(() -> new com.iptv.wiseplayer.exception.ResourceNotFoundException("Admin not found with ID: " + id));
+        adminRepository.delete(admin);
+    }
+
+    public java.util.List<com.iptv.wiseplayer.dto.response.AdminResponse> getAllAdmins() {
+        return adminRepository.findAllByRoleIn(java.util.List.of(AdminRole.ADMIN)).stream()
+                .map(this::mapToAdminResponse)
+                .toList();
+                }
+
+
+
+    private com.iptv.wiseplayer.dto.response.AdminResponse mapToAdminResponse(Admin admin) {
+        return new com.iptv.wiseplayer.dto.response.AdminResponse(
+                admin.getId(),
+                admin.getEmail(),
+                admin.getUsername(),
+                admin.getFullName(),
+                admin.getRole().name(),
+                admin.isActive(),
+                admin.getCreatedAt(),
+                admin.getCredits(),
+                admin.isCanCreate(),
+                admin.isCanRead(),
+                admin.isCanUpdate(),
+                admin.isCanDelete()
+        );
+    }
 }
+

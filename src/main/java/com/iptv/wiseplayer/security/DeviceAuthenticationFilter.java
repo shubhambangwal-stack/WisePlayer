@@ -58,6 +58,7 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
                 path.startsWith("/api/reseller/login") ||
                 path.startsWith("/api/reseller/register") ||
                 path.startsWith("/api/admin/auth/login") ||
+                path.startsWith("/api/health") ||
                 path.startsWith("/wp-api-spec") ||
                 path.startsWith("/wp-docs") ||
                 path.startsWith("/wp-docs-assets") ||
@@ -76,7 +77,14 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
         // OR if path matches protected patterns.
 
         String token = request.getHeader(TOKEN_HEADER);
+        if (token == null) {
+            token = request.getParameter("token");
+        }
+        
         String fingerprint = request.getHeader(FINGERPRINT_HEADER);
+        if (fingerprint == null) {
+            fingerprint = request.getParameter("fingerprint");
+        }
 
         if (token == null || fingerprint == null) {
             // Let it pass to SecurityConfig which will reject if authenticated is required
@@ -93,9 +101,6 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
             Device device = deviceRepository.findByDeviceId(deviceId)
                     .orElseThrow(() -> new DeviceAuthenticationException("Device not found"));
 
-            if (device.getDeviceStatus() == DeviceStatus.INACTIVE) {
-                throw new DeviceAuthenticationException("Device is inactive or subscription expired");
-            }
 
             // 3. Verify expiration for ACTIVE devices
             boolean isExpired = device.getDeviceStatus() == DeviceStatus.ACTIVE &&

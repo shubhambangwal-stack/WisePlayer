@@ -133,17 +133,38 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             return mapToResponse(sub);
         }
 
-        // Fallback for devices without a subscription record (old devices)
+        // Fallback for devices without a subscription record (not yet activated or legacy devices)
         com.iptv.wiseplayer.domain.entity.Device device = deviceRepository.findByDeviceId(resolvedDeviceId)
                 .orElseThrow(() -> new com.iptv.wiseplayer.exception.DeviceNotFoundException("Device not found"));
 
         SubscriptionResponse resp = new SubscriptionResponse();
+        resp.setSubscriptionId(resolvedDeviceId); // Use device ID as placeholder
         resp.setDeviceId(resolvedDeviceId);
-        resp.setStatus(device.getSubscriptionType() == SubscriptionType.TRIAL
-                ? SubscriptionStatus.TRIAL
-                : SubscriptionStatus.EXPIRED);
-        resp.setType(device.getSubscriptionType());
-        resp.setEndDate(device.getExpiresAt());
+        resp.setPlanName(device.getSubscriptionType() != null ? device.getSubscriptionType().name() : "TRIAL");
+        resp.setType(device.getSubscriptionType() != null ? device.getSubscriptionType() : SubscriptionType.TRIAL);
+
+        // Determine dates and status based on device state
+        if (device.getExpiresAt() != null) {
+            // Device has a real expiry date (was activated at some point)
+            LocalDateTime start = device.getActivatedAt() != null ? device.getActivatedAt()
+                    : (device.getRegisteredAt() != null ? device.getRegisteredAt() : device.getExpiresAt().minusDays(7));
+            resp.setStartDate(start);
+            resp.setEndDate(device.getExpiresAt());
+
+            if (LocalDateTime.now().isAfter(device.getExpiresAt())) {
+                resp.setStatus(SubscriptionStatus.EXPIRED);
+            } else {
+                resp.setStatus(device.getSubscriptionType() == SubscriptionType.TRIAL
+                        ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE);
+            }
+        } else {
+            // Device has NOT been activated yet — no expires_at set
+            // startDate and endDate will be set during activation
+            resp.setStartDate(null);
+            resp.setEndDate(null);
+            resp.setStatus(SubscriptionStatus.TRIAL);
+        }
+
         return resp;
     }
 
@@ -162,7 +183,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
             deviceService.updateDeviceSubscription(
                     sub.getDeviceId(),
-                    com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
+                    com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE,
                     type,
                     sub.getEndDate());
         }
@@ -241,7 +262,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         deviceService.updateDeviceSubscription(
                 resolvedDeviceId,
-                com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
+                com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE,
                 SubscriptionType.TRIAL,
                 LocalDateTime.now().minusSeconds(1));
 

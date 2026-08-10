@@ -1,4 +1,4 @@
-name: Wiseplayer deployment Script
+name: Wise Deployment Script
 
 on:
   push:
@@ -18,9 +18,9 @@ jobs:
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
+          password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
+            echo "===== DEPLOY ====="
             cd /opt/wiseplayer/backend
             ./deploy.sh

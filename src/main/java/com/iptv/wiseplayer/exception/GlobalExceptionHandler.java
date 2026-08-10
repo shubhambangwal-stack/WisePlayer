@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import java.util.stream.Collectors;
 
@@ -44,6 +45,22 @@ public class GlobalExceptionHandler {
                         HttpServletRequest request) {
                 log.warn("HTTP Method Not Supported: {}", ex.getMessage());
                 return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, ex.getMessage(), request);
+        }
+
+        @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+        public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupportedException(
+                        org.springframework.web.HttpMediaTypeNotSupportedException ex,
+                        HttpServletRequest request) {
+                log.warn("Unsupported Media Type: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage(), request);
+        }
+
+        @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+        public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotAcceptableException(
+                        org.springframework.web.HttpMediaTypeNotAcceptableException ex,
+                        HttpServletRequest request) {
+                log.warn("Not Acceptable Media Type: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), request);
         }
 
         @ExceptionHandler(DeviceAuthenticationException.class)
@@ -120,6 +137,13 @@ public class GlobalExceptionHandler {
                                 "Access Denied: You do not have permission to access this resource", request);
         }
 
+        @ExceptionHandler(com.iptv.wiseplayer.exception.AccessDeniedException.class)
+        public ResponseEntity<ErrorResponse> handleCustomAccessDeniedException(com.iptv.wiseplayer.exception.AccessDeniedException ex,
+                        HttpServletRequest request) {
+                log.warn("Access Denied: {}", ex.getMessage());
+                return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+        }
+
         @ExceptionHandler(IllegalStateException.class)
         public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException ex,
                         HttpServletRequest request) {
@@ -155,6 +179,29 @@ public class GlobalExceptionHandler {
                                 .map(cv -> cv.getPropertyPath() + ": " + cv.getMessage())
                                 .collect(Collectors.joining(", "));
                 log.warn("Constraint Violation: {}", message);
+                return buildErrorResponse(HttpStatus.BAD_REQUEST, message, request);
+        }
+
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+                        HttpMessageNotReadableException ex,
+                        HttpServletRequest request) {
+                String message = "Malformed or unreadable JSON request body.";
+                Throwable cause = ex.getCause();
+                if (cause != null) {
+                        String causeMsg = cause.getMessage();
+                        if (causeMsg != null) {
+                                if (causeMsg.contains("UUID")) {
+                                        message = "Invalid device identifier: must be a valid UUID " +
+                                                  "(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) " +
+                                                  "or a MAC address (XX:XX:XX:XX:XX:XX).";
+                                } else if (causeMsg.contains("was expecting comma") || causeMsg.contains("Unexpected character")) {
+                                        message = "Invalid JSON syntax in request body: " + causeMsg
+                                                  .replaceAll("\\s*\\(.*?\\)", "").trim();
+                                }
+                        }
+                }
+                log.warn("Unreadable HTTP message: {}", ex.getMessage());
                 return buildErrorResponse(HttpStatus.BAD_REQUEST, message, request);
         }
 

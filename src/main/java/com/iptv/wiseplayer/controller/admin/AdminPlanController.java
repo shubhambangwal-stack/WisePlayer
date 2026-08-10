@@ -51,6 +51,13 @@ public class AdminPlanController {
         return ResponseEntity.ok(adminPlanService.updatePlan(id, request));
     }
 
+    @Operation(summary = "Delete Plan", description = "Permanently deletes a subscription plan from the database.")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> deletePlan(@PathVariable UUID id) {
+        adminPlanService.deletePlan(id);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Plan deleted successfully"));
+    }
+
     @Operation(summary = "Toggle Plan Status", description = "Activates or deactivates a subscription plan.")
     @PatchMapping("/{id}/status")
     public ResponseEntity<?> togglePlanStatus(@PathVariable UUID id) {

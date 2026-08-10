@@ -77,7 +77,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             document.add(total);
 
             // Footer
-            document.add(Chunk.NEWLINE);
+             document.add(Chunk.NEWLINE);
             Paragraph footer = new Paragraph("Thank you for choosing WisePlayer!", normalFont);
             footer.setAlignment(Element.ALIGN_CENTER);
             document.add(footer);

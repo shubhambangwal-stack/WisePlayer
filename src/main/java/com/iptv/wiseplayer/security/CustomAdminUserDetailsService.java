@@ -27,11 +27,10 @@ public class CustomAdminUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // 1. Check SuperAdmin table (Plain-text password)
+        // 1. Check SuperAdmin table
         return superAdminRepository.findByUsername(username)
                 .map(sa -> User.withUsername(sa.getUsername())
-                        .password("{noop}" + sa.getPassword()) // {noop} tells Spring it's a plain text comparison for
-                                                               // SuperAdmins
+                        .password(sa.getPassword()) // Password here is hashed by DataInitializer
                         .authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                         .build())
                 .orElseGet(() -> {

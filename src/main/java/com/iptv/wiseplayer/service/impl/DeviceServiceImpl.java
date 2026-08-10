@@ -108,7 +108,7 @@ public class DeviceServiceImpl implements DeviceService {
         String rawSecret = tokenUtil.generateRefreshToken();
         newDevice.setDeviceSecretHash(tokenUtil.hashSecret(rawSecret));
 
-        // Save device to database
+        // Save     device to database
         Device savedDevice = deviceRepository.save(newDevice);
 
         logAudit(savedDevice.getDeviceId(), null, DeviceStatus.INACTIVE, "DEVICE_REGISTERED",
@@ -144,29 +144,54 @@ public class DeviceServiceImpl implements DeviceService {
         device.setLastSeenAt(LocalDateTime.now());
         deviceRepository.save(device);
 
-        // Determine access permission based on device status and expiry
+// LOCK CHECK — reseller lock device
+        if (!device.isActive()) {
+            return new DeviceValidationResponse(
+                    device.getDeviceId(),
+                    device.getDeviceStatus(),
+                    device.getSubscriptionType(),
+                    null,
+                    false,
+                    "Your account has been locked. Please contact your reseller.",
+                    device.getLastSeenAt());
+        }
+
+// Determine access permission based on device status and expiry
         boolean allowed = false;
         if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
-            if (device.getExpiresAt() != null && LocalDateTime.now().isBefore(device.getExpiresAt())) {
+            if (device.getExpiresAt() == null) {
+                // ✅ FIX: expiresAt should never be null for an ACTIVE device, but if it is
+                // (data integrity gap from a failed subscription write), still grant access
+                // rather than silently blocking a legitimately activated device.
+                // Log a warning so this can be investigated in production.
+                org.slf4j.LoggerFactory.getLogger(getClass()).warn(
+                        "ACTIVE device {} has null expiresAt — granting access but this should be investigated.",
+                        device.getDeviceId());
+                allowed = true;
+            } else if (LocalDateTime.now().isBefore(device.getExpiresAt())) {
                 allowed = true;
             } else {
-                // Access denied but status stays ACTIVE (Requirement: Only subscription
-                // expires)
-                logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.ACTIVE, "ACCESS_DENIED",
+                // Subscription genuinely expired — access denied, update status to INACTIVE
+                device.setDeviceStatus(DeviceStatus.INACTIVE);
+                deviceRepository.save(device);
+                logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.INACTIVE, "ACCESS_DENIED",
                         "Subscription expired during validation");
             }
         }
 
         String message = determineValidationMessage(device);
 
+        DeviceStatus responseStatus = device.getDeviceStatus();
         SubscriptionType responseType = device.getSubscriptionType();
+        
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
             responseType = SubscriptionType.EXPIRED;
+            responseStatus = DeviceStatus.INACTIVE;
         }
 
         DeviceValidationResponse response = new DeviceValidationResponse(
                 device.getDeviceId(),
-                device.getDeviceStatus(),
+                responseStatus,
                 responseType,
                 null,
                 allowed,
@@ -228,9 +253,13 @@ public class DeviceServiceImpl implements DeviceService {
         device.setDeviceStatus(status);
         device.setSubscriptionType(type);
         device.setExpiresAt(expiresAt);
-        // Force status to ACTIVE if a valid future expiration is provided
-        if (expiresAt != null && expiresAt.isAfter(LocalDateTime.now())) {
-            device.setDeviceStatus(DeviceStatus.ACTIVE);
+        // Force status based on expiration date
+        if (expiresAt != null) {
+            if (expiresAt.isAfter(LocalDateTime.now())) {
+                device.setDeviceStatus(DeviceStatus.ACTIVE);
+            } else {
+                device.setDeviceStatus(DeviceStatus.INACTIVE);
+            }
         }
         deviceRepository.save(device);
 
@@ -259,20 +288,31 @@ public class DeviceServiceImpl implements DeviceService {
 
         boolean allowed = false;
         if (device.getDeviceStatus() == DeviceStatus.ACTIVE) {
-            if (device.getExpiresAt() != null && LocalDateTime.now().isBefore(device.getExpiresAt())) {
-                allowed = true;
+            if (device.getExpiresAt() != null) {
+                if (LocalDateTime.now().isBefore(device.getExpiresAt())) {
+                    allowed = true;
+                } else {
+                    // Subscription genuinely expired
+                    device.setDeviceStatus(DeviceStatus.INACTIVE);
+                    deviceRepository.save(device);
+                    logAudit(device.getDeviceId(), DeviceStatus.ACTIVE, DeviceStatus.INACTIVE, "ACCESS_DENIED",
+                            "Subscription expired during token refresh");
+                }
             }
         }
         String message = determineValidationMessage(device);
 
+        DeviceStatus responseStatus = device.getDeviceStatus();
         SubscriptionType responseType = device.getSubscriptionType();
+        
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
             responseType = SubscriptionType.EXPIRED;
+            responseStatus = DeviceStatus.INACTIVE;
         }
 
         return new DeviceValidationResponse(
                 device.getDeviceId(),
-                device.getDeviceStatus(),
+                responseStatus,
                 responseType,
                 newAccessToken,
                 allowed,
@@ -306,8 +346,14 @@ public class DeviceServiceImpl implements DeviceService {
 
         // 2. Try as Fingerprint (MAC)
         String fingerprintHash = hashFingerprint(trimmedIdentity);
-        return deviceRepository.findByFingerprintHash(fingerprintHash)
-                .map(Device::getDeviceId)
+        Optional<Device> device = deviceRepository.findByFingerprintHash(fingerprintHash);
+        
+        // 3. Try plain MAC address lookup as a final fallback
+        if (device.isEmpty()) {
+            device = deviceRepository.findByMacAddressIgnoreCase(trimmedIdentity);
+        }
+
+        return device.map(Device::getDeviceId)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found with identity: " + identity));
     }
 }

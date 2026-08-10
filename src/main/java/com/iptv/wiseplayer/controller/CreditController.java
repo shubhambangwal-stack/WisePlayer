@@ -25,13 +25,16 @@ public class CreditController {
     private final CreditService creditService;
     private final PaymentService paymentService;
     private final AdminRepository adminRepository;
+    private final com.iptv.wiseplayer.service.ResellerPricingTierService pricingTierService;
 
     public CreditController(CreditService creditService,
                             PaymentService paymentService,
-                            AdminRepository adminRepository) {
+                            AdminRepository adminRepository,
+                            com.iptv.wiseplayer.service.ResellerPricingTierService pricingTierService) {
         this.creditService = creditService;
         this.paymentService = paymentService;
         this.adminRepository = adminRepository;
+        this.pricingTierService = pricingTierService;
     }
 
     @GetMapping("/balance")
@@ -46,13 +49,24 @@ public class CreditController {
         return ResponseEntity.ok(creditService.calculateUnitPrice(quantity));
     }
 
+    @GetMapping("/pricing-tiers")
+    @Operation(summary = "Get All Pricing Tiers", description = "Retrieve all available pricing tiers")
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.ResellerPricingTierResponse>> getPricingTiers() {
+        return ResponseEntity.ok(pricingTierService.getAllTiers());
+    }
+
     @GetMapping("/transactions")
     @Operation(summary = "Get Transaction History", description = "Get the credit transaction history for the logged-in reseller")
     public ResponseEntity<org.springframework.data.domain.Page<com.iptv.wiseplayer.dto.response.CreditTransactionResponse>> getTransactionHistory(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate toDate,
+            @RequestParam(required = false) java.math.BigDecimal minAmount,
+            @RequestParam(required = false) java.math.BigDecimal maxAmount,
             org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(creditService.getTransactionHistory(getCurrentResellerId(), search, type, pageable));
+        return ResponseEntity.ok(creditService.getTransactionHistory(
+                getCurrentResellerId(), search, type, fromDate, toDate, minAmount, maxAmount, pageable));
     }
 
     @PostMapping("/purchase")

@@ -1,5 +1,7 @@
 package com.iptv.wiseplayer.config;
 
+import com.iptv.wiseplayer.repository.AdminRepository;
+import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.security.AdminAuthenticationFilter;
 import com.iptv.wiseplayer.security.AdminTokenUtil;
 import com.iptv.wiseplayer.security.DeviceAuthenticationFilter;
@@ -30,15 +32,18 @@ public class SecurityConfig {
     private final com.iptv.wiseplayer.repository.DeviceRepository deviceRepository;
     private final DeviceTokenUtil deviceTokenUtil;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final AdminRepository adminRepository;
 
     public SecurityConfig(SecurityProperties securityProperties,
-            com.iptv.wiseplayer.repository.DeviceRepository deviceRepository,
-            DeviceTokenUtil deviceTokenUtil,
-            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+                          DeviceRepository deviceRepository,
+                          DeviceTokenUtil deviceTokenUtil,
+                          com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+                          AdminRepository adminRepository) {
         this.securityProperties = securityProperties;
         this.deviceRepository = deviceRepository;
         this.deviceTokenUtil = deviceTokenUtil;
         this.objectMapper = objectMapper;
+        this.adminRepository = adminRepository;
     }
 
     @Bean
@@ -48,7 +53,7 @@ public class SecurityConfig {
 
     @Bean
     public AdminAuthenticationFilter adminAuthenticationFilter() {
-        return new AdminAuthenticationFilter(adminTokenUtil(), objectMapper);
+        return new AdminAuthenticationFilter(adminTokenUtil(), objectMapper, adminRepository);
     }
 
     @Bean
@@ -65,9 +70,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(java.util.List.of("*"));
-        configuration.setAllowedMethods(java.util.List.of("*"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
-        configuration.setAllowCredentials(false);
+        configuration.setExposedHeaders(java.util.List.of("Authorization", "Link", "X-Total-Count", "ngrok-skip-browser-warning"));
+        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -81,7 +87,8 @@ public class SecurityConfig {
             AdminAuthenticationFilter adminAuthenticationFilter) throws Exception {
         http
                 // Enable CORS using the configured source
-               // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+//                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
 
                 // Disable CSRF using the new lambda style
                 .csrf(AbstractHttpConfigurer::disable)
@@ -92,15 +99,19 @@ public class SecurityConfig {
 
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Public Endpoints
+                           // Public Endpoints
+                        // Allow async dispatches to bypass security filter chain
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
+         
                         .requestMatchers("/api/device/register").permitAll()
                         .requestMatchers("/api/device/validate").permitAll()
                         .requestMatchers("/api/device/refresh").permitAll()
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
+                        .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/playlist/public/**").permitAll()
                         .requestMatchers("/api/payment/paypal/**").permitAll()
-                        .requestMatchers("/api/reseller/login", "/api/reseller/register").permitAll()
+                        .requestMatchers("/api/reseller/login", "/api/reseller/register", "/api/reseller/forgot-password", "/api/reseller/reset-password").permitAll()
                         .requestMatchers("/api/payment/public/**").permitAll()
                         .requestMatchers("/api/payment/public/plans").permitAll()
                         .requestMatchers("/api/public/support/**").permitAll()
@@ -125,9 +136,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/activation-requests/**")
                         .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
                         .requestMatchers("/api/admin/reports/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                        // Any authenticated admin-type role can view their own CRUD permissions view
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/crud-permissions")
+                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN", "ROLE_RESELLER", "ROLE_SUB_RESELLER")
                         .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
 
                         // Reseller Endpoints
+                        .requestMatchers("/api/reseller/verify-email", "/api/reseller/resend-otp")
+                        .hasAnyAuthority("ROLE_RESELLER", "ROLE_SUB_RESELLER")
                         .requestMatchers("/api/reseller/**")
                         .hasAuthority("ROLE_RESELLER")
 
@@ -143,7 +159,7 @@ public class SecurityConfig {
                         // Content Endpoints (Require ACTIVE status)
                         .requestMatchers("/api/playlist/**").hasRole("ACTIVE")
                         .requestMatchers("/api/live/**").hasRole("ACTIVE")
-                        .requestMatchers("/api/stream/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/stream/**", "/api/v2/stream/**").hasRole("ACTIVE")
                         .requestMatchers("/api/xtream/**").hasRole("ACTIVE")
 
                         .anyRequest().authenticated())

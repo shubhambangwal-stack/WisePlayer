@@ -1,0 +1,170 @@
+{
+	"info": {
+		"_postman_id": "c1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c",
+		"name": "WisePlayer - CRUD Permission Testing",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Login (SuperAdmin/Admin/Reseller)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.environment.set(\"jwt_token\", jsonData.token);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"admin_or_reseller_username\",\n  \"password\": \"your_password\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/admin/auth/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"admin",
+						"auth",
+						"login"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Get CRUD Permissions (Initial)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/admin/crud-permissions",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"admin",
+						"crud-permissions"
+					]
+				}
+			}
+		},
+		{
+			"name": "3. Modify Role CRUD Permissions (Bulk)",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"canCreate\": true,\n  \"canRead\": true,\n  \"canUpdate\": false,\n  \"canDelete\": false\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/admin/crud-permissions/bulk/SUB_RESELLER",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"admin",
+						"crud-permissions",
+						"bulk",
+						"SUB_RESELLER"
+					]
+				}
+			}
+		},
+		{
+			"name": "4. Modify Individual Admin CRUD Permissions",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"canCreate\": true,\n  \"canRead\": true,\n  \"canUpdate\": false,\n  \"canDelete\": false\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/admin/crud-permissions/{{target_admin_uuid}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"admin",
+						"crud-permissions",
+						"{{target_admin_uuid}}"
+					]
+				}
+			}
+		},
+		{
+			"name": "5. Get CRUD Permissions (Verify recentlyChangedByMe)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/admin/crud-permissions",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"admin",
+						"crud-permissions"
+					]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "target_admin_uuid",
+			"value": "replace-with-actual-uuid"
+		}
+	]
+}

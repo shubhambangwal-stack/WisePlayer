@@ -1,0 +1,9 @@
+CREATE TABLE reseller_pricing_tiers (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    min_quantity INTEGER NOT NULL,
+    max_quantity INTEGER,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
