@@ -19,27 +19,32 @@ public interface PlaylistService {
 
     List<PlaylistResponse> getPublicPlaylists(String deviceId);
 
+    /**
+     * Retrieves public playlists after verifying the device PIN.
+     * If the device has no PIN set, access is granted freely (backward-compatible).
+     *
+     * @param deviceId the device MAC address, fingerprint, or UUID
+     * @param pin      the 4-digit PIN to verify (may be null if no PIN is set)
+     */
+    java.util.List<PlaylistResponse> getPublicPlaylistsWithPin(String deviceId, String pin);
+
+    /**
+     * Sets (or replaces) the 4-digit public access PIN for the authenticated device.
+     *
+     * @param deviceId the UUID of the authenticated device
+     * @param pin      the raw 4-digit PIN to hash and store
+     */
+    void setDevicePin(UUID deviceId, String pin);
+
+    /**
+     * Removes the public access PIN from the authenticated device.
+     *
+     * @param deviceId the UUID of the authenticated device
+     */
+    void removeDevicePin(UUID deviceId);
+
     void deletePublicPlaylist(String deviceId, UUID playlistId);
 
     PlaylistResponse updatePublicM3uPlaylist(String deviceId, UUID playlistId, M3uPlaylistRequest request);
 
-    // ── Pin / Unpin ──────────────────────────────────────────────────────────
 
-    /** Pin a playlist for an authenticated (token-based) device. Automatically unpins any previously pinned playlist. */
-    PlaylistResponse pinPlaylist(UUID deviceId, UUID playlistId);
-
-    /** Unpin a playlist for an authenticated (token-based) device. */
-    PlaylistResponse unpinPlaylist(UUID deviceId, UUID playlistId);
-
-    /** Return the currently pinned playlist for an authenticated device, if any. */
-    Optional<PlaylistResponse> getPinnedPlaylist(UUID deviceId);
-
-    /** Pin a playlist for a public / website device (resolved by MAC / fingerprint / UUID string). */
-    PlaylistResponse pinPublicPlaylist(String deviceId, UUID playlistId);
-
-    /** Unpin a playlist for a public / website device. */
-    PlaylistResponse unpinPublicPlaylist(String deviceId, UUID playlistId);
-
-    /** Return the pinned playlist for a public / website device, if any. */
-    Optional<PlaylistResponse> getPublicPinnedPlaylist(String deviceId);
-}

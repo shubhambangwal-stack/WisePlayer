@@ -640,7 +640,7 @@ public class ResellerServiceImpl implements ResellerService {
     @Transactional
     public void pauseResumeSubscription(UUID resellerId, UUID deviceId) {
         Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+                  .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
 
         if (!resellerId.equals(device.getResellerId())) {
             throw new AccessDeniedException("Permission denied");
@@ -852,7 +852,7 @@ public class ResellerServiceImpl implements ResellerService {
     @org.springframework.transaction.annotation.Transactional
     public void updateProfile(UUID adminId, com.iptv.wiseplayer.dto.request.UpdateProfileRequest request) {
         Admin admin = adminRepository.findById(adminId)
-                .orElseThrow(() -> new ResourceNotFoundException("Admin not found with ID: " + adminId));
+                  .orElseThrow(() -> new ResourceNotFoundException("Admin not found with ID: " + adminId));
         admin.setFullName(request.getFullName());
         adminRepository.save(admin);
     }
