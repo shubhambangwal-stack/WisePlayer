@@ -77,7 +77,14 @@ public class DeviceAuthenticationFilter extends OncePerRequestFilter {
         // OR if path matches protected patterns.
 
         String token = request.getHeader(TOKEN_HEADER);
+        if (token == null) {
+            token = request.getParameter("token");
+        }
+        
         String fingerprint = request.getHeader(FINGERPRINT_HEADER);
+        if (fingerprint == null) {
+            fingerprint = request.getParameter("fingerprint");
+        }
 
         if (token == null || fingerprint == null) {
             // Let it pass to SecurityConfig which will reject if authenticated is required
