@@ -255,17 +255,24 @@ public class PlaylistServiceImpl implements PlaylistService {
         Device device = resolveDevice(deviceId);
 
         String storedHash = device.getPublicPinHash();
-        if (storedHash != null) {
-            // PIN is set — caller must supply a correct PIN
-            if (pin == null || pin.isBlank()) {
-                throw new AccessDeniedException("This device is PIN-protected. Please provide the 4-digit PIN.");
-            }
-            if (!passwordEncoder.matches(pin, storedHash)) {
-                log.warn("Incorrect PIN attempt for device {}", device.getDeviceId());
-                throw new AccessDeniedException("Incorrect PIN. Access denied.");
-            }
+
+        // Strict mode: PIN must be configured on the device
+        if (storedHash == null) {
+            throw new AccessDeniedException(
+                    "This device has no public PIN configured. The device owner must set a PIN first.");
         }
-        // No PIN set → open access (backward-compatible)
+
+        // PIN is set — caller must supply the correct PIN
+        if (pin == null || pin.isBlank()) {
+            throw new AccessDeniedException(
+                    "This device is PIN-protected. Please provide the 4-digit PIN.");
+        }
+
+        if (!passwordEncoder.matches(pin, storedHash)) {
+            log.warn("Incorrect PIN attempt for device {}", device.getDeviceId());
+            throw new AccessDeniedException("Incorrect PIN. Access denied.");
+        }
+
         return getPlaylists(device.getDeviceId());
     }
 
