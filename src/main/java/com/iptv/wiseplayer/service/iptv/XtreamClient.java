@@ -74,14 +74,17 @@ public class XtreamClient {
         String url = buildBaseUrl(serverUrl, username, password)
                 .queryParam("action", "get_live_categories")
                 .toUriString();
+        logger.info("getLiveCategories starting. Server: {}, URL: {}", serverUrl, url);
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
-            return restTemplate
+            List<XtreamCategory> result = restTemplate
                     .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamCategory>>() {
                     }).getBody();
+            logger.info("getLiveCategories completed. Retrieved {} categories.", result != null ? result.size() : 0);
+            return result != null ? result : Collections.emptyList();
         } catch (Exception e) {
-            logger.error("Error fetching live categories: {}", e.getMessage());
+            logger.error("Error fetching live categories: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -97,14 +100,17 @@ public class XtreamClient {
             builder.queryParam("category_id", categoryId);
         }
         String url = builder.toUriString();
+        logger.info("getLiveStreams starting. Server: {}, categoryId: {}, URL: {}", serverUrl, categoryId, url);
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
-            return restTemplate
+            List<XtreamLiveStream> result = restTemplate
                     .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamLiveStream>>() {
                     }).getBody();
+            logger.info("getLiveStreams completed. Retrieved {} streams.", result != null ? result.size() : 0);
+            return result != null ? result : Collections.emptyList();
         } catch (Exception e) {
-            logger.error("Error fetching live streams: {}", e.getMessage());
+            logger.error("Error fetching live streams: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -123,14 +129,17 @@ public class XtreamClient {
         String url = buildBaseUrl(serverUrl, username, password)
                 .queryParam("action", "get_vod_categories")
                 .toUriString();
+        logger.info("getVodCategories starting. Server: {}, URL: {}", serverUrl, url);
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
-            return restTemplate
+            List<XtreamCategory> result = restTemplate
                     .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamCategory>>() {
                     }).getBody();
+            logger.info("getVodCategories completed. Retrieved {} categories.", result != null ? result.size() : 0);
+            return result != null ? result : Collections.emptyList();
         } catch (Exception e) {
-            logger.error("Error fetching VOD categories: {}", e.getMessage());
+            logger.error("Error fetching VOD categories: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -144,14 +153,17 @@ public class XtreamClient {
                 .queryParam("action", "get_vod_streams")
                 .queryParam("category_id", categoryId)
                 .toUriString();
+        logger.info("getVodStreams starting. Server: {}, categoryId: {}, URL: {}", serverUrl, categoryId, url);
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
-            return restTemplate
+            List<XtreamVodStream> result = restTemplate
                     .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamVodStream>>() {
                     }).getBody();
+            logger.info("getVodStreams completed. Retrieved {} VOD streams.", result != null ? result.size() : 0);
+            return result != null ? result : Collections.emptyList();
         } catch (Exception e) {
-            logger.error("Error fetching VOD streams: {}", e.getMessage());
+            logger.error("Error fetching VOD streams: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -163,14 +175,17 @@ public class XtreamClient {
         String url = buildBaseUrl(serverUrl, username, password)
                 .queryParam("action", "get_series_categories")
                 .toUriString();
+        logger.info("getSeriesCategories starting. Server: {}, URL: {}", serverUrl, url);
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
-            return restTemplate
+            List<XtreamCategory> result = restTemplate
                     .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamCategory>>() {
                     }).getBody();
+            logger.info("getSeriesCategories completed. Retrieved {} series categories.", result != null ? result.size() : 0);
+            return result != null ? result : Collections.emptyList();
         } catch (Exception e) {
-            logger.error("Error fetching Series categories: {}", e.getMessage());
+            logger.error("Error fetching Series categories: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -184,14 +199,17 @@ public class XtreamClient {
                 .queryParam("action", "get_series")
                 .queryParam("category_id", categoryId)
                 .toUriString();
+        logger.info("getSeries starting. Server: {}, categoryId: {}, URL: {}", serverUrl, categoryId, url);
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
-            return restTemplate
+            List<XtreamSeries> result = restTemplate
                     .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamSeries>>() {
                     }).getBody();
+            logger.info("getSeries completed. Retrieved {} series.", result != null ? result.size() : 0);
+            return result != null ? result : Collections.emptyList();
         } catch (Exception e) {
-            logger.error("Error fetching Series: {}", e.getMessage());
+            logger.error("Error fetching Series: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -205,12 +223,15 @@ public class XtreamClient {
                 .queryParam("action", "get_series_info")
                 .queryParam("series_id", seriesId)
                 .toUriString();
+        logger.info("getSeriesInfo starting. Server: {}, seriesId: {}, URL: {}", serverUrl, seriesId, url);
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
-            return restTemplate.exchange(url, HttpMethod.GET, entity, XtreamSeriesInfo.class).getBody();
+            XtreamSeriesInfo result = restTemplate.exchange(url, HttpMethod.GET, entity, XtreamSeriesInfo.class).getBody();
+            logger.info("getSeriesInfo completed successfully. Result: {}", result != null ? "Found" : "Null");
+            return result;
         } catch (Exception e) {
-            logger.error("Error fetching Series info for series_id={}: {}", seriesId, e.getMessage());
+            logger.error("Error fetching Series info for series_id={}: {}", seriesId, e.getMessage(), e);
             return null;
         }
     }
