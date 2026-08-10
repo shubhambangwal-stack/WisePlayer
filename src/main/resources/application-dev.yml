@@ -5,7 +5,7 @@ spring:
   datasource:
     url: ${DEV_DATABASE_URL:jdbc:postgresql://localhost:5432/wiseplayer}
     username: ${DEV_DATABASE_USERNAME:postgres}
-    password: ${DEV_DATABASE_PASSWORD:postgres}
+    password: ${DEV_DATABASE_PASSWORD:Pearl@!@#1234}
   jpa:
     generate-ddl: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
