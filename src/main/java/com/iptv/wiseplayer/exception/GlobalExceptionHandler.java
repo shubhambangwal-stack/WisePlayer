@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import java.util.stream.Collectors;
 
@@ -178,6 +179,29 @@ public class GlobalExceptionHandler {
                                 .map(cv -> cv.getPropertyPath() + ": " + cv.getMessage())
                                 .collect(Collectors.joining(", "));
                 log.warn("Constraint Violation: {}", message);
+                return buildErrorResponse(HttpStatus.BAD_REQUEST, message, request);
+        }
+
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+                        HttpMessageNotReadableException ex,
+                        HttpServletRequest request) {
+                String message = "Malformed or unreadable JSON request body.";
+                Throwable cause = ex.getCause();
+                if (cause != null) {
+                        String causeMsg = cause.getMessage();
+                        if (causeMsg != null) {
+                                if (causeMsg.contains("UUID")) {
+                                        message = "Invalid device identifier: must be a valid UUID " +
+                                                  "(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) " +
+                                                  "or a MAC address (XX:XX:XX:XX:XX:XX).";
+                                } else if (causeMsg.contains("was expecting comma") || causeMsg.contains("Unexpected character")) {
+                                        message = "Invalid JSON syntax in request body: " + causeMsg
+                                                  .replaceAll("\\s*\\(.*?\\)", "").trim();
+                                }
+                        }
+                }
+                log.warn("Unreadable HTTP message: {}", ex.getMessage());
                 return buildErrorResponse(HttpStatus.BAD_REQUEST, message, request);
         }
 

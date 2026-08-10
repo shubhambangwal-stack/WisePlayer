@@ -4,6 +4,8 @@ import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PlaylistService {
@@ -13,9 +15,9 @@ public interface PlaylistService {
 
     PlaylistResponse savePublicM3uPlaylist(String deviceId, M3uPlaylistRequest request);
 
-    java.util.List<PlaylistResponse> getPlaylists(UUID deviceId);
+    List<PlaylistResponse> getPlaylists(UUID deviceId);
 
-    java.util.List<PlaylistResponse> getPublicPlaylists(String deviceId);
+    List<PlaylistResponse> getPublicPlaylists(String deviceId);
 
     /**
      * Retrieves public playlists after verifying the device PIN.
@@ -44,6 +46,5 @@ public interface PlaylistService {
     void deletePublicPlaylist(String deviceId, UUID playlistId);
 
     PlaylistResponse updatePublicM3uPlaylist(String deviceId, UUID playlistId, M3uPlaylistRequest request);
-}
 
 

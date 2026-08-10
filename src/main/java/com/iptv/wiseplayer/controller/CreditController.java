@@ -25,13 +25,16 @@ public class CreditController {
     private final CreditService creditService;
     private final PaymentService paymentService;
     private final AdminRepository adminRepository;
+    private final com.iptv.wiseplayer.service.ResellerPricingTierService pricingTierService;
 
     public CreditController(CreditService creditService,
                             PaymentService paymentService,
-                            AdminRepository adminRepository) {
+                            AdminRepository adminRepository,
+                            com.iptv.wiseplayer.service.ResellerPricingTierService pricingTierService) {
         this.creditService = creditService;
         this.paymentService = paymentService;
         this.adminRepository = adminRepository;
+        this.pricingTierService = pricingTierService;
     }
 
     @GetMapping("/balance")
@@ -44,6 +47,12 @@ public class CreditController {
     @Operation(summary = "Get Credit Pricing", description = "Get the unit price for a specific quantity of credits")
     public ResponseEntity<BigDecimal> getPricing(@RequestParam int quantity) {
         return ResponseEntity.ok(creditService.calculateUnitPrice(quantity));
+    }
+
+    @GetMapping("/pricing-tiers")
+    @Operation(summary = "Get All Pricing Tiers", description = "Retrieve all available pricing tiers")
+    public ResponseEntity<java.util.List<com.iptv.wiseplayer.dto.response.ResellerPricingTierResponse>> getPricingTiers() {
+        return ResponseEntity.ok(pricingTierService.getAllTiers());
     }
 
     @GetMapping("/transactions")

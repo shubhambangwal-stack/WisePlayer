@@ -1,8 +1,8 @@
 spring:
   application:
     name: wiseplayer
-#  profiles:
-#      active: dev
+  #profiles:
+   #   active: dev
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -53,7 +53,7 @@ app:
       - ${SECURITY_TOKEN_SECRET_1}
       - ${SECURITY_TOKEN_SECRET_2}
       - ${SECURITY_TOKEN_SECRET_3}
-    token-ttl-minutes: ${TOKEN_TTL_MINUTES:1}
+    token-ttl-minutes: ${TOKEN_TTL_MINUTES:45}
     admin-frontend-url: ${ADMIN_FRONTEND_URL:https://admin.wise-player.com}
     allowed-origins: ${ALLOWED_ORIGINS:https://wise-player.com,https://admin.wise-player.com}
     allowed-methods:

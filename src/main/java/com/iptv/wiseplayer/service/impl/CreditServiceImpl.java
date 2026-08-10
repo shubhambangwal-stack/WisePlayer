@@ -24,13 +24,16 @@ public class CreditServiceImpl implements CreditService {
     private final AdminRepository adminRepository;
     private final CreditTransactionRepository creditTransactionRepository;
     private final PlanConfigRepository planConfigRepository;
+    private final com.iptv.wiseplayer.repository.ResellerPricingTierRepository resellerPricingTierRepository;
 
     public CreditServiceImpl(AdminRepository adminRepository,
                              CreditTransactionRepository creditTransactionRepository,
-                             PlanConfigRepository planConfigRepository) {
+                             PlanConfigRepository planConfigRepository,
+                             com.iptv.wiseplayer.repository.ResellerPricingTierRepository resellerPricingTierRepository) {
         this.adminRepository = adminRepository;
         this.creditTransactionRepository = creditTransactionRepository;
         this.planConfigRepository = planConfigRepository;
+        this.resellerPricingTierRepository = resellerPricingTierRepository;
     }
 
     @Override
@@ -125,22 +128,9 @@ public class CreditServiceImpl implements CreditService {
 
     @Override
     public BigDecimal calculateUnitPrice(int quantity) {
-        if (quantity >= 1000) {
-            return new BigDecimal("1.00");
-        }
-        if (quantity >= 500)
-            return new BigDecimal("1.25");
-        if (quantity >= 200)
-            return new BigDecimal("1.50");
-        if (quantity >= 100)
-            return new BigDecimal("1.75");
-        if (quantity >= 50)
-            return new BigDecimal("2.00");
-        if (quantity > 10)
-            return new BigDecimal("2.20");
-        if (quantity >= 1)
-            return new BigDecimal("2.50");
-        return BigDecimal.ZERO;
+        return resellerPricingTierRepository.findApplicableTier(quantity)
+                .map(com.iptv.wiseplayer.domain.entity.ResellerPricingTier::getUnitPrice)
+                .orElse(BigDecimal.ZERO);
     }
 
     @Override

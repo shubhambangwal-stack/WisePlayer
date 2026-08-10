@@ -108,6 +108,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/device/refresh").permitAll()
                         .requestMatchers("/api/device/key").permitAll()
                         .requestMatchers("/api/device/activate").permitAll()
+                        .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/playlist/public/**").permitAll()
                         .requestMatchers("/api/payment/paypal/**").permitAll()
                         .requestMatchers("/api/reseller/login", "/api/reseller/register", "/api/reseller/forgot-password", "/api/reseller/reset-password").permitAll()

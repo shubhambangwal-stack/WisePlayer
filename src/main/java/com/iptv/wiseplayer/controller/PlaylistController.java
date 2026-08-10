@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  */
 @RestController
 @RequestMapping("/api/playlist")
-@Tag(name = "Playlist Management", description = "Endpoints for adding, validating, and retrieving M3U and Xtream playlists")
+@Tag(name = "Playlist Management", description = "Endpoints for adding, validating, retrieving, and pinning M3U and Xtream playlists")
 public class PlaylistController {
 
     private final PlaylistService playlistService;
@@ -65,7 +65,7 @@ public class PlaylistController {
                 "data", response));
     }
 
-    @Operation(summary = "Get All Playlists", description = "Retrieves all saved playlists for the authenticated device.")
+    @Operation(summary = "Get All Playlists", description = "Retrieves all saved playlists for the authenticated device. Pinned playlist is listed first.")
     @GetMapping
     public ResponseEntity<List<PlaylistResponse>> getPlaylists() {
         List<PlaylistResponse> response = playlistService.getPlaylists(deviceContext.getCurrentDeviceId());
@@ -131,5 +131,71 @@ public class PlaylistController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Playlist deleted successfully"));
+    }
+
+    // ── Pin / Unpin Endpoints ────────────────────────────────────────────────
+
+    @Operation(summary = "Pin Playlist", description = "Pins a playlist for the authenticated device. Automatically unpins any previously pinned playlist (one pin per device).")
+    @PutMapping("/{playlistId}/pin")
+    public ResponseEntity<?> pinPlaylist(@PathVariable java.util.UUID playlistId) {
+        PlaylistResponse response = playlistService.pinPlaylist(deviceContext.getCurrentDeviceId(), playlistId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist pinned successfully",
+                "data", response));
+    }
+
+    @Operation(summary = "Unpin Playlist", description = "Unpins a playlist for the authenticated device.")
+    @DeleteMapping("/{playlistId}/pin")
+    public ResponseEntity<?> unpinPlaylist(@PathVariable java.util.UUID playlistId) {
+        PlaylistResponse response = playlistService.unpinPlaylist(deviceContext.getCurrentDeviceId(), playlistId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist unpinned successfully",
+                "data", response));
+    }
+
+    @Operation(summary = "Get Pinned Playlist", description = "Returns the currently pinned playlist for the authenticated device, or 404 if none is pinned.")
+    @GetMapping("/pinned")
+    public ResponseEntity<?> getPinnedPlaylist() {
+        return playlistService.getPinnedPlaylist(deviceContext.getCurrentDeviceId())
+                .<ResponseEntity<?>>map(p -> ResponseEntity.ok(Map.of("success", true, "data", p)))
+                .orElse(ResponseEntity.status(404).body(Map.of(
+                        "success", false,
+                        "message", "No playlist is currently pinned for this device")));
+    }
+
+    @Operation(summary = "Pin Public Playlist", description = "Pins a playlist for a public/website device (resolved by MAC, fingerprint, or UUID). Automatically unpins any previously pinned playlist.")
+    @PutMapping("/public/{deviceId}/{playlistId}/pin")
+    public ResponseEntity<?> pinPublicPlaylist(
+            @PathVariable String deviceId,
+            @PathVariable java.util.UUID playlistId) {
+        PlaylistResponse response = playlistService.pinPublicPlaylist(deviceId, playlistId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist pinned successfully",
+                "data", response));
+    }
+
+    @Operation(summary = "Unpin Public Playlist", description = "Unpins a playlist for a public/website device.")
+    @DeleteMapping("/public/{deviceId}/{playlistId}/pin")
+    public ResponseEntity<?> unpinPublicPlaylist(
+            @PathVariable String deviceId,
+            @PathVariable java.util.UUID playlistId) {
+        PlaylistResponse response = playlistService.unpinPublicPlaylist(deviceId, playlistId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist unpinned successfully",
+                "data", response));
+    }
+
+    @Operation(summary = "Get Public Pinned Playlist", description = "Returns the currently pinned playlist for a public/website device, or 404 if none is pinned.")
+    @GetMapping("/public/{deviceId}/pinned")
+    public ResponseEntity<?> getPublicPinnedPlaylist(@PathVariable String deviceId) {
+        return playlistService.getPublicPinnedPlaylist(deviceId)
+                .<ResponseEntity<?>>map(p -> ResponseEntity.ok(Map.of("success", true, "data", p)))
+                .orElse(ResponseEntity.status(404).body(Map.of(
+                        "success", false,
+                        "message", "No playlist is currently pinned for this device")));
     }
 }

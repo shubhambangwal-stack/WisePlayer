@@ -2,6 +2,7 @@ package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamSeries;
+import com.iptv.wiseplayer.dto.iptv.XtreamSeriesInfo;
 import com.iptv.wiseplayer.service.iptv.XtreamCatalogService;
 import com.iptv.wiseplayer.service.iptv.XtreamStreamResolver;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,37 +16,73 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/series")
-@Tag(name = "Series", description = "Endpoints for browsing Series categories and content")
+@Tag(name = "Series", description = "Endpoints for browsing Series categories, content, and playback")
 public class SeriesController {
 
     private final XtreamCatalogService catalogService;
     private final XtreamStreamResolver streamResolver;
 
     public SeriesController(XtreamCatalogService catalogService, XtreamStreamResolver streamResolver) {
-
         this.catalogService = catalogService;
         this.streamResolver = streamResolver;
     }
 
-    @Operation(summary = "Handle Series Request", description = "Dispatches request based on parameters: categories or series list.")
+    /**
+     * Main dispatch endpoint:
+     * - No params              → Series categories list
+     * - categoryId only        → Series list for that category
+     * - seriesId only          → Full series info (seasons + episodes)
+     */
+    @Operation(
+        summary = "Browse Series",
+        description = "Dispatches request based on parameters: "
+            + "(none) returns categories, categoryId returns series list, seriesId returns seasons/episodes."
+    )
     @GetMapping
     public ResponseEntity<?> handleRequest(
             @RequestParam UUID playlistId,
             @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) Integer streamId){
-        if (streamId != null) {
-            String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD);
-            return ResponseEntity.ok(Map.of("url", url));
+            @RequestParam(required = false) Integer seriesId) {
+
+        // 1. Get full Series info with seasons/episodes (if seriesId is present)
+        if (seriesId != null) {
+            XtreamSeriesInfo info = catalogService.getSeriesInfo(playlistId, seriesId);
+            if (info == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(info);
         }
 
-        // 1. Get Series List (if categoryId is present)
+        // 2. Get Series list for a category (if categoryId is present)
         if (categoryId != null) {
             List<XtreamSeries> series = catalogService.getSeries(playlistId, categoryId);
             return ResponseEntity.ok(series);
         }
 
-        // 2. Default: Get Series Categories
+        // 3. Default: Get Series Categories
         List<XtreamCategory> categories = catalogService.getSeriesCategories(playlistId);
         return ResponseEntity.ok(categories);
+    }
+
+    /**
+     * Resolves the playback URL for a Series episode.
+     * Requires episodeId (the numeric id from the episode in get_series_info)
+     * and containerExtension (e.g. "mkv", "mp4") from the episode metadata.
+     *
+     * URL format: /series/{username}/{password}/{episodeId}.{containerExtension}
+     */
+    @Operation(
+        summary = "Get Episode Playback URL",
+        description = "Resolves the direct playback URL for a series episode. "
+            + "The episodeId and containerExtension must be taken from the get_series_info response."
+    )
+    @GetMapping("/play")
+    public ResponseEntity<?> getEpisodePlayUrl(
+            @RequestParam UUID playlistId,
+            @RequestParam int episodeId,
+            @RequestParam(required = false, defaultValue = "mkv") String containerExtension) {
+
+        String url = streamResolver.resolveSeriesEpisodeUrl(playlistId, episodeId, containerExtension);
+        return ResponseEntity.ok(Map.of("url", url));
     }
 }

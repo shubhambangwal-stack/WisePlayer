@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.domain.entity;
 
 import com.iptv.wiseplayer.domain.enums.PlaylistType;
+import com.iptv.wiseplayer.domain.enums.OwnerType;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -19,8 +20,15 @@ public class Playlist {
     @Column(name = "playlist_id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "device_id", nullable = false)
+    @Column(name = "device_id")
     private UUID deviceId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "owner_type", length = 30)
+    private OwnerType ownerType;
+
+    @Column(name = "owner_id")
+    private UUID ownerId;
 
     @Column(name = "name", nullable = false, length = 100 , columnDefinition = "VARCHAR(100) DEFAULT 'My Playlist'")
     private String name;
@@ -44,6 +52,9 @@ public class Playlist {
 
     @Column(name = "m3u_url", columnDefinition = "TEXT")
     private String m3uUrl;
+
+    @Column(name = "pinned", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean pinned = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -88,6 +99,22 @@ public class Playlist {
 
     public void setDeviceId(UUID deviceId) {
         this.deviceId = deviceId;
+    }
+
+    public OwnerType getOwnerType() {
+        return ownerType;
+    }
+
+    public void setOwnerType(OwnerType ownerType) {
+        this.ownerType = ownerType;
+    }
+
+    public UUID getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(UUID ownerId) {
+        this.ownerId = ownerId;
     }
 
     public PlaylistType getType() {
@@ -136,6 +163,14 @@ public class Playlist {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public boolean isPinned() {
+        return pinned;
+    }
+
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
     }
 
     public LocalDateTime getCreatedAt() {
