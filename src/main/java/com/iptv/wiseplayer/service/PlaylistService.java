@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface PlaylistService {
+
     PlaylistResponse saveXtreamPlaylist(UUID deviceId, XtreamPlaylistRequest request);
 
     PlaylistResponse saveM3uPlaylist(UUID deviceId, M3uPlaylistRequest request);
@@ -26,7 +27,7 @@ public interface PlaylistService {
      * @param deviceId the device MAC address, fingerprint, or UUID
      * @param pin      the 4-digit PIN to verify (may be null if no PIN is set)
      */
-    java.util.List<PlaylistResponse> getPublicPlaylistsWithPin(String deviceId, String pin);
+    List<PlaylistResponse> getPublicPlaylistsWithPin(String deviceId, String pin);
 
     /**
      * Sets (or replaces) the 4-digit public access PIN for the authenticated device.
@@ -47,4 +48,23 @@ public interface PlaylistService {
 
     PlaylistResponse updatePublicM3uPlaylist(String deviceId, UUID playlistId, M3uPlaylistRequest request);
 
+    // ── Playlist Pin/Unpin (favourite) ───────────────────────────────────────
 
+    /** Pin a playlist for an authenticated device (by UUID). */
+    PlaylistResponse pinPlaylist(UUID deviceId, UUID playlistId);
+
+    /** Unpin a playlist for an authenticated device (by UUID). */
+    PlaylistResponse unpinPlaylist(UUID deviceId, UUID playlistId);
+
+    /** Get the currently pinned playlist for an authenticated device. */
+    Optional<PlaylistResponse> getPinnedPlaylist(UUID deviceId);
+
+    /** Pin a playlist via the public (MAC/fingerprint) device identifier. */
+    PlaylistResponse pinPublicPlaylist(String deviceId, UUID playlistId);
+
+    /** Unpin a playlist via the public (MAC/fingerprint) device identifier. */
+    PlaylistResponse unpinPublicPlaylist(String deviceId, UUID playlistId);
+
+    /** Get the currently pinned playlist via the public device identifier. */
+    Optional<PlaylistResponse> getPublicPinnedPlaylist(String deviceId);
+}
