@@ -2,6 +2,8 @@ package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.security.DeviceContext;
 import com.iptv.wiseplayer.service.StreamService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +20,8 @@ import java.util.UUID;
 @Tag(name = "Stream Playback", description = "Endpoints for authorizing and resolving stream URLs")
 public class StreamController {
 
+    private static final Logger log = LoggerFactory.getLogger(StreamController.class);
+
     private final StreamService streamService;
     private final DeviceContext deviceContext;
 
@@ -32,15 +36,21 @@ public class StreamController {
         String streamId = request.get("streamId");
         String playlistIdStr = request.get("playlistId");
 
+        log.info("[STREAM] Play request received — deviceId={}, playlistId={}, streamId={}",
+                deviceContext.getCurrentDeviceId(), playlistIdStr, streamId);
+
         if (streamId == null || streamId.isEmpty()) {
+            log.warn("[STREAM] Play rejected — streamId is missing");
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "streamId is required"));
         }
         if (playlistIdStr == null || playlistIdStr.isEmpty()) {
+            log.warn("[STREAM] Play rejected — playlistId is missing");
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "playlistId is required"));
         }
 
         UUID playlistId = UUID.fromString(playlistIdStr);
         String streamUrl = streamService.authorizeAndGetUrl(deviceContext.getCurrentDeviceId(), playlistId, streamId);
+        log.info("[STREAM] Resolved URL for streamId={} → {}", streamId, streamUrl);
         return ResponseEntity.ok(Map.of("success", true, "url", streamUrl));
     }
 }
