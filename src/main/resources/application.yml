@@ -1,8 +1,8 @@
 spring:
   application:
     name: wiseplayer
-  #profiles:
-   #   active: dev
+  profiles:
+      active: dev
   flyway:
     enabled: true
     baseline-on-migrate: true

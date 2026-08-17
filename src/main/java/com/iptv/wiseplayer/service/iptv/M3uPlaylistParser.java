@@ -2,6 +2,7 @@ package com.iptv.wiseplayer.service.iptv;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import java.util.regex.Pattern;
  * (e.g. "is this channel catch-up playable?") are made by
  * {@link CatchUpService}.
  */
+@Component
 public class M3uPlaylistParser {
 
     private static final Logger log = LoggerFactory.getLogger(M3uPlaylistParser.class);
