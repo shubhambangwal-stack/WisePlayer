@@ -3,6 +3,7 @@ package com.iptv.wiseplayer.controller;
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamSeries;
 import com.iptv.wiseplayer.dto.iptv.XtreamSeriesInfo;
+import com.iptv.wiseplayer.service.CatchupEnrichmentService;
 import com.iptv.wiseplayer.service.iptv.XtreamCatalogService;
 import com.iptv.wiseplayer.service.iptv.XtreamStreamResolver;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,22 +22,28 @@ public class SeriesController {
 
     private final XtreamCatalogService catalogService;
     private final XtreamStreamResolver streamResolver;
+    private final CatchupEnrichmentService enrichmentService;
 
-    public SeriesController(XtreamCatalogService catalogService, XtreamStreamResolver streamResolver) {
+    public SeriesController(XtreamCatalogService catalogService,
+                            XtreamStreamResolver streamResolver,
+                            CatchupEnrichmentService enrichmentService) {
         this.catalogService = catalogService;
         this.streamResolver = streamResolver;
+        this.enrichmentService = enrichmentService;
     }
 
     /**
      * Main dispatch endpoint:
      * - No params              → Series categories list
      * - categoryId only        → Series list for that category
-     * - seriesId only          → Full series info (seasons + episodes)
+     * - seriesId only          → Full series info (seasons + episodes), with watch_progress
+     *                            injected into every episode that has a saved position.
      */
     @Operation(
         summary = "Browse Series",
-        description = "Dispatches request based on parameters: "
-            + "(none) returns categories, categoryId returns series list, seriesId returns seasons/episodes."
+        description = "Dispatches request based on parameters: " +
+            "(none) returns categories, categoryId returns series list, " +
+            "seriesId returns seasons/episodes enriched with watch_progress (resume positions)."
     )
     @GetMapping
     public ResponseEntity<?> handleRequest(
@@ -45,11 +52,13 @@ public class SeriesController {
             @RequestParam(required = false) Integer seriesId) {
 
         // 1. Get full Series info with seasons/episodes (if seriesId is present)
+        //    → episodes are enriched with per-episode watch_progress automatically
         if (seriesId != null) {
             XtreamSeriesInfo info = catalogService.getSeriesInfo(playlistId, seriesId);
             if (info == null) {
                 return ResponseEntity.notFound().build();
             }
+            enrichmentService.enrichSeriesEpisodes(playlistId, info);
             return ResponseEntity.ok(info);
         }
 
@@ -73,8 +82,8 @@ public class SeriesController {
      */
     @Operation(
         summary = "Get Episode Playback URL",
-        description = "Resolves the direct playback URL for a series episode. "
-            + "The episodeId and containerExtension must be taken from the get_series_info response."
+        description = "Resolves the direct playback URL for a series episode. " +
+            "The episodeId and containerExtension must be taken from the get_series_info response."
     )
     @GetMapping("/play")
     public ResponseEntity<?> getEpisodePlayUrl(
