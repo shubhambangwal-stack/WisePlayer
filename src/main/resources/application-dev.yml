@@ -73,6 +73,7 @@ app:
 
 
     # Refresh tokens are managed internally (not exposed in API)
+    # Refresh tokens are managed internally (not exposed in API)
 
 springdoc:
   api-docs:
