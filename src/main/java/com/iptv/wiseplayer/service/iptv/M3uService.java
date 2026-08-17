@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.iptv.wiseplayer.dto.iptv.EpgProgram;
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamLiveStream;
 import com.iptv.wiseplayer.util.XtreamUrlParser;
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,31 +22,35 @@ import java.util.regex.Pattern;
 public class M3uService {
 
     private static final Logger logger = LoggerFactory.getLogger(M3uService.class);
+    private static final long PLAYLIST_CACHE_TTL = Duration.ofMinutes(10).toMillis();
+    private static final long EPG_CACHE_TTL = Duration.ofMinutes(4).toMillis();
+
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final XtreamUrlParser xtreamUrlParser;
     private final XtreamClient xtreamClient;
+    private final M3uPlaylistParser parser;
+    private final XmltvEpgParser xmltvEpgParser;
+    private final CatchUpCache cache;
 
-    public M3uService(ObjectMapper objectMapper, XtreamUrlParser xtreamUrlParser, XtreamClient xtreamClient) {
+    public M3uService(ObjectMapper objectMapper, XtreamUrlParser xtreamUrlParser, XtreamClient xtreamClient,
+            M3uPlaylistParser parser, XmltvEpgParser xmltvEpgParser, CatchUpCache cache) {
         this.restTemplate = new RestTemplate();
         this.objectMapper = objectMapper;
         this.xtreamUrlParser = xtreamUrlParser;
         this.xtreamClient = xtreamClient;
+        this.parser = parser;
+        this.xmltvEpgParser = xmltvEpgParser;
+        this.cache = cache;
     }
 
     public JsonNode getCategories(String m3uUrl) {
         logger.info("getCategories called for URL: {}", m3uUrl);
-        String content = fetchM3uContent(m3uUrl);
+        M3uPlaylistParser.M3uPlaylistData data = getParsedPlaylist(m3uUrl);
         Set<String> categories = new LinkedHashSet<>();
-
-        String[] lines = content.split("\n");
-        logger.info("Processing {} lines for categories", lines.length);
-        for (String line : lines) {
-            if (line.startsWith("#EXTINF")) {
-                String groupTitle = extractAttribute(line, "group-title");
-                if (groupTitle != null && !groupTitle.isEmpty()) {
-                    categories.add(groupTitle);
-                }
+        for (M3uPlaylistParser.M3uChannel channel : data.getChannels()) {
+            if (channel.getGroupTitle() != null && !channel.getGroupTitle().isEmpty()) {
+                categories.add(channel.getGroupTitle());
             }
         }
 
@@ -61,36 +67,140 @@ public class M3uService {
 
     public JsonNode getChannels(String m3uUrl, String categoryId) {
         logger.info("getChannels called for URL: {}, categoryId: {}", m3uUrl, categoryId);
-        String content = fetchM3uContent(m3uUrl);
+        M3uPlaylistParser.M3uPlaylistData data = getParsedPlaylist(m3uUrl);
         ArrayNode channels = objectMapper.createArrayNode();
 
-        String[] lines = content.split("\n");
-        logger.info("Processing {} lines for channels", lines.length);
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i];
-            if (line.startsWith("#EXTINF")) {
-                String groupTitle = extractAttribute(line, "group-title");
-                if (categoryId == null || categoryId.equalsIgnoreCase(groupTitle)) {
-                    String logo = extractAttribute(line, "tvg-logo");
-                    String name = line.substring(line.lastIndexOf(",") + 1).trim();
-
-                    String streamUrl = "";
-                    if (i + 1 < lines.length && !lines[i + 1].startsWith("#")) {
-                        streamUrl = lines[i + 1].trim();
-                    }
-
-                    ObjectNode channel = objectMapper.createObjectNode();
-                    channel.put("num", channels.size() + 1);
-                    channel.put("name", name);
-                    channel.put("stream_id", streamUrl); // For M3U, the stream_id IS the URL
-                    channel.put("stream_icon", logo);
-                    channel.put("category_id", groupTitle);
-                    channels.add(channel);
-                }
+        for (M3uPlaylistParser.M3uChannel channel : data.getChannels()) {
+            if (categoryId != null && !categoryId.equalsIgnoreCase(channel.getGroupTitle())) {
+                continue;
             }
+            ObjectNode node = objectMapper.createObjectNode();
+            node.put("num", channels.size() + 1);
+            node.put("name", channel.getName());
+            node.put("stream_id", channel.getStreamUrl()); // For M3U, the stream_id IS the URL
+            node.put("stream_icon", channel.getLogo());
+            node.put("category_id", channel.getGroupTitle());
+            node.put("tvg_id", channel.getTvgId() != null ? channel.getTvgId() : "");
+            node.put("channel_id", M3uPlaylistParser.extractChannelId(channel.getStreamUrl(), channel.getTvgId()));
+
+            // Catch-up / archive hints
+            boolean catchup = channel.isCatchupFlag() && isChannelPlayable(channel);
+            node.put("catchup", catchup);
+            node.put("catchup_method", channel.getMethodRaw() != null ? channel.getMethodRaw() : "");
+            node.put("catchup_days", channel.getDays() != null ? String.valueOf(channel.getDays()) : "");
+            node.put("catchup_source", channel.getSource() != null ? channel.getSource() : "");
+            channels.add(node);
         }
         logger.info("Parsed {} channels for category: {}", channels.size(), categoryId);
         return channels;
+    }
+
+    /**
+     * Returns the parsed playlist model, cached to avoid refetching the M3U URL
+     * for every category / channel / EPG request.
+     */
+    public M3uPlaylistParser.M3uPlaylistData getParsedPlaylist(String m3uUrl) {
+        String key = "m3u:playlist:" + m3uUrl.hashCode();
+        M3uPlaylistParser.M3uPlaylistData data = cache.get(key);
+        if (data != null) {
+            return data;
+        }
+        String content = fetchM3uContent(m3uUrl);
+        data = parser.parse(content);
+        cache.put(key, data, PLAYLIST_CACHE_TTL);
+        return data;
+    }
+
+    /**
+     * Fetches EPG programmes for a channel within a time window using the
+     * playlist's {@code url-tvg} XMLTV source (when present).
+     *
+     * @param m3uUrl   the playlist URL
+     * @param tvgId    the channel's tvg-id to match against XMLTV programmes
+     * @param channelName fallback channel name used when tvg-id is empty
+     * @return EPG programmes (never null)
+     */
+    public List<EpgProgram> getEpg(String m3uUrl, String tvgId, String channelName, long windowStart, long windowEnd) {
+        M3uPlaylistParser.M3uPlaylistData data = getParsedPlaylist(m3uUrl);
+        if (!data.hasEpg()) {
+            return Collections.emptyList();
+        }
+
+        String epgUrl = data.getTvgUrl();
+        String cacheKey = "m3u:epg:" + epgUrl.hashCode();
+        List<EpgProgram> all = cache.getOrLoad(cacheKey, EPG_CACHE_TTL, () -> {
+            String xml = fetchEpgContent(epgUrl);
+            return xml != null ? xmltvEpgParser.parse(xml, Long.MIN_VALUE / 2, Long.MAX_VALUE / 2) : null;
+        });
+        if (all == null) {
+            return Collections.emptyList();
+        }
+
+        List<EpgProgram> result = new ArrayList<>();
+        for (EpgProgram program : all) {
+            if (matchesChannel(program.getChannelId(), tvgId, channelName)) {
+                result.add(program);
+            }
+        }
+        return result;
+    }
+
+    private boolean matchesChannel(String epgChannel, String tvgId, String channelName) {
+        if (epgChannel == null || epgChannel.isBlank()) {
+            return false;
+        }
+        if (tvgId != null && !tvgId.isBlank() && epgChannel.equalsIgnoreCase(tvgId)) {
+            return true;
+        }
+        if (channelName != null && !channelName.isBlank()) {
+            return epgChannel.equalsIgnoreCase(channelName)
+                    || epgChannel.contains(channelName)
+                    || channelName.contains(epgChannel);
+        }
+        return false;
+    }
+
+    private boolean isChannelPlayable(M3uPlaylistParser.M3uChannel channel) {
+        // Playable when the playlist gives an explicit catch-up URL template,
+        // or when the provider credentials are known so a URL can be built.
+        return channel.getSource() != null
+                || (channel.getMethodRaw() != null && credentialsAvailable(channel.getStreamUrl()));
+    }
+
+    private boolean credentialsAvailable(String streamUrl) {
+        try {
+            if (streamUrl == null) {
+                return false;
+            }
+            java.net.URI uri = new java.net.URI(streamUrl);
+            return uri.getUserInfo() != null
+                    || (streamUrl.contains("/live/") || streamUrl.contains("/series/"));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String fetchEpgContent(String epgUrl) {
+        logger.info("Fetching XMLTV EPG from: {}", epgUrl);
+        try {
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.set(org.springframework.http.HttpHeaders.USER_AGENT, "okhttp/4.9.0");
+            headers.setAccept(Arrays.asList(
+                    org.springframework.http.MediaType.APPLICATION_XML,
+                    org.springframework.http.MediaType.TEXT_XML,
+                    org.springframework.http.MediaType.APPLICATION_JSON));
+            org.springframework.http.HttpEntity<Void> entity = new org.springframework.http.HttpEntity<>(headers);
+            String content = restTemplate.exchange(epgUrl, org.springframework.http.HttpMethod.GET, entity, String.class)
+                    .getBody();
+            if (content != null && !content.trim().startsWith("<")) {
+                logger.warn("EPG URL {} did not return XML content", epgUrl);
+                return null;
+            }
+            return content;
+        } catch (Exception e) {
+            logger.error("Error fetching XMLTV EPG from {}: {}", epgUrl, e.getMessage(), e);
+            return null;
+        }
     }
 
     private String fetchM3uContent(String url) {
@@ -104,9 +214,9 @@ public class M3uService {
             String content = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET, entity, String.class).getBody();
             int len = content != null ? content.length() : 0;
             logger.info("HTTP response received, content length: {}", len);
-            
+
             if (content == null || !content.trim().startsWith("#EXTM3U")) {
-                logger.warn("M3U fetch from {} returned empty or non-M3U content. Attempting Xtream fallback. Content preview: {}", 
+                logger.warn("M3U fetch from {} returned empty or non-M3U content. Attempting Xtream fallback. Content preview: {}",
                         url, (content != null && content.length() > 100 ? content.substring(0, 100) : content));
                 XtreamUrlParser.XtreamDetails details = xtreamUrlParser.parse(url);
                 if (details != null) {
@@ -177,8 +287,15 @@ public class M3uService {
             String normalizedServer = serverUrl.endsWith("/") ? serverUrl.substring(0, serverUrl.length() - 1) : serverUrl;
             String streamUrl = String.format("%s/live/%s/%s/%d.ts", normalizedServer, username, password, streamId);
 
-            sb.append(String.format("#EXTINF:-1 tvg-id=\"%d\" tvg-logo=\"%s\" group-title=\"%s\",%s\n",
-                    streamId, logo, catName, name));
+            // Carry TV archive metadata into the M3U so catch-up works downstream
+            String archiveAttrs = "";
+            if (stream.getTvArchive() == 1) {
+                archiveAttrs = String.format(" catchup=\"xc\" catchup-days=\"%d\"",
+                        stream.getTvArchiveDuration() > 0 ? stream.getTvArchiveDuration() : 7);
+            }
+
+            sb.append(String.format("#EXTINF:-1 tvg-id=\"%d\" tvg-logo=\"%s\" group-title=\"%s\"%s,%s\n",
+                    streamId, logo, catName, archiveAttrs, name));
             sb.append(streamUrl).append("\n");
         }
 

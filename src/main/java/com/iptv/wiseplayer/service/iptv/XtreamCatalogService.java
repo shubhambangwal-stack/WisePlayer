@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.service.iptv;
 
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
+import com.iptv.wiseplayer.dto.iptv.XtreamEpgProgram;
 import com.iptv.wiseplayer.dto.iptv.XtreamLiveStream;
 import com.iptv.wiseplayer.dto.iptv.XtreamSeries;
 import com.iptv.wiseplayer.dto.iptv.XtreamSeriesInfo;
@@ -58,5 +59,22 @@ public class XtreamCatalogService {
     public XtreamSeriesInfo getSeriesInfo(UUID playlistId, int seriesId) {
         SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
         return xtreamClient.getSeriesInfo(creds.serverUrl(), creds.username(), creds.password(), seriesId);
+    }
+
+    /**
+     * Fetches the current and upcoming EPG programmes for a live stream.
+     */
+    public List<XtreamEpgProgram> getShortEpg(UUID playlistId, int streamId, int limit) {
+        SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
+        return xtreamClient.getShortEpg(creds.serverUrl(), creds.username(), creds.password(), streamId, limit);
+    }
+
+    /**
+     * Fetches EPG / archive data (get_simple_data_table) for a live stream
+     * within a time window. Includes past programmes when archive is available.
+     */
+    public List<XtreamEpgProgram> getSimpleDataTable(UUID playlistId, int streamId, long start, long end) {
+        SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
+        return xtreamClient.getSimpleDataTable(creds.serverUrl(), creds.username(), creds.password(), streamId, start, end);
     }
 }

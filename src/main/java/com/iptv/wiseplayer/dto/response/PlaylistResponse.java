@@ -1,9 +1,12 @@
 package com.iptv.wiseplayer.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.iptv.wiseplayer.domain.enums.PlaylistType;
+import com.iptv.wiseplayer.dto.iptv.CatchUpStatus;
 
 import java.util.UUID;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class PlaylistResponse {
     private UUID id;
     private UUID deviceId;
@@ -14,6 +17,7 @@ public class PlaylistResponse {
     private String password;
     private String m3uUrl;
     private boolean pinned;
+    private CatchUpStatus catchUp;
 
     public PlaylistResponse() {
     }
@@ -101,5 +105,13 @@ public class PlaylistResponse {
 
     public void setPinned(boolean pinned) {
         this.pinned = pinned;
+    }
+
+    public CatchUpStatus getCatchUp() {
+        return catchUp;
+    }
+
+    public void setCatchUp(CatchUpStatus catchUp) {
+        this.catchUp = catchUp;
     }
 }

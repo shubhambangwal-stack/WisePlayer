@@ -56,6 +56,22 @@ public class Playlist {
     @Column(name = "pinned", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private boolean pinned = false;
 
+    // Catch-up / Archive capability snapshot (cached per playlist to reduce API calls)
+    @Column(name = "catchup_supported", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean catchupSupported = false;
+
+    @Column(name = "catchup_method", length = 20)
+    private String catchupMethod;
+
+    @Column(name = "catchup_days")
+    private Integer catchupDays;
+
+    @Column(name = "catchup_source", columnDefinition = "TEXT")
+    private String catchupSource;
+
+    @Column(name = "catchup_checked_at")
+    private LocalDateTime catchupCheckedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -171,6 +187,46 @@ public class Playlist {
 
     public void setPinned(boolean pinned) {
         this.pinned = pinned;
+    }
+
+    public boolean isCatchupSupported() {
+        return catchupSupported;
+    }
+
+    public void setCatchupSupported(boolean catchupSupported) {
+        this.catchupSupported = catchupSupported;
+    }
+
+    public String getCatchupMethod() {
+        return catchupMethod;
+    }
+
+    public void setCatchupMethod(String catchupMethod) {
+        this.catchupMethod = catchupMethod;
+    }
+
+    public Integer getCatchupDays() {
+        return catchupDays;
+    }
+
+    public void setCatchupDays(Integer catchupDays) {
+        this.catchupDays = catchupDays;
+    }
+
+    public String getCatchupSource() {
+        return catchupSource;
+    }
+
+    public void setCatchupSource(String catchupSource) {
+        this.catchupSource = catchupSource;
+    }
+
+    public LocalDateTime getCatchupCheckedAt() {
+        return catchupCheckedAt;
+    }
+
+    public void setCatchupCheckedAt(LocalDateTime catchupCheckedAt) {
+        this.catchupCheckedAt = catchupCheckedAt;
     }
 
     public LocalDateTime getCreatedAt() {

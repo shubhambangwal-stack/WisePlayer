@@ -43,6 +43,7 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser;
     private final DeviceTokenUtil tokenUtil;
     private final PasswordEncoder passwordEncoder;
+    private final com.iptv.wiseplayer.service.iptv.CatchUpService catchUpService;
 
     public PlaylistServiceImpl(PlaylistRepository playlistRepository,
             DeviceRepository deviceRepository,
@@ -50,7 +51,8 @@ public class PlaylistServiceImpl implements PlaylistService {
             XtreamClient xtreamClient,
             com.iptv.wiseplayer.util.XtreamUrlParser xtreamUrlParser,
             DeviceTokenUtil tokenUtil,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            com.iptv.wiseplayer.service.iptv.CatchUpService catchUpService) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
         this.encryptionUtil = encryptionUtil;
@@ -58,6 +60,7 @@ public class PlaylistServiceImpl implements PlaylistService {
         this.xtreamUrlParser = xtreamUrlParser;
         this.tokenUtil = tokenUtil;
         this.passwordEncoder = passwordEncoder;
+        this.catchUpService = catchUpService;
     }
 
     @Override
@@ -349,7 +352,7 @@ public class PlaylistServiceImpl implements PlaylistService {
                 : null;
         String m3uUrl = playlist.getM3uUrl() != null ? encryptionUtil.decrypt(playlist.getM3uUrl()) : null;
 
-        return new PlaylistResponse(
+        PlaylistResponse response = new PlaylistResponse(
                 playlist.getId(),
                 playlist.getDeviceId(),
                 playlist.getName(),
@@ -359,6 +362,14 @@ public class PlaylistServiceImpl implements PlaylistService {
                 password,
                 m3uUrl,
                 playlist.isPinned());
+
+        // Attach cached catch-up availability (data-driven; never fabricated).
+        try {
+            response.setCatchUp(catchUpService.getPlaylistStatus(playlist.getId()));
+        } catch (Exception e) {
+            log.debug("Could not attach catch-up status for playlist {}: {}", playlist.getId(), e.getMessage());
+        }
+        return response;
     }
 
     private void validateM3uUrl(String urlString) {
