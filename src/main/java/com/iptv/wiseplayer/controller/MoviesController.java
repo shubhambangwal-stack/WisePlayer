@@ -35,16 +35,24 @@ public class MoviesController {
             "Stream listings are automatically enriched with watch_progress (resume position) when available.")
     @GetMapping
     public ResponseEntity<?> handleRequest(
-            @RequestParam UUID playlistId,
-            @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) Integer streamId,
-            @RequestParam(required = false) String containerExtension) {
+            @RequestParam(name = "playlistId") UUID playlistId,
+            @RequestParam(name = "categoryId", required = false) String categoryId,
+            @RequestParam(name = "streamId", required = false) Integer streamId,
+            @RequestParam(name = "containerExtension", required = false) String containerExtension,
+            @RequestParam(name = "container_extension", required = false) String containerExtensionSnake,
+            @RequestParam(name = "extension", required = false) String ext) {
         
-        System.out.println("MoviesController received request - playlistId: " + playlistId + ", categoryId: " + categoryId + ", streamId: " + streamId + ", containerExtension: " + containerExtension);
+        String resolvedExt = containerExtension != null && !containerExtension.isBlank() ? containerExtension
+                : (containerExtensionSnake != null && !containerExtensionSnake.isBlank() ? containerExtensionSnake : ext);
+
+        System.out.println("MoviesController received request - playlistId: " + playlistId 
+                + ", categoryId: " + categoryId 
+                + ", streamId: " + streamId 
+                + ", resolvedExt: " + resolvedExt);
 
         // 1. Play Stream (if streamId is present)
         if (streamId != null) {
-            String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD, containerExtension);
+            String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD, resolvedExt);
             return ResponseEntity.ok(Map.of("url", url));
         }
 
