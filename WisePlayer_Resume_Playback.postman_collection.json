@@ -89,7 +89,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"streamId\": {{vodStreamId}},\n  \"streamType\": \"VOD\",\n  \"positionSeconds\": 1250,\n  \"durationSeconds\": 7200\n}"
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"streamId\": {{vodStreamId}},\n  \"streamType\": \"VOD\",\n  \"positionSeconds\": 1250,\n  \"durationSeconds\": 7200\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/progress",
@@ -125,7 +125,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"streamId\": {{episodeId}},\n  \"streamType\": \"SERIES\",\n  \"positionSeconds\": 800,\n  \"durationSeconds\": 2400\n}"
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"streamId\": {{episodeId}},\n  \"streamType\": \"SERIES\",\n  \"positionSeconds\": 800,\n  \"durationSeconds\": 2400\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/progress",
@@ -164,7 +164,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"streamId\": {{vodStreamId}},\n  \"streamType\": \"VOD\",\n  \"positionSeconds\": 6900,\n  \"durationSeconds\": 7200\n}"
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"streamId\": {{vodStreamId}},\n  \"streamType\": \"VOD\",\n  \"positionSeconds\": 6900,\n  \"durationSeconds\": 7200\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/progress",
@@ -185,7 +185,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"streamId\": {{episodeId}},\n  \"streamType\": \"SERIES\",\n  \"positionSeconds\": 800,\n  \"durationSeconds\": 2400\n}"
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"streamId\": {{episodeId}},\n  \"streamType\": \"SERIES\",\n  \"positionSeconds\": 800,\n  \"durationSeconds\": 2400\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/series/progress",

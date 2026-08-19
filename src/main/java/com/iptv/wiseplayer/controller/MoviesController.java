@@ -49,7 +49,7 @@ public class MoviesController {
         //    → enriched with per-stream watch_progress automatically
         if (categoryId != null) {
             List<XtreamVodStream> streams = catalogService.getVodStreams(playlistId, categoryId);
-            enrichmentService.enrichVodStreams(streams);
+            enrichmentService.enrichVodStreams(playlistId, streams);
             return ResponseEntity.ok(streams);
         }
 
