@@ -39,4 +39,22 @@ public interface WatchProgressRepository extends JpaRepository<WatchProgress, UU
             @Param("deviceId") UUID deviceId,
             @Param("streamId") int streamId,
             @Param("streamType") String streamType);
+
+    /**
+     * Postgres-native UPSERT to prevent race conditions (409 Conflict)
+     * when the frontend fires multiple heartbeats simultaneously.
+     */
+    @Modifying
+    @Query(value = "INSERT INTO watch_progress (id, device_id, stream_id, stream_type, position_seconds, duration_seconds, fully_watched, updated_at) " +
+                   "VALUES (:id, :deviceId, :streamId, :streamType, :pos, :dur, false, CURRENT_TIMESTAMP) " +
+                   "ON CONFLICT (device_id, stream_id, stream_type) " +
+                   "DO UPDATE SET position_seconds = :pos, duration_seconds = :dur, fully_watched = false, updated_at = CURRENT_TIMESTAMP",
+           nativeQuery = true)
+    void upsertProgress(
+            @Param("id") UUID id,
+            @Param("deviceId") UUID deviceId,
+            @Param("streamId") int streamId,
+            @Param("streamType") String streamType,
+            @Param("pos") long positionSeconds,
+            @Param("dur") long durationSeconds);
 }

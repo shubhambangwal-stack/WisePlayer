@@ -93,27 +93,11 @@ public class WatchProgressService {
                         return new WatchProgressResponse(0L, durationSeconds, watchedPercent, true);
                 }
 
-                // ── Upsert single row keyed by device_id ──────────────────────────────
-                boolean isNew = watchProgressRepository
-                                .findByDeviceIdAndStreamIdAndStreamType(deviceId, streamId, streamType)
-                                .isEmpty();
+                // ── Upsert using Postgres native query (prevents 409 Conflict race conditions) ─
+                watchProgressRepository.upsertProgress(UUID.randomUUID(), deviceId, streamId, streamType, positionSeconds, durationSeconds);
 
-                WatchProgress progress = watchProgressRepository
-                                .findByDeviceIdAndStreamIdAndStreamType(deviceId, streamId, streamType)
-                                .orElseGet(WatchProgress::new);
-
-                progress.setDeviceId(deviceId);
-                progress.setStreamId(streamId);
-                progress.setStreamType(streamType);
-                progress.setPositionSeconds(positionSeconds);
-                progress.setDurationSeconds(durationSeconds);
-                progress.setFullyWatched(false);
-
-                watchProgressRepository.save(progress);
-
-                log.info("[WatchProgress] {} → deviceId={}, streamId={}, type={}, position={}s ({:.1f}%)",
-                                isNew ? "CREATED" : "UPDATED", deviceId, streamId, streamType, positionSeconds,
-                                watchedPercent);
+                log.info("[WatchProgress] UPSERTED → deviceId={}, streamId={}, type={}, position={}s ({:.1f}%)",
+                                deviceId, streamId, streamType, positionSeconds, watchedPercent);
 
                 return new WatchProgressResponse(positionSeconds, durationSeconds, watchedPercent, false);
         }
