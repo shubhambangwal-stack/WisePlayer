@@ -8,24 +8,28 @@ import java.util.UUID;
 
 /**
  * Stores the last-watched position for a single VOD or Series episode
- * per playlist. One row per (playlist_id, stream_id, stream_type) — never grows
+ * per DEVICE. One row per (device_id, stream_id, stream_type) — never grows
  * into a history log. The service layer upserts this row on every progress save.
  *
- * <p>When the user watches ≥ 95 % of the content, {@code fullyWatched} is set to
- * {@code true} and {@code positionSeconds} is reset to 0 so the next play starts
- * from the beginning.</p>
+ * <p>The key is {@code device_id} (from the authenticated JWT via
+ * {@link com.iptv.wiseplayer.security.DeviceContext}), NOT playlist_id.
+ * This guarantees that two different physical devices sharing the same
+ * playlist each get their own independent watch position.</p>
+ *
+ * <p>When the user watches ≥ 95 % of the content, the row is deleted so the
+ * next play starts from the beginning automatically.</p>
  */
 @Entity
 @Table(
     name = "watch_progress",
     uniqueConstraints = {
         @UniqueConstraint(
-            name = "uq_watch_progress_playlist_stream",
-            columnNames = {"playlist_id", "stream_id", "stream_type"}
+            name = "uq_watch_progress_device_stream",
+            columnNames = {"device_id", "stream_id", "stream_type"}
         )
     },
     indexes = {
-        @Index(name = "idx_watch_progress_playlist_id", columnList = "playlist_id")
+        @Index(name = "idx_watch_progress_device_id", columnList = "device_id")
     }
 )
 public class WatchProgress {
@@ -35,9 +39,13 @@ public class WatchProgress {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    /** The playlist (= user/device context) that owns this progress entry. */
-    @Column(name = "playlist_id", nullable = false)
-    private UUID playlistId;
+    /**
+     * The unique device that owns this progress entry.
+     * Populated from the authenticated JWT via {@link com.iptv.wiseplayer.security.DeviceContext}.
+     * This is the ONLY reliable unique-per-device identifier.
+     */
+    @Column(name = "device_id", nullable = false)
+    private UUID deviceId;
 
     /**
      * Xtream Codes stream ID.
@@ -84,8 +92,8 @@ public class WatchProgress {
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
-    public UUID getPlaylistId() { return playlistId; }
-    public void setPlaylistId(UUID playlistId) { this.playlistId = playlistId; }
+    public UUID getDeviceId() { return deviceId; }
+    public void setDeviceId(UUID deviceId) { this.deviceId = deviceId; }
 
     public int getStreamId() { return streamId; }
     public void setStreamId(int streamId) { this.streamId = streamId; }

@@ -16,29 +16,27 @@ import java.util.UUID;
 public interface WatchProgressRepository extends JpaRepository<WatchProgress, UUID> {
 
     /**
-     * Finds the single progress row for a given playlist + stream combination.
-     * This is the primary lookup used when building the "resume" URL.
+     * Finds the single progress row for a given device + stream combination.
+     * Keyed by device_id so two devices sharing the same playlist NEVER collide.
      */
-    Optional<WatchProgress> findByPlaylistIdAndStreamIdAndStreamType(
-            UUID playlistId, int streamId, String streamType);
+    Optional<WatchProgress> findByDeviceIdAndStreamIdAndStreamType(
+            UUID deviceId, int streamId, String streamType);
 
     /**
      * Bulk lookup: fetches progress for a set of stream IDs in one query.
-     * Used when enriching a category / listing response (e.g. VOD stream list).
+     * Used when enriching a category / listing response.
      */
-    List<WatchProgress> findByPlaylistIdAndStreamIdInAndStreamType(
-            UUID playlistId, Collection<Integer> streamIds, String streamType);
+    List<WatchProgress> findByDeviceIdAndStreamIdInAndStreamType(
+            UUID deviceId, Collection<Integer> streamIds, String streamType);
 
     /**
      * Deletes a fully-watched entry so the next play restarts from the beginning.
-     * Called inside {@link com.iptv.wiseplayer.service.WatchProgressService#saveProgress}
-     * when the watched percentage crosses the 95 % threshold.
      */
     @Modifying
-    @Query("DELETE FROM WatchProgress w WHERE w.playlistId = :playlistId " +
+    @Query("DELETE FROM WatchProgress w WHERE w.deviceId = :deviceId " +
            "AND w.streamId = :streamId AND w.streamType = :streamType")
-    void deleteByPlaylistIdAndStreamIdAndStreamType(
-            @Param("playlistId") UUID playlistId,
+    void deleteByDeviceIdAndStreamIdAndStreamType(
+            @Param("deviceId") UUID deviceId,
             @Param("streamId") int streamId,
             @Param("streamType") String streamType);
 }

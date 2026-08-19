@@ -1,0 +1,142 @@
+{
+  "info": {
+    "name": "WisePlayer - Resume Playback (Watch Progress)",
+    "description": "Collection to test the Resume Playback (Watch Progress) feature for VODs and Series in WisePlayer.\n\nHOW IT WORKS:\n1. Device identification is done automatically via the X-Device-Token header.\n2. Call `POST /api/progress` periodically while playing a VOD or Series episode to save progress.\n3. The saved progress is automatically embedded in the standard VOD/Series listing responses when the user browses the app again.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081", "type": "string" },
+    { "key": "deviceFingerprint", "value": "00:1A:2B:3C:4D:5E", "type": "string" },
+    { "key": "deviceToken", "value": "", "type": "string" },
+    { "key": "playlistId", "value": "YOUR_PLAYLIST_ID_HERE", "type": "string" },
+    { "key": "categoryId", "value": "YOUR_CATEGORY_ID_HERE", "type": "string" },
+    { "key": "streamId", "value": "12345", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Setup Device & Auth",
+      "item": [
+        {
+          "name": "Register Device (Get Token)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceFingerprint}}\",\n  \"deviceModel\": \"Postman\",\n  \"osVersion\": \"1.0\",\n  \"platform\": \"postman\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/device/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "device", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"deviceToken\", json.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Save Watch Progress",
+      "item": [
+        {
+          "name": "Save Watch Progress (VOD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{deviceToken}}", "type": "text" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"streamId\": {{streamId}},\n  \"streamType\": \"VOD\",\n  \"positionSeconds\": 1250,\n  \"durationSeconds\": 7200\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "progress"]
+            }
+          }
+        },
+        {
+          "name": "Save Watch Progress (SERIES)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{deviceToken}}", "type": "text" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"streamId\": {{streamId}},\n  \"streamType\": \"SERIES\",\n  \"positionSeconds\": 800,\n  \"durationSeconds\": 2400\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "progress"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Retrieve Data (Check if Progress Saved)",
+      "item": [
+        {
+          "name": "Get VOD Streams (Progress Included)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{deviceToken}}", "type": "text" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}&categoryId={{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "movie"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "categoryId", "value": "{{categoryId}}" }
+              ]
+            }
+          },
+          "description": "This is the same endpoint used to list movies. The backend automatically injects the `watch_progress` field into the response for any video the user has started watching."
+        },
+        {
+          "name": "Get Series Episodes (Progress Included)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{deviceToken}}", "type": "text" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series?playlistId={{playlistId}}&seriesId={{streamId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "series"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "seriesId", "value": "{{streamId}}" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
