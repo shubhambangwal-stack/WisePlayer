@@ -31,11 +31,12 @@ public class MoviesController {
     public ResponseEntity<?> handleRequest(
             @RequestParam UUID playlistId,
             @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) Integer streamId) {
+            @RequestParam(required = false) Integer streamId,
+            @RequestParam(required = false) String extension) {
 
         // 1. Play Stream (if streamId is present)
         if (streamId != null) {
-            String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD);
+            String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD, extension);
             return ResponseEntity.ok(Map.of("url", url));
         }
 
