@@ -58,7 +58,7 @@ public class SeriesController {
             if (info == null) {
                 return ResponseEntity.notFound().build();
             }
-            enrichmentService.enrichSeriesEpisodes(playlistId, info);
+            enrichmentService.enrichSeriesEpisodes(info);
             return ResponseEntity.ok(info);
         }
 

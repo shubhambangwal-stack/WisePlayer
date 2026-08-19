@@ -35,10 +35,10 @@ public class SecurityConfig {
     private final AdminRepository adminRepository;
 
     public SecurityConfig(SecurityProperties securityProperties,
-                          DeviceRepository deviceRepository,
-                          DeviceTokenUtil deviceTokenUtil,
-                          com.fasterxml.jackson.databind.ObjectMapper objectMapper,
-                          AdminRepository adminRepository) {
+            DeviceRepository deviceRepository,
+            DeviceTokenUtil deviceTokenUtil,
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+            AdminRepository adminRepository) {
         this.securityProperties = securityProperties;
         this.deviceRepository = deviceRepository;
         this.deviceTokenUtil = deviceTokenUtil;
@@ -72,7 +72,8 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(java.util.List.of("*"));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
-        configuration.setExposedHeaders(java.util.List.of("Authorization", "Link", "X-Total-Count", "ngrok-skip-browser-warning"));
+        configuration.setExposedHeaders(
+                java.util.List.of("Authorization", "Link", "X-Total-Count", "ngrok-skip-browser-warning"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
@@ -87,8 +88,7 @@ public class SecurityConfig {
             AdminAuthenticationFilter adminAuthenticationFilter) throws Exception {
         http
                 // Enable CORS using the configured source
-//                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
+                // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // Disable CSRF using the new lambda style
                 .csrf(AbstractHttpConfigurer::disable)
@@ -99,10 +99,10 @@ public class SecurityConfig {
 
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
-                           // Public Endpoints
+                        // Public Endpoints
                         // Allow async dispatches to bypass security filter chain
                         .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
-         
+
                         .requestMatchers("/api/device/register").permitAll()
                         .requestMatchers("/api/device/validate").permitAll()
                         .requestMatchers("/api/device/refresh").permitAll()
@@ -111,7 +111,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/playlist/public/**").permitAll()
                         .requestMatchers("/api/payment/paypal/**").permitAll()
-                        .requestMatchers("/api/reseller/login", "/api/reseller/register", "/api/reseller/forgot-password", "/api/reseller/reset-password").permitAll()
+                        .requestMatchers("/api/reseller/login", "/api/reseller/register",
+                                "/api/reseller/forgot-password", "/api/reseller/reset-password")
+                        .permitAll()
                         .requestMatchers("/api/payment/public/**").permitAll()
                         .requestMatchers("/api/payment/public/plans").permitAll()
                         .requestMatchers("/api/public/support/**").permitAll()
