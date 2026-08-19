@@ -82,6 +82,13 @@ public class Device {
     @Column(name = "mac_address", length = 100)
     private String macAddress;
 
+    /**
+     * BCrypt hash of the device's 4-digit public PIN.
+     * If null, public endpoints are accessible without a PIN.
+     */
+    @Column(name = "public_pin_hash", length = 100)
+    private String publicPinHash;
+
 
 
     // Constructors
@@ -231,5 +238,13 @@ public class Device {
 
     public void setMacAddress(String macAddress) {
         this.macAddress = macAddress;
+    }
+
+    public String getPublicPinHash() {
+        return publicPinHash;
+    }
+
+    public void setPublicPinHash(String publicPinHash) {
+        this.publicPinHash = publicPinHash;
     }
 }

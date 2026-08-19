@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.task.SyncTaskExecutor;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -38,20 +37,14 @@ class StreamServiceImplTest {
     @Mock
     private EncryptionUtil encryptionUtil;
 
-    @Mock
-    private AntiFraudGuardService antiFraudGuardService;
-
     private StreamServiceImpl streamService;
 
     @BeforeEach
     void setUp() {
-        // Use SyncTaskExecutor to run async tasks synchronously in tests
         streamService = new StreamServiceImpl(
                 playlistRepository,
                 deviceRepository,
-                encryptionUtil,
-                antiFraudGuardService,
-                new SyncTaskExecutor()
+                encryptionUtil
         );
     }
 

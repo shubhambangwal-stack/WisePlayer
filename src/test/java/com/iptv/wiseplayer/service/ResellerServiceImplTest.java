@@ -68,6 +68,9 @@
         @Mock
         private ResellerCustomerRepository resellerCustomerRepository;
 
+        @Mock
+        private com.iptv.wiseplayer.service.impl.SubscriptionServiceImpl subscriptionService;
+
         @InjectMocks
         private ResellerServiceImpl resellerService;
 
@@ -94,7 +97,7 @@
 
             when(adminRepository.findByUsername("reseller")).thenReturn(Optional.of(admin));
             when(passwordEncoder.matches("password", "hashed_password")).thenReturn(true);
-            when(adminTokenUtil.generateToken(anyString(), any())).thenReturn("mock_token");
+            when(adminTokenUtil.generateToken(anyString(), any(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean())).thenReturn("mock_token");
 
             // Act
             var response = resellerService.login(request);
@@ -144,6 +147,7 @@
             ActivationRequest savedRequest = new ActivationRequest();
             savedRequest.setId(UUID.randomUUID());
             when(activationRequestRepository.save(any(ActivationRequest.class))).thenReturn(savedRequest);
+            when(subscriptionService.activateSubscription(any())).thenReturn(null);
 
             // Act
             var result = resellerService.submitActivationRequest(resellerId, requestDto);
@@ -167,9 +171,10 @@
             when(deviceRepository.findByDeviceId(deviceId)).thenReturn(Optional.of(device));
 
             ActivationRequest existing = new ActivationRequest();
-            existing.setStatus("PENDING");
+            existing.setStatus("APPROVED");
             existing.setPlanName("ANNUAL");
             when(activationRequestRepository.findTopByDeviceIdOrderByCreatedAtDesc(deviceId)).thenReturn(Optional.of(existing));
+            when(creditService.getActivationCost("ANNUAL")).thenReturn(BigDecimal.TEN);
 
             // Act & Assert
             assertThrows(BadRequestException.class, () -> resellerService.submitActivationRequest(resellerId, requestDto));

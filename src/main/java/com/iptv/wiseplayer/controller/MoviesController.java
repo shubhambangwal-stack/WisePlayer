@@ -2,6 +2,7 @@ package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.dto.iptv.XtreamCategory;
 import com.iptv.wiseplayer.dto.iptv.XtreamVodStream;
+import com.iptv.wiseplayer.service.CatchupEnrichmentService;
 import com.iptv.wiseplayer.service.iptv.XtreamCatalogService;
 import com.iptv.wiseplayer.service.iptv.XtreamStreamResolver;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,13 +21,18 @@ public class MoviesController {
 
     private final XtreamCatalogService catalogService;
     private final XtreamStreamResolver streamResolver;
+    private final CatchupEnrichmentService enrichmentService;
 
-    public MoviesController(XtreamCatalogService catalogService, XtreamStreamResolver streamResolver) {
+    public MoviesController(XtreamCatalogService catalogService,
+                            XtreamStreamResolver streamResolver,
+                            CatchupEnrichmentService enrichmentService) {
         this.catalogService = catalogService;
         this.streamResolver = streamResolver;
+        this.enrichmentService = enrichmentService;
     }
 
-    @Operation(summary = "Handle VOD Request", description = "Dispatches request based on parameters: categories, streams, or play url.")
+    @Operation(summary = "Handle VOD Request", description = "Dispatches request based on parameters: categories, streams, or play url. " +
+            "Stream listings are automatically enriched with watch_progress (resume position) when available.")
     @GetMapping
     public ResponseEntity<?> handleRequest(
             @RequestParam UUID playlistId,
@@ -41,8 +47,10 @@ public class MoviesController {
         }
 
         // 2. Get VOD Streams (if categoryId is present)
+        //    → enriched with per-stream watch_progress automatically
         if (categoryId != null) {
             List<XtreamVodStream> streams = catalogService.getVodStreams(playlistId, categoryId);
+            enrichmentService.enrichVodStreams(playlistId, streams);
             return ResponseEntity.ok(streams);
         }
 

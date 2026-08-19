@@ -56,7 +56,7 @@ public class LiveTvServiceImpl implements LiveTvService {
         Playlist playlist = getPlaylist(deviceId, playlistId);
 
         if (playlist.getType() == PlaylistType.XTREAM) {
-            return objectMapper.valueToTree(xtreamClient.getLiveStreams(
+            return enrichXtreamChannels(xtreamClient.getLiveStreams(
                     encryptionUtil.decrypt(playlist.getServerUrl()),
                     encryptionUtil.decrypt(playlist.getUsername()),
                     encryptionUtil.decrypt(playlist.getPassword()),
@@ -66,6 +66,27 @@ public class LiveTvServiceImpl implements LiveTvService {
         }
 
         return objectMapper.createArrayNode();
+    }
+
+    /**
+     * Adds normalized catch-up / archive fields (catchup, catchup_days,
+     * catchup_method, channel_id) to each Xtream live stream so clients can
+     * show the "Catch-Up" badge without extra API calls.
+     */
+    private JsonNode enrichXtreamChannels(java.util.List<com.iptv.wiseplayer.dto.iptv.XtreamLiveStream> streams) {
+        com.fasterxml.jackson.databind.node.ArrayNode result = objectMapper.createArrayNode();
+        for (com.iptv.wiseplayer.dto.iptv.XtreamLiveStream stream : streams) {
+            com.fasterxml.jackson.databind.node.ObjectNode node =
+                    (com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.valueToTree(stream);
+            boolean archive = stream.getTvArchive() == 1;
+            int duration = stream.getTvArchiveDuration();
+            node.put("channel_id", String.valueOf(stream.getStreamId()));
+            node.put("catchup", archive);
+            node.put("catchup_days", archive && duration > 0 ? String.valueOf(duration) : "");
+            node.put("catchup_method", archive ? "xc" : "");
+            result.add(node);
+        }
+        return result;
     }
 
     private Playlist getPlaylist(UUID deviceId, UUID playlistId) {

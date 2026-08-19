@@ -36,8 +36,6 @@ public class AdminSubscriptionService {
         this.deviceRepository = deviceRepository;
     }
 
-
-
     public Page<AdminSubscriptionResponse> getAllSubscriptions(
             String deviceId,
             String plan,

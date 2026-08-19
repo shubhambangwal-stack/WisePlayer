@@ -57,6 +57,7 @@ public class ResellerServiceImpl implements ResellerService {
     private final PasswordEncoder passwordEncoder;
     private final com.iptv.wiseplayer.service.CreditService creditService;
     private final com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository;
+    private final SubscriptionServiceImpl subscriptionService;
     private final com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository;
 
     private final ResellerEmailOtpRepository resellerEmailOtpRepository;
@@ -73,6 +74,7 @@ public class ResellerServiceImpl implements ResellerService {
                                PasswordEncoder passwordEncoder,
                                com.iptv.wiseplayer.service.CreditService creditService,
                                com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
+                               SubscriptionServiceImpl subscriptionService,
                                com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository,
                                ResellerEmailOtpRepository resellerEmailOtpRepository,
                                PasswordResetTokenRepository passwordResetTokenRepository,
@@ -87,6 +89,7 @@ public class ResellerServiceImpl implements ResellerService {
         this.passwordEncoder = passwordEncoder;
         this.creditService = creditService;
         this.subscriptionRepository = subscriptionRepository;
+        this.subscriptionService = subscriptionService;
         this.resellerCustomerRepository = resellerCustomerRepository;
         this.resellerEmailOtpRepository = resellerEmailOtpRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -518,51 +521,54 @@ public class ResellerServiceImpl implements ResellerService {
 
         // Determine target status: use parameter if provided, otherwise default to
         // PENDING
-        String targetStatus = (status != null && !status.isEmpty()) ? status.toUpperCase() : "PENDING";
+        String targetStatus = (status != null && !status.isEmpty()) ? status.toUpperCase() : "APPROVED";
+
+        BigDecimal cost = creditService.getActivationCost(planName);
+        ActivationRequest request;
 
         java.util.Optional<ActivationRequest> existingOpt = activationRequestRepository
                 .findTopByDeviceIdOrderByCreatedAtDesc(deviceId);
+
         if (existingOpt.isPresent()) {
-            ActivationRequest existing = existingOpt.get();
+            request = existingOpt.get();
 
             // If the status and plan are already the same, block it
-            if (targetStatus.equals(existing.getStatus()) && planName.equalsIgnoreCase(existing.getPlanName())) {
+            if (targetStatus.equals(request.getStatus()) && planName.equalsIgnoreCase(request.getPlanName())) {
                 throw new BadRequestException(
                         "An activation request for this device with status [" + targetStatus + "] already exists");
             }
 
-            // Also block if it's already PENDING and we're trying to submit another PENDING
-            if ("PENDING".equals(existing.getStatus()) && "PENDING".equals(targetStatus)) {
-                throw new BadRequestException("An activation request for this device is already pending");
-            }
-
-            // Otherwise, update the existing record
-            BigDecimal cost = creditService.getActivationCost(planName);
-            existing.setPlanName(planName);
-            existing.setAmount(cost.doubleValue());
-            existing.setCurrency("CREDITS");
-            existing.setStatus(targetStatus);
-            existing.setResellerId(resellerId);
-            return activationRequestRepository.save(existing);
+            request.setPlanName(planName);
+            request.setAmount(cost.doubleValue());
+            request.setCurrency("CREDITS");
+            request.setStatus(targetStatus);
+            request.setResellerId(resellerId);
+        } else {
+            request = new ActivationRequest();
+            request.setResellerId(resellerId);
+            request.setDeviceId(deviceId);
+            request.setPlanName(planName);
+            request.setAmount(cost.doubleValue());
+            request.setCurrency("CREDITS");
+            request.setStatus(targetStatus);
         }
 
-        BigDecimal cost = creditService.getActivationCost(planName);
-        ActivationRequest request = new ActivationRequest();
-        request.setResellerId(resellerId);
-        request.setResellerId(resellerId);
-        request.setDeviceId(deviceId);
-        request.setPlanName(planName);
-        request.setAmount(cost.doubleValue());
-        request.setCurrency("CREDITS");
-        request.setStatus(targetStatus);
-
         ActivationRequest saved = activationRequestRepository.save(request);
-    
+
+
         // Deduct credits
         try {
             creditService.deductCredits(resellerId, planName, saved.getId());
             saved.setCreditsUsed(cost);
+            if("APPROVED".equalsIgnoreCase(targetStatus)){
+                SubscriptionActivationRequest activationdto = new SubscriptionActivationRequest();
+                activationdto.setDeviceId(device.getDeviceId().toString());
+                activationdto.setPlanName(planName);
+                subscriptionService.activateSubscription(activationdto);
+            }
+
             return activationRequestRepository.save(saved);
+
         } catch (Exception e) {
             // If credit deduction fails, we should probably rollback or handle it
             // Transactional will handle it if we throw an exception
@@ -634,7 +640,7 @@ public class ResellerServiceImpl implements ResellerService {
     @Transactional
     public void pauseResumeSubscription(UUID resellerId, UUID deviceId) {
         Device device = deviceRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+                  .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
 
         if (!resellerId.equals(device.getResellerId())) {
             throw new AccessDeniedException("Permission denied");
@@ -846,7 +852,7 @@ public class ResellerServiceImpl implements ResellerService {
     @org.springframework.transaction.annotation.Transactional
     public void updateProfile(UUID adminId, com.iptv.wiseplayer.dto.request.UpdateProfileRequest request) {
         Admin admin = adminRepository.findById(adminId)
-                .orElseThrow(() -> new ResourceNotFoundException("Admin not found with ID: " + adminId));
+                  .orElseThrow(() -> new ResourceNotFoundException("Admin not found with ID: " + adminId));
         admin.setFullName(request.getFullName());
         adminRepository.save(admin);
     }

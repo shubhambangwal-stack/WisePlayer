@@ -160,6 +160,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/playlist/**").hasRole("ACTIVE")
                         .requestMatchers("/api/live/**").hasRole("ACTIVE")
                         .requestMatchers("/api/stream/**", "/api/v2/stream/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/catchup/**").hasRole("ACTIVE")
                         .requestMatchers("/api/xtream/**").hasRole("ACTIVE")
 
                         .anyRequest().authenticated())
