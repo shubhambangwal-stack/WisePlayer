@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import java.util.UUID;
 
 /**
  * Payload sent by the client to record the current playback position.
@@ -21,6 +22,9 @@ import jakarta.validation.constraints.Pattern;
  */
 public class WatchProgressRequest {
 
+    @NotNull(message = "playlistId is required")
+    private UUID playlistId;
+
     @NotNull(message = "streamId is required")
     private Integer streamId;
 
@@ -35,6 +39,9 @@ public class WatchProgressRequest {
     private long durationSeconds;
 
     public WatchProgressRequest() {}
+
+    public UUID getPlaylistId() { return playlistId; }
+    public void setPlaylistId(UUID playlistId) { this.playlistId = playlistId; }
 
     public Integer getStreamId() { return streamId; }
     public void setStreamId(Integer streamId) { this.streamId = streamId; }

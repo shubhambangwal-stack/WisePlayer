@@ -44,13 +44,14 @@ public class CatchupEnrichmentService {
      * Enriches a list of VOD streams with watch-progress for the currently
      * authenticated device in a single DB round-trip.
      *
+     * @param playlistId the playlist ID these streams belong to
      * @param streams the list of VOD streams to enrich (mutated in place)
      */
-    public void enrichVodStreams(List<XtreamVodStream> streams) {
+    public void enrichVodStreams(UUID playlistId, List<XtreamVodStream> streams) {
         UUID deviceId = deviceContext.getCurrentDeviceId();
-        if (deviceId == null || streams == null || streams.isEmpty()) {
-            log.debug("[CatchupEnrich] VOD enrichment skipped — deviceId={}, streamCount={}",
-                    deviceId, streams == null ? 0 : streams.size());
+        if (deviceId == null || playlistId == null || streams == null || streams.isEmpty()) {
+            log.debug("[CatchupEnrich] VOD enrichment skipped — deviceId={}, playlistId={}, streamCount={}",
+                    deviceId, playlistId, streams == null ? 0 : streams.size());
             return;
         }
 
@@ -59,11 +60,11 @@ public class CatchupEnrichmentService {
                 .collect(Collectors.toList());
 
         Map<Integer, WatchProgressResponse> progressMap =
-                watchProgressService.getBulkProgress(deviceId, streamIds, "VOD");
+                watchProgressService.getBulkProgress(deviceId, playlistId, streamIds, "VOD");
 
         if (progressMap.isEmpty()) {
-            log.debug("[CatchupEnrich] VOD — no saved progress for deviceId={}, {} streams queried",
-                    deviceId, streamIds.size());
+            log.debug("[CatchupEnrich] VOD — no saved progress for deviceId={}, playlistId={}, {} streams queried",
+                    deviceId, playlistId, streamIds.size());
             return;
         }
 
@@ -75,8 +76,8 @@ public class CatchupEnrichmentService {
                 enrichedCount++;
             }
         }
-        log.info("[CatchupEnrich] VOD — deviceId={}, enriched {}/{} streams with watch_progress",
-                deviceId, enrichedCount, streams.size());
+        log.info("[CatchupEnrich] VOD — deviceId={}, playlistId={}, enriched {}/{} streams with watch_progress",
+                deviceId, playlistId, enrichedCount, streams.size());
     }
 
     // ── Series Episode Enrichment ──────────────────────────────────────────────
@@ -85,12 +86,13 @@ public class CatchupEnrichmentService {
      * Enriches all episodes in a {@link XtreamSeriesInfo} with watch-progress
      * for the currently authenticated device in a single DB round-trip.
      *
+     * @param playlistId the playlist ID this series belongs to
      * @param seriesInfo the full series info object (mutated in place)
      */
-    public void enrichSeriesEpisodes(XtreamSeriesInfo seriesInfo) {
+    public void enrichSeriesEpisodes(UUID playlistId, XtreamSeriesInfo seriesInfo) {
         UUID deviceId = deviceContext.getCurrentDeviceId();
-        if (deviceId == null || seriesInfo == null || seriesInfo.getEpisodes() == null) {
-            log.debug("[CatchupEnrich] Series enrichment skipped — deviceId={}", deviceId);
+        if (deviceId == null || playlistId == null || seriesInfo == null || seriesInfo.getEpisodes() == null) {
+            log.debug("[CatchupEnrich] Series enrichment skipped — deviceId={}, playlistId={}", deviceId, playlistId);
             return;
         }
 
@@ -103,11 +105,11 @@ public class CatchupEnrichmentService {
         if (episodeIds.isEmpty()) return;
 
         Map<Integer, WatchProgressResponse> progressMap =
-                watchProgressService.getBulkProgress(deviceId, episodeIds, "SERIES");
+                watchProgressService.getBulkProgress(deviceId, playlistId, episodeIds, "SERIES");
 
         if (progressMap.isEmpty()) {
-            log.debug("[CatchupEnrich] SERIES — no saved progress for deviceId={}, {} episodes queried",
-                    deviceId, episodeIds.size());
+            log.debug("[CatchupEnrich] SERIES — no saved progress for deviceId={}, playlistId={}, {} episodes queried",
+                    deviceId, playlistId, episodeIds.size());
             return;
         }
 
@@ -124,8 +126,8 @@ public class CatchupEnrichmentService {
                 }
             }
         }
-        log.info("[CatchupEnrich] SERIES — deviceId={}, enriched {}/{} episodes with watch_progress",
-                deviceId, enrichedCount, episodeIds.size());
+        log.info("[CatchupEnrich] SERIES — deviceId={}, playlistId={}, enriched {}/{} episodes with watch_progress",
+                deviceId, playlistId, enrichedCount, episodeIds.size());
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

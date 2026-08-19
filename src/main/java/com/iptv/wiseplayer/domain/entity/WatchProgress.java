@@ -24,8 +24,8 @@ import java.util.UUID;
     name = "watch_progress",
     uniqueConstraints = {
         @UniqueConstraint(
-            name = "uq_watch_progress_device_stream",
-            columnNames = {"device_id", "stream_id", "stream_type"}
+            name = "uq_watch_progress_device_playlist_stream",
+            columnNames = {"device_id", "playlist_id", "stream_id", "stream_type"}
         )
     },
     indexes = {
@@ -46,6 +46,13 @@ public class WatchProgress {
      */
     @Column(name = "device_id", nullable = false)
     private UUID deviceId;
+
+    /**
+     * The playlist this progress belongs to.
+     * Required because stream_id is only unique within a specific playlist.
+     */
+    @Column(name = "playlist_id", nullable = false)
+    private UUID playlistId;
 
     /**
      * Xtream Codes stream ID.
@@ -94,6 +101,9 @@ public class WatchProgress {
 
     public UUID getDeviceId() { return deviceId; }
     public void setDeviceId(UUID deviceId) { this.deviceId = deviceId; }
+
+    public UUID getPlaylistId() { return playlistId; }
+    public void setPlaylistId(UUID playlistId) { this.playlistId = playlistId; }
 
     public int getStreamId() { return streamId; }
     public void setStreamId(int streamId) { this.streamId = streamId; }
