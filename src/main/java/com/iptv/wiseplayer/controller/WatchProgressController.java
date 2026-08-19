@@ -9,30 +9,29 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 /**
- * REST controller that handles the client-side progress reporting for the
- * Catchup / Resume feature.
+ * REST controller for the Catchup / Resume feature.
  *
  * <h3>Client integration guide</h3>
  * <ul>
- *   <li><b>While playing:</b> call {@code POST /api/progress?playlistId=...} every
- *       10–15 seconds with the current position + total duration.</li>
- *   <li><b>On pause / app exit:</b> call the same endpoint one final time
- *       so the exact position is persisted immediately.</li>
- *   <li><b>Fully watched (≥ 95 %):</b> the server returns {@code fully_watched: true}
- *       and {@code resume_position_seconds: 0}. The client should start from the
- *       beginning on the next play.</li>
+ * <li><b>While playing:</b> call {@code POST /api/progress} every 10–15 seconds
+ * with the current position + total duration.</li>
+ * <li><b>On pause / app exit:</b> call one final time to persist the exact
+ * position.</li>
+ * <li><b>No playlistId needed:</b> the device is identified automatically from
+ * the
+ * authenticated JWT (X-Device-Token header). The client does NOT need to supply
+ * any device or playlist identifier — the server resolves it from the
+ * token.</li>
+ * <li><b>Fully watched (≥ 95 %):</b> the server returns
+ * {@code fully_watched: true}
+ * and {@code resume_position_seconds: 0}. The next play starts from the
+ * beginning.</li>
  * </ul>
- *
- * <p>The frontend does <b>NOT</b> need a separate {@code GET /api/progress} call —
- * progress is automatically injected into the VOD stream list and Series info
- * responses by {@link com.iptv.wiseplayer.service.CatchupEnrichmentService}.</p>
  */
 @RestController
 @RequestMapping("/api/progress")
-@Tag(name = "Watch Progress (Catchup)", description = "Endpoint for saving playback position. Progress is returned automatically inside VOD/Series responses.")
+@Tag(name = "Watch Progress (Catchup)", description = "Saves playback position per device. Progress is embedded automatically in VOD/Series responses.")
 public class WatchProgressController {
 
     private final WatchProgressService watchProgressService;
@@ -42,29 +41,30 @@ public class WatchProgressController {
     }
 
     /**
-     * Saves (or updates) the current playback position for a VOD movie or
-     * Series episode.
+     * Saves (or updates) the current playback position for a VOD movie or Series
+     * episode.
      *
-     * <p>The client should call this endpoint periodically (every ~10 s) and
-     * on any pause or close event. When the watched percentage reaches or
-     * exceeds 95 %, the server clears the saved progress and returns
-     * {@code fully_watched: true}.</p>
+     * <p>
+     * The device identity is resolved automatically from the JWT token
+     * (X-Device-Token
+     * header). No playlistId or deviceId is needed from the client — this makes the
+     * tracking 100 % accurate: even if 1000 devices share the same playlist, each
+     * device
+     * gets its own independent watch position.
+     * </p>
      *
-     * @param playlistId the playlist the user is watching from
-     * @param request    the progress payload
+     * @param request the progress payload
      * @return the persisted progress state
      */
-    @Operation(
-        summary = "Save watch progress",
-        description = "Records the current playback position. Call every ~10 s and on pause/exit. " +
-                      "Returns fully_watched=true when ≥ 95% is watched, with resume_position_seconds=0."
-    )
+    @Operation(summary = "Save watch progress", description = "Records the current playback position. Call every ~10 s and on pause/exit. "
+            +
+            "Device is identified from JWT — no playlistId needed. " +
+            "Returns fully_watched=true when ≥ 95% watched, with resume_position_seconds=0.")
     @PostMapping
     public ResponseEntity<WatchProgressResponse> saveProgress(
-            @RequestParam UUID playlistId,
             @Valid @RequestBody WatchProgressRequest request) {
 
-        WatchProgressResponse response = watchProgressService.saveProgress(playlistId, request);
+        WatchProgressResponse response = watchProgressService.saveProgress(request);
         return ResponseEntity.ok(response);
     }
 }
