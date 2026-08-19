@@ -16,27 +16,45 @@ import java.util.UUID;
 public interface WatchProgressRepository extends JpaRepository<WatchProgress, UUID> {
 
     /**
-     * Finds the single progress row for a given device + stream combination.
-     * Keyed by device_id so two devices sharing the same playlist NEVER collide.
+     * Finds the single progress row for a given device + playlist + stream combination.
      */
-    Optional<WatchProgress> findByDeviceIdAndStreamIdAndStreamType(
-            UUID deviceId, int streamId, String streamType);
+    Optional<WatchProgress> findByDeviceIdAndPlaylistIdAndStreamIdAndStreamType(
+            UUID deviceId, UUID playlistId, int streamId, String streamType);
 
     /**
      * Bulk lookup: fetches progress for a set of stream IDs in one query.
-     * Used when enriching a category / listing response.
      */
-    List<WatchProgress> findByDeviceIdAndStreamIdInAndStreamType(
-            UUID deviceId, Collection<Integer> streamIds, String streamType);
+    List<WatchProgress> findByDeviceIdAndPlaylistIdAndStreamIdInAndStreamType(
+            UUID deviceId, UUID playlistId, Collection<Integer> streamIds, String streamType);
 
     /**
      * Deletes a fully-watched entry so the next play restarts from the beginning.
      */
     @Modifying
     @Query("DELETE FROM WatchProgress w WHERE w.deviceId = :deviceId " +
-           "AND w.streamId = :streamId AND w.streamType = :streamType")
-    void deleteByDeviceIdAndStreamIdAndStreamType(
+           "AND w.playlistId = :playlistId AND w.streamId = :streamId AND w.streamType = :streamType")
+    void deleteByDeviceIdAndPlaylistIdAndStreamIdAndStreamType(
             @Param("deviceId") UUID deviceId,
+            @Param("playlistId") UUID playlistId,
             @Param("streamId") int streamId,
             @Param("streamType") String streamType);
+
+    /**
+     * Postgres-native UPSERT to prevent race conditions (409 Conflict)
+     * when the frontend fires multiple heartbeats simultaneously.
+     */
+    @Modifying
+    @Query(value = "INSERT INTO watch_progress (id, device_id, playlist_id, stream_id, stream_type, position_seconds, duration_seconds, fully_watched, updated_at) " +
+                   "VALUES (:id, :deviceId, :playlistId, :streamId, :streamType, :pos, :dur, false, CURRENT_TIMESTAMP) " +
+                   "ON CONFLICT (device_id, playlist_id, stream_id, stream_type) " +
+                   "DO UPDATE SET position_seconds = :pos, duration_seconds = :dur, fully_watched = false, updated_at = CURRENT_TIMESTAMP",
+           nativeQuery = true)
+    void upsertProgress(
+            @Param("id") UUID id,
+            @Param("deviceId") UUID deviceId,
+            @Param("playlistId") UUID playlistId,
+            @Param("streamId") int streamId,
+            @Param("streamType") String streamType,
+            @Param("pos") long positionSeconds,
+            @Param("dur") long durationSeconds);
 }

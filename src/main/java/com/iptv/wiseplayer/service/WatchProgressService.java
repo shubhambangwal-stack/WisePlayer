@@ -71,6 +71,7 @@ public class WatchProgressService {
         @Transactional
         public WatchProgressResponse saveProgress(WatchProgressRequest request) {
                 UUID deviceId = requireDeviceId();
+                UUID playlistId = request.getPlaylistId();
 
                 int streamId = request.getStreamId();
                 String streamType = request.getStreamType();
@@ -81,39 +82,23 @@ public class WatchProgressService {
                                 ? ((double) positionSeconds / durationSeconds) * 100.0
                                 : 0.0;
 
-                log.debug("[WatchProgress] SAVE → deviceId={}, streamId={}, type={}, position={}s / {}s ({:.1f}%)",
-                                deviceId, streamId, streamType, positionSeconds, durationSeconds, watchedPercent);
+                log.debug("[WatchProgress] SAVE → deviceId={}, playlistId={}, streamId={}, type={}, position={}s / {}s ({:.1f}%)",
+                                deviceId, playlistId, streamId, streamType, positionSeconds, durationSeconds, watchedPercent);
 
                 // ── Fully-watched: clean up and respond ────────────────────────────────
                 if (watchedPercent >= FULLY_WATCHED_THRESHOLD * 100) {
-                        log.info("[WatchProgress] FULLY_WATCHED → deviceId={}, streamId={}, type={} — progress row deleted, next play starts from 0",
-                                        deviceId, streamId, streamType);
-                        watchProgressRepository.deleteByDeviceIdAndStreamIdAndStreamType(
-                                        deviceId, streamId, streamType);
+                        log.info("[WatchProgress] FULLY_WATCHED → deviceId={}, playlistId={}, streamId={}, type={} — progress row deleted, next play starts from 0",
+                                        deviceId, playlistId, streamId, streamType);
+                        watchProgressRepository.deleteByDeviceIdAndPlaylistIdAndStreamIdAndStreamType(
+                                        deviceId, playlistId, streamId, streamType);
                         return new WatchProgressResponse(0L, durationSeconds, watchedPercent, true);
                 }
 
-                // ── Upsert single row keyed by device_id ──────────────────────────────
-                boolean isNew = watchProgressRepository
-                                .findByDeviceIdAndStreamIdAndStreamType(deviceId, streamId, streamType)
-                                .isEmpty();
+                // ── Upsert using Postgres native query (prevents 409 Conflict race conditions) ─
+                watchProgressRepository.upsertProgress(UUID.randomUUID(), deviceId, playlistId, streamId, streamType, positionSeconds, durationSeconds);
 
-                WatchProgress progress = watchProgressRepository
-                                .findByDeviceIdAndStreamIdAndStreamType(deviceId, streamId, streamType)
-                                .orElseGet(WatchProgress::new);
-
-                progress.setDeviceId(deviceId);
-                progress.setStreamId(streamId);
-                progress.setStreamType(streamType);
-                progress.setPositionSeconds(positionSeconds);
-                progress.setDurationSeconds(durationSeconds);
-                progress.setFullyWatched(false);
-
-                watchProgressRepository.save(progress);
-
-                log.info("[WatchProgress] {} → deviceId={}, streamId={}, type={}, position={}s ({:.1f}%)",
-                                isNew ? "CREATED" : "UPDATED", deviceId, streamId, streamType, positionSeconds,
-                                watchedPercent);
+                log.info("[WatchProgress] UPSERTED → deviceId={}, playlistId={}, streamId={}, type={}, position={}s ({:.1f}%)",
+                                deviceId, playlistId, streamId, streamType, positionSeconds, watchedPercent);
 
                 return new WatchProgressResponse(positionSeconds, durationSeconds, watchedPercent, false);
         }
@@ -126,13 +111,13 @@ public class WatchProgressService {
          * watched.
          */
         @Transactional(readOnly = true)
-        public Optional<WatchProgressResponse> getProgress(int streamId, String streamType) {
+        public Optional<WatchProgressResponse> getProgress(UUID playlistId, int streamId, String streamType) {
                 UUID deviceId = requireDeviceId();
                 Optional<WatchProgressResponse> result = watchProgressRepository
-                                .findByDeviceIdAndStreamIdAndStreamType(deviceId, streamId, streamType)
+                                .findByDeviceIdAndPlaylistIdAndStreamIdAndStreamType(deviceId, playlistId, streamId, streamType)
                                 .map(this::toResponse);
-                log.debug("[WatchProgress] GET → deviceId={}, streamId={}, type={}, found={}",
-                                deviceId, streamId, streamType, result.isPresent());
+                log.debug("[WatchProgress] GET → deviceId={}, playlistId={}, streamId={}, type={}, found={}",
+                                deviceId, playlistId, streamId, streamType, result.isPresent());
                 return result;
         }
 
@@ -150,17 +135,17 @@ public class WatchProgressService {
          */
         @Transactional(readOnly = true)
         public Map<Integer, WatchProgressResponse> getBulkProgress(
-                        UUID deviceId, Collection<Integer> streamIds, String streamType) {
+                        UUID deviceId, UUID playlistId, Collection<Integer> streamIds, String streamType) {
 
                 if (streamIds == null || streamIds.isEmpty()) {
                         return Collections.emptyMap();
                 }
 
                 List<WatchProgress> rows = watchProgressRepository
-                                .findByDeviceIdAndStreamIdInAndStreamType(deviceId, streamIds, streamType);
+                                .findByDeviceIdAndPlaylistIdAndStreamIdInAndStreamType(deviceId, playlistId, streamIds, streamType);
 
-                log.debug("[WatchProgress] BULK_GET → deviceId={}, type={}, requested={}, found={}",
-                                deviceId, streamType, streamIds.size(), rows.size());
+                log.debug("[WatchProgress] BULK_GET → deviceId={}, playlistId={}, type={}, requested={}, found={}",
+                                deviceId, playlistId, streamType, streamIds.size(), rows.size());
 
                 return rows.stream().collect(Collectors.toMap(
                                 WatchProgress::getStreamId,

@@ -1,37 +1,25 @@
 {
   "info": {
     "name": "WisePlayer - Resume Playback (Watch Progress)",
-    "description": "Collection to test the Resume Playback (Watch Progress) feature for VODs and Series in WisePlayer.\n\nHOW IT WORKS:\n1. Device identification is done automatically via the X-Device-Token header.\n2. Call `POST /api/progress` periodically while playing a VOD or Series episode to save progress.\n3. The saved progress is automatically embedded in the standard VOD/Series listing responses when the user browses the app again.",
+    "description": "⚠️  CRITICAL NOTE FOR FRONTEND DEVELOPERS ⚠️\n\nThere is ONE and ONLY ONE endpoint for saving progress:\n  POST /api/progress\n\nDO NOT call:\n  ❌ POST /api/series/progress\n  ❌ POST /api/movie/progress\n  ❌ POST /api/vod/progress\n\nThe `streamType` field in the request body (\"VOD\" or \"SERIES\") is what tells the server which type of content you are tracking.\n\n──────────────────────────────────────────────────────\nHOW THE FULL FLOW WORKS:\n──────────────────────────────────────────────────────\n1. Device registers → gets X-Device-Token\n2. User browses content:\n     - GET /api/movie  → Lists VOD categories or streams\n     - GET /api/series → Lists Series categories, series list, or episode info\n   Each stream in the response already includes a `watch_progress` object if the user has previously watched it.\n3. User plays a video:\n     - GET /api/movie?streamId=X  → returns the playback URL for a VOD\n     - GET /api/series/play?episodeId=X → returns the playback URL for a Series episode\n4. While playing, frontend calls POST /api/progress every 10-15 seconds.\n5. On pause/exit/app kill, frontend calls POST /api/progress one final time.\n6. Next time user opens the app and browses, the GET endpoints in step 2 will return the saved `resume_position_seconds` automatically.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8081", "type": "string" },
-    { "key": "deviceFingerprint", "value": "00:1A:2B:3C:4D:5E", "type": "string" },
-    { "key": "deviceToken", "value": "", "type": "string" },
-    { "key": "playlistId", "value": "YOUR_PLAYLIST_ID_HERE", "type": "string" },
-    { "key": "categoryId", "value": "YOUR_CATEGORY_ID_HERE", "type": "string" },
-    { "key": "streamId", "value": "12345", "type": "string" }
+    { "key": "baseUrl",           "value": "http://localhost:8081", "type": "string" },
+    { "key": "deviceFingerprint", "value": "00:1A:2B:3C:4D:5E",   "type": "string" },
+    { "key": "deviceToken",       "value": "",                     "type": "string" },
+    { "key": "playlistId",        "value": "YOUR_PLAYLIST_UUID",  "type": "string" },
+    { "key": "categoryId",        "value": "YOUR_CATEGORY_ID",    "type": "string" },
+    { "key": "seriesId",          "value": "12345",               "type": "string" },
+    { "key": "vodStreamId",       "value": "67890",               "type": "string" },
+    { "key": "episodeId",         "value": "111",                 "type": "string" }
   ],
   "item": [
     {
-      "name": "1. Setup Device & Auth",
+      "name": "── STEP 1: Device Setup ──",
       "item": [
         {
-          "name": "Register Device (Get Token)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"deviceId\": \"{{deviceFingerprint}}\",\n  \"deviceModel\": \"Postman\",\n  \"osVersion\": \"1.0\",\n  \"platform\": \"postman\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/device/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "device", "register"]
-            }
-          },
+          "name": "Register Device → Get Token",
           "event": [
             {
               "listen": "test",
@@ -39,31 +27,69 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "pm.test('Device registered successfully', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "    pm.expect(json.token).to.be.a('string').and.not.empty;",
+                  "});",
                   "if (json.token) {",
-                  "    pm.collectionVariables.set(\"deviceToken\", json.token);",
+                  "    pm.collectionVariables.set('deviceToken', json.token);",
+                  "    console.log('✅ deviceToken saved:', json.token);",
                   "}"
                 ]
               }
             }
-          ]
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceFingerprint}}\",\n  \"deviceModel\": \"Postman\",\n  \"osVersion\": \"1.0\",\n  \"platform\": \"postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/device/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "device", "register"]
+            }
+          }
         }
       ]
     },
     {
-      "name": "2. Save Watch Progress",
+      "name": "── STEP 2: Save Progress (POST /api/progress) ──",
+      "description": "⚠️ This is the ONLY endpoint for saving watch progress. Use it for BOTH VOD and SERIES. Change streamType in the body accordingly.",
       "item": [
         {
-          "name": "Save Watch Progress (VOD)",
+          "name": "✅ Save Progress - VOD (Correct URL)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Progress saved (200)', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('Response has resume_position_seconds', () => {",
+                  "    pm.expect(json).to.have.property('resume_position_seconds');",
+                  "});",
+                  "pm.test('Response has fully_watched flag', () => {",
+                  "    pm.expect(json).to.have.property('fully_watched');",
+                  "});",
+                  "console.log('📼 VOD progress saved. fully_watched:', json.fully_watched, '| resume_position_seconds:', json.resume_position_seconds);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Device-Token", "value": "{{deviceToken}}", "type": "text" },
-              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}", "type": "text" },
-              { "key": "Content-Type", "value": "application/json", "type": "text" }
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" },
+              { "key": "Content-Type",          "value": "application/json",      "type": "text" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"streamId\": {{streamId}},\n  \"streamType\": \"VOD\",\n  \"positionSeconds\": 1250,\n  \"durationSeconds\": 7200\n}"
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"streamId\": {{vodStreamId}},\n  \"streamType\": \"VOD\",\n  \"positionSeconds\": 1250,\n  \"durationSeconds\": 7200\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/progress",
@@ -73,17 +99,33 @@
           }
         },
         {
-          "name": "Save Watch Progress (SERIES)",
+          "name": "✅ Save Progress - SERIES Episode (Correct URL)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Progress saved (200)', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('Response has resume_position_seconds', () => {",
+                  "    pm.expect(json).to.have.property('resume_position_seconds');",
+                  "});",
+                  "console.log('📺 SERIES progress saved. fully_watched:', json.fully_watched, '| resume_position_seconds:', json.resume_position_seconds);"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Device-Token", "value": "{{deviceToken}}", "type": "text" },
-              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}", "type": "text" },
-              { "key": "Content-Type", "value": "application/json", "type": "text" }
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" },
+              { "key": "Content-Type",          "value": "application/json",      "type": "text" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"streamId\": {{streamId}},\n  \"streamType\": \"SERIES\",\n  \"positionSeconds\": 800,\n  \"durationSeconds\": 2400\n}"
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"streamId\": {{episodeId}},\n  \"streamType\": \"SERIES\",\n  \"positionSeconds\": 800,\n  \"durationSeconds\": 2400\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/progress",
@@ -91,19 +133,129 @@
               "path": ["api", "progress"]
             }
           }
+        },
+        {
+          "name": "✅ Save Progress - Fully Watched (≥95% → resets to 0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Progress saved (200)', () => pm.expect(pm.response.code).to.eql(200));",
+                  "pm.test('fully_watched is TRUE when ≥95% watched', () => {",
+                  "    pm.expect(json.fully_watched).to.eql(true);",
+                  "});",
+                  "pm.test('resume_position_seconds resets to 0 on full watch', () => {",
+                  "    pm.expect(json.resume_position_seconds).to.eql(0);",
+                  "});",
+                  "console.log('✅ Fully watched! resume_position_seconds should be 0:', json.resume_position_seconds);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" },
+              { "key": "Content-Type",          "value": "application/json",      "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"streamId\": {{vodStreamId}},\n  \"streamType\": \"VOD\",\n  \"positionSeconds\": 6900,\n  \"durationSeconds\": 7200\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "progress"]
+            }
+          }
+        },
+        {
+          "name": "❌ WRONG URL (DO NOT USE) - /api/series/progress",
+          "description": "This request WILL FAIL with 404 'No static resource api/series/progress'. This is here to show developers what NOT to do.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" },
+              { "key": "Content-Type",          "value": "application/json",      "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"streamId\": {{episodeId}},\n  \"streamType\": \"SERIES\",\n  \"positionSeconds\": 800,\n  \"durationSeconds\": 2400\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/series/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "series", "progress"]
+            }
+          }
         }
       ]
     },
     {
-      "name": "3. Retrieve Data (Check if Progress Saved)",
+      "name": "── STEP 3: GET Content (Progress Auto-Embedded) ──",
+      "description": "These are the standard content listing APIs. The backend automatically injects `watch_progress` into each stream's response object for any content the device has previously watched.",
       "item": [
         {
-          "name": "Get VOD Streams (Progress Included)",
+          "name": "Get VOD Categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const list = Array.isArray(json) ? json : (json.data || []);",
+                  "pm.test('VOD categories returned', () => pm.expect(list.length).to.be.at.least(1));",
+                  "if (list[0]) {",
+                  "    pm.collectionVariables.set('categoryId', String(list[0].category_id));",
+                  "    console.log('Category selected:', list[0].category_name, '->', list[0].category_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
-              { "key": "X-Device-Token", "value": "{{deviceToken}}", "type": "text" },
-              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}", "type": "text" }
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "movie"],
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get VOD Streams (with watch_progress embedded)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const list = Array.isArray(json) ? json : (json.data || []);",
+                  "pm.test('VOD streams returned', () => pm.expect(list.length).to.be.at.least(1));",
+                  "const watched = list.filter(s => s.watch_progress && s.watch_progress.resume_position_seconds > 0);",
+                  "console.log('Total streams:', list.length, '| With resume position:', watched.length);",
+                  "watched.forEach(s => console.log('  📼', s.name, '→ resume at', s.watch_progress.resume_position_seconds, 's'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}&categoryId={{categoryId}}",
@@ -114,24 +266,95 @@
                 { "key": "categoryId", "value": "{{categoryId}}" }
               ]
             }
-          },
-          "description": "This is the same endpoint used to list movies. The backend automatically injects the `watch_progress` field into the response for any video the user has started watching."
+          }
         },
         {
-          "name": "Get Series Episodes (Progress Included)",
+          "name": "Get VOD Playback URL",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "X-Device-Token", "value": "{{deviceToken}}", "type": "text" },
-              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}", "type": "text" }
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/series?playlistId={{playlistId}}&seriesId={{streamId}}",
+              "raw": "{{baseUrl}}/api/movie?playlistId={{playlistId}}&streamId={{vodStreamId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "movie"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "streamId",   "value": "{{vodStreamId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Series Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series?playlistId={{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "series"],
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get Series Info + Episodes (with watch_progress embedded)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Series info returned', () => pm.expect(json).to.be.ok);",
+                  "const seasons = json.episodes || {};",
+                  "const allEpisodes = Object.values(seasons).flat();",
+                  "const watchedEps = allEpisodes.filter(e => e.watch_progress && e.watch_progress.resume_position_seconds > 0);",
+                  "console.log('Total episodes:', allEpisodes.length, '| With resume position:', watchedEps.length);",
+                  "watchedEps.forEach(e => console.log('  📺 Ep', e.episode_num, '→ resume at', e.watch_progress.resume_position_seconds, 's | fully_watched:', e.watch_progress.fully_watched));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series?playlistId={{playlistId}}&seriesId={{seriesId}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "series"],
               "query": [
                 { "key": "playlistId", "value": "{{playlistId}}" },
-                { "key": "seriesId", "value": "{{streamId}}" }
+                { "key": "seriesId",   "value": "{{seriesId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Series Episode Playback URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}",       "type": "text" },
+              { "key": "X-Device-Fingerprint",  "value": "{{deviceFingerprint}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/play?playlistId={{playlistId}}&episodeId={{episodeId}}&containerExtension=mkv",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "series", "play"],
+              "query": [
+                { "key": "playlistId",          "value": "{{playlistId}}" },
+                { "key": "episodeId",           "value": "{{episodeId}}" },
+                { "key": "containerExtension",  "value": "mkv" }
               ]
             }
           }
