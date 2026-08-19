@@ -39,6 +39,8 @@ public class MoviesController {
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) Integer streamId,
             @RequestParam(required = false) String containerExtension) {
+        
+        System.out.println("MoviesController received request - playlistId: " + playlistId + ", categoryId: " + categoryId + ", streamId: " + streamId + ", containerExtension: " + containerExtension);
 
         // 1. Play Stream (if streamId is present)
         if (streamId != null) {
