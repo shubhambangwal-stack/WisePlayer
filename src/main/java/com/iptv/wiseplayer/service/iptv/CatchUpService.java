@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -109,17 +110,30 @@ public class CatchUpService {
         try {
             if (playlist.getType() == PlaylistType.XTREAM) {
                 List<XtreamLiveStream> streams = getLiveStreamsCached(playlist.getId());
-                boolean anyArchive = streams.stream().anyMatch(s -> s.getTvArchive() == 1);
+                // Use hasAnyCatchup() — a channel can support catch-up via a provider-level
+                // method (catchup=true) even when tv_archive=0.
+                boolean anyArchive = streams.stream().anyMatch(XtreamLiveStream::hasAnyCatchup);
                 if (!anyArchive) {
                     return CatchUpStatus.unsupported(provider);
                 }
                 int maxDays = streams.stream()
-                        .filter(s -> s.getTvArchive() == 1 && s.getTvArchiveDuration() > 0)
-                        .mapToInt(XtreamLiveStream::getTvArchiveDuration)
+                        .filter(XtreamLiveStream::hasAnyCatchup)
+                        .map(XtreamLiveStream::effectiveCatchupDays)
+                        .filter(Objects::nonNull)
+                        .mapToInt(Integer::intValue)
                         .max()
                         .orElse(0);
                 Integer days = maxDays > 0 ? maxDays : null;
-                return new CatchUpStatus(true, CatchUpMethod.XC, days, null, provider, Instant.now());
+                // Determine the dominant method across all catch-up channels.
+                CatchUpMethod dominantMethod = streams.stream()
+                        .filter(XtreamLiveStream::hasAnyCatchup)
+                        .map(XtreamLiveStream::getCatchupMethod)
+                        .filter(m -> m != null && !m.isBlank())
+                        .map(CatchUpMethod::fromCode)
+                        .filter(m -> m != CatchUpMethod.NONE)
+                        .findFirst()
+                        .orElse(CatchUpMethod.XC);
+                return new CatchUpStatus(true, dominantMethod, days, null, provider, Instant.now());
             }
 
             if (playlist.getType() == PlaylistType.M3U) {
@@ -214,17 +228,35 @@ public class CatchUpService {
                 .filter(s -> String.valueOf(s.getStreamId()).equals(channelId))
                 .findFirst()
                 .orElse(null);
-        if (match == null || match.getTvArchive() != 1) {
-            return unsupportedChannel(channelId);
-        }
 
         CatchUpChannelStatus status = new CatchUpChannelStatus();
         status.setChannelId(channelId);
+
+        // Always populate epg_channel_id — it is needed for EPG lookups even
+        // when the channel has no catch-up archive.
+        if (match != null) {
+            status.setEpgChannelId(match.getEpgChannelId());
+        }
+
+        if (match == null || !match.hasAnyCatchup()) {
+            // Channel has no catch-up, but we still populate the status object
+            // so the EPG layer can use the epgChannelId for schedule lookups.
+            return unsupportedChannel(channelId, match != null ? match.getEpgChannelId() : null);
+        }
+
+        // Resolve method: prefer the per-channel catchup_method field, fall back to XC.
+        CatchUpMethod method = CatchUpMethod.NONE;
+        if (match.getCatchupMethod() != null && !match.getCatchupMethod().isBlank()) {
+            method = CatchUpMethod.fromCode(match.getCatchupMethod());
+        }
+        if (method == CatchUpMethod.NONE) {
+            method = CatchUpMethod.XC;
+        }
+
         status.setSupported(true);
         status.setPlayable(true);
-        status.setMethod(CatchUpMethod.XC);
-        status.setDays(match.getTvArchiveDuration() > 0 ? match.getTvArchiveDuration() : null);
-        status.setEpgChannelId(match.getEpgChannelId());
+        status.setMethod(method);
+        status.setDays(match.effectiveCatchupDays());
         try {
             status.setLiveUrl(streamResolver.resolveStreamUrl(playlistId, match.getStreamId(),
                     XtreamStreamResolver.StreamType.LIVE));
@@ -281,19 +313,33 @@ public class CatchUpService {
     }
 
     private CatchUpChannelStatus unsupportedChannel(String channelId) {
+        return unsupportedChannel(channelId, null);
+    }
+
+    private CatchUpChannelStatus unsupportedChannel(String channelId, String epgChannelId) {
         CatchUpChannelStatus status = new CatchUpChannelStatus();
         status.setChannelId(channelId);
         status.setSupported(false);
         status.setPlayable(false);
         status.setMethod(CatchUpMethod.NONE);
+        // Preserve epgChannelId even for unsupported channels so EPG guide
+        // data can still be fetched from the Xtream or XMLTV source.
+        status.setEpgChannelId(epgChannelId);
         return status;
     }
 
     // ── EPG ────────────────────────────────────────────────────────────────────
 
     /**
-     * Returns the EPG for a channel across the requested window, including past
-     * programmes when catch-up is available. Cached for 4 minutes.
+     * Returns the EPG for a channel across the requested window.
+     *
+     * <p>EPG guide data (schedule listings) is fetched <em>independently</em> of
+     * catch-up availability. A channel with {@code tv_archive=0} (e.g. a live
+     * sports channel) still returns its programme schedule; each programme is
+     * annotated with {@code catchupAvailable=false} when the channel does not
+     * support archive playback.
+     *
+     * <p>Cached for 4 minutes.
      */
     public EpgResponse getEpg(UUID playlistId, String channelId, Long start, Long end) {
         String key = "epg:" + playlistId + ":" + channelId + ":" + start + ":" + end;
@@ -316,10 +362,13 @@ public class CatchUpService {
         response.setLiveUrl(status.getLiveUrl());
         response.setLiveEdge(now);
 
+        // Use a generous window for EPG even when catch-up is unavailable:
+        // always show at least DEFAULT_CATCHUP_DAYS of past + EPG_DEFAULT_LOOKAHEAD_HOURS ahead.
         int days = status.getDays() != null ? Math.max(status.getDays(), DEFAULT_CATCHUP_DAYS) : DEFAULT_CATCHUP_DAYS;
         long windowStart = start != null ? start : now - days * 86400L;
         long windowEnd = end != null ? end : now + (long) EPG_DEFAULT_LOOKAHEAD_HOURS * 3600L;
 
+        // Fetch EPG unconditionally — guide data is independent of catch-up support.
         List<EpgProgram> programs = fetchPrograms(playlist, channelId, status, windowStart, windowEnd);
         annotatePrograms(programs, status, now);
         response.setPrograms(programs);
@@ -328,35 +377,20 @@ public class CatchUpService {
         return response;
     }
 
+    /**
+     * Fetches EPG programmes for the given channel across the time window.
+     *
+     * <p>EPG guide data is fetched <em>unconditionally</em> — independent of
+     * whether catch-up playback is supported. A live-only channel (e.g. SONY SIX
+     * with {@code tv_archive=0}) still has a programme schedule that is useful
+     * to display. The {@code catchupAvailable} flag on each programme is
+     * set by {@link #annotatePrograms} based on the catch-up status.
+     */
     private List<EpgProgram> fetchPrograms(Playlist playlist, String channelId, CatchUpChannelStatus status,
             long windowStart, long windowEnd) {
-        if (!status.isSupported()) {
-            return new ArrayList<>();
-        }
         try {
             if (playlist.getType() == PlaylistType.XTREAM) {
-                List<XtreamEpgProgram> raw = xtreamCatalog.getSimpleDataTable(
-                        playlist.getId(), Integer.parseInt(channelId), windowStart, windowEnd);
-                if (raw.isEmpty()) {
-                    // Provider has no archive table for this channel; fall back to now/upcoming only
-                    raw = xtreamCatalog.getShortEpg(playlist.getId(), Integer.parseInt(channelId), 60);
-                }
-                List<EpgProgram> result = new ArrayList<>();
-                for (XtreamEpgProgram p : raw) {
-                    if (p.getEnd() <= windowStart || p.getStart() > windowEnd) {
-                        continue;
-                    }
-                    EpgProgram program = new EpgProgram();
-                    program.setId(p.getId() != null ? p.getId() : channelId + "-" + p.getStart());
-                    program.setChannelId(channelId);
-                    program.setTitle(p.getTitle());
-                    program.setDescription(p.getDescription());
-                    program.setStartTs(p.getStart());
-                    program.setEndTs(p.getEnd());
-                    result.add(program);
-                }
-                result.sort(Comparator.comparingLong(EpgProgram::getStartTs));
-                return result;
+                return fetchXtreamEpg(playlist, channelId, status, windowStart, windowEnd);
             }
 
             if (playlist.getType() == PlaylistType.M3U) {
@@ -376,12 +410,117 @@ public class CatchUpService {
                 programs.sort(Comparator.comparingLong(EpgProgram::getStartTs));
                 return programs;
             }
-        } catch (NumberFormatException e) {
-            log.warn("Non-numeric channel id for Xtream EPG: {}", channelId);
         } catch (Exception e) {
             log.warn("Failed to fetch EPG for channel {}: {}", channelId, e.getMessage());
         }
         return new ArrayList<>();
+    }
+
+    /**
+     * 3-tier EPG fallback chain for Xtream Codes sources:
+     *
+     * <ol>
+     *   <li><b>Tier 1 – get_simple_data_table</b>: full archive + schedule window.
+     *       Used for channels with {@code tv_archive=1}. Returns past, current,
+     *       and upcoming programmes.</li>
+     *   <li><b>Tier 2 – get_short_epg</b>: current + next programmes only.
+     *       Used when the data table is empty (live-only channels like SONY SIX HD
+     *       that have no archive but do have a live schedule from the provider).</li>
+     *   <li><b>Tier 3 – XMLTV via epg_channel_id</b>: cross-reference against the
+     *       provider's XMLTV feed when both Xtream API endpoints return nothing.
+     *       Relies on the {@code epg_channel_id} field (e.g. {@code "SonySIX.in"}).</li>
+     * </ol>
+     */
+    private List<EpgProgram> fetchXtreamEpg(Playlist playlist, String channelId,
+            CatchUpChannelStatus status, long windowStart, long windowEnd) {
+        int numericId;
+        try {
+            numericId = Integer.parseInt(channelId);
+        } catch (NumberFormatException e) {
+            log.warn("Non-numeric channel id for Xtream EPG: {}", channelId);
+            return new ArrayList<>();
+        }
+
+        // ── Tier 1: get_simple_data_table (archive window) ───────────────────
+        List<XtreamEpgProgram> raw = Collections.emptyList();
+        if (status.isSupported()) {
+            // Only call the archive endpoint when the channel has catch-up support;
+            // the endpoint returns nothing useful for live-only channels.
+            raw = xtreamCatalog.getSimpleDataTable(playlist.getId(), numericId, windowStart, windowEnd);
+            log.debug("Tier-1 (data table) returned {} entries for channel {}", raw.size(), channelId);
+        }
+
+        // ── Tier 2: get_short_epg (current + upcoming) ───────────────────────
+        if (raw.isEmpty()) {
+            raw = xtreamCatalog.getShortEpg(playlist.getId(), numericId, 72);
+            log.debug("Tier-2 (short EPG) returned {} entries for channel {}", raw.size(), channelId);
+        }
+
+        // ── Map Xtream → EpgProgram (with Base64 decode) ─────────────────────
+        if (!raw.isEmpty()) {
+            return mapXtreamPrograms(raw, channelId, windowStart, windowEnd);
+        }
+
+        // ── Tier 3: XMLTV via epg_channel_id ─────────────────────────────────
+        String epgChannelId = resolveEpgChannelId(playlist.getId(), channelId, status);
+        if (epgChannelId != null && !epgChannelId.isBlank()) {
+            log.debug("Tier-3 (XMLTV) lookup via epg_channel_id='{}' for channel {}", epgChannelId, channelId);
+            List<EpgProgram> xmltvPrograms = m3uService.getEpg(
+                    decryptM3uUrl(playlist), epgChannelId, null, windowStart, windowEnd);
+            if (!xmltvPrograms.isEmpty()) {
+                log.debug("Tier-3 (XMLTV) returned {} entries for channel {}", xmltvPrograms.size(), channelId);
+                xmltvPrograms.forEach(p -> p.setChannelId(channelId));
+                xmltvPrograms.sort(Comparator.comparingLong(EpgProgram::getStartTs));
+                return xmltvPrograms;
+            }
+        }
+
+        log.debug("All EPG tiers returned empty for channel {}", channelId);
+        return new ArrayList<>();
+    }
+
+    /**
+     * Maps raw Xtream EPG entries to {@link EpgProgram}, applying Base64
+     * decoding to title and description, and filtering by the time window.
+     */
+    private List<EpgProgram> mapXtreamPrograms(List<XtreamEpgProgram> raw, String channelId,
+            long windowStart, long windowEnd) {
+        List<EpgProgram> result = new ArrayList<>();
+        for (XtreamEpgProgram p : raw) {
+            if (p.getEnd() <= windowStart || p.getStart() > windowEnd) {
+                continue;
+            }
+            EpgProgram program = new EpgProgram();
+            program.setId(p.getId() != null ? p.getId() : channelId + "-" + p.getStart());
+            program.setChannelId(channelId);
+            // Use decoded (human-readable) values — handles Base64-encoded titles.
+            program.setTitle(p.getDecodedTitle());
+            program.setDescription(p.getDecodedDescription());
+            program.setStartTs(p.getStart());
+            program.setEndTs(p.getEnd());
+            result.add(program);
+        }
+        result.sort(Comparator.comparingLong(EpgProgram::getStartTs));
+        return result;
+    }
+
+    /**
+     * Resolves the {@code epg_channel_id} for the given channel. Checks
+     * the status object first (already populated for Xtream channels), then
+     * falls back to scanning the cached live-stream list.
+     */
+    private String resolveEpgChannelId(UUID playlistId, String channelId, CatchUpChannelStatus status) {
+        if (status.getEpgChannelId() != null && !status.getEpgChannelId().isBlank()) {
+            return status.getEpgChannelId();
+        }
+        // Fallback: scan the cached stream list
+        List<XtreamLiveStream> streams = getLiveStreamsCached(playlistId);
+        return streams.stream()
+                .filter(s -> String.valueOf(s.getStreamId()).equals(channelId))
+                .map(XtreamLiveStream::getEpgChannelId)
+                .filter(id -> id != null && !id.isBlank())
+                .findFirst()
+                .orElse(null);
     }
 
     private void annotatePrograms(List<EpgProgram> programs, CatchUpChannelStatus status, long now) {

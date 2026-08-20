@@ -273,6 +273,11 @@ public class XtreamClient {
      * Uses the get_simple_data_table action which returns past programmes
      * (i.e. the TV archive) as well as current and upcoming ones.
      *
+     * <p>The Xtream Codes API wraps the listing in a
+     * {@code {"epg_listings":[...]}} envelope — identical to the
+     * {@code get_short_epg} response — so we reuse {@link XtreamShortEpg}
+     * for deserialization and unwrap its listing.
+     *
      * @param start Unix timestamp (seconds) of the window start
      * @param end   Unix timestamp (seconds) of the window end
      * @return EPG entries (never null), or an empty list when no archive data
@@ -291,11 +296,14 @@ public class XtreamClient {
 
         try {
             HttpEntity<Void> entity = new HttpEntity<>(createHeaders());
-            List<XtreamEpgProgram> result = restTemplate
-                    .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamEpgProgram>>() {
-                    }).getBody();
-            logger.info("getSimpleDataTable completed. Retrieved {} EPG entries.", result != null ? result.size() : 0);
-            return result != null ? result : Collections.emptyList();
+            // The response envelope is {"epg_listings":[...]} — same as get_short_epg.
+            XtreamShortEpg result = restTemplate
+                    .exchange(url, HttpMethod.GET, entity, XtreamShortEpg.class)
+                    .getBody();
+            List<XtreamEpgProgram> listings = result != null ? result.getEpgListings() : null;
+            logger.info("getSimpleDataTable completed. Retrieved {} EPG entries.",
+                    listings != null ? listings.size() : 0);
+            return listings != null ? listings : Collections.emptyList();
         } catch (Exception e) {
             logger.error("Error fetching simple data table for stream_id={}: {}", streamId, e.getMessage(), e);
             return Collections.emptyList();
