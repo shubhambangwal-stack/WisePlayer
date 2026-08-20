@@ -51,7 +51,8 @@ public class CatchUpService {
     private static final long STATUS_TTL = Duration.ofMinutes(10).toMillis();
     private static final long EPG_TTL = Duration.ofMinutes(4).toMillis();
     private static final long EMPTY_STREAMS_TTL = Duration.ofMinutes(2).toMillis();
-    private static final int EPG_DEFAULT_LOOKAHEAD_HOURS = 6;
+    private static final int EPG_DEFAULT_LOOKAHEAD_HOURS = 24;
+    private static final int EPG_DEFAULT_LOOKBACK_HOURS = 12;
     private static final int DEFAULT_CATCHUP_DAYS = 1;
 
     private final PlaylistRepository playlistRepository;
@@ -362,10 +363,9 @@ public class CatchUpService {
         response.setLiveUrl(status.getLiveUrl());
         response.setLiveEdge(now);
 
-        // Use a generous window for EPG even when catch-up is unavailable:
-        // always show at least DEFAULT_CATCHUP_DAYS of past + EPG_DEFAULT_LOOKAHEAD_HOURS ahead.
+        // Always cover from (now - 12h) to (now + 24h) by default, or wider if catchupDays > 1.
         int days = status.getDays() != null ? Math.max(status.getDays(), DEFAULT_CATCHUP_DAYS) : DEFAULT_CATCHUP_DAYS;
-        long windowStart = start != null ? start : now - days * 86400L;
+        long windowStart = start != null ? start : now - Math.max(days * 86400L, (long) EPG_DEFAULT_LOOKBACK_HOURS * 3600L);
         long windowEnd = end != null ? end : now + (long) EPG_DEFAULT_LOOKAHEAD_HOURS * 3600L;
 
         // Fetch EPG unconditionally — guide data is independent of catch-up support.
@@ -450,7 +450,7 @@ public class CatchUpService {
 
         // ── Tier 2: get_short_epg (current + upcoming) ───────────────────────
         if (raw.isEmpty()) {
-            raw = xtreamCatalog.getShortEpg(playlist.getId(), numericId, 72);
+            raw = xtreamCatalog.getShortEpg(playlist.getId(), numericId, 300);
             log.info("Tier-2 (short EPG) returned {} entries for channel {}", raw.size(), channelId);
         }
 
