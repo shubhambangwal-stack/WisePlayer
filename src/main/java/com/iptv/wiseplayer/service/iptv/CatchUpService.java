@@ -465,8 +465,19 @@ public class CatchUpService {
         String epgChannelId = resolveEpgChannelId(playlist.getId(), channelId, status);
         if (epgChannelId != null && !epgChannelId.isBlank()) {
             log.debug("Tier-3 (XMLTV) lookup via epg_channel_id='{}' for channel {}", epgChannelId, channelId);
-            List<EpgProgram> xmltvPrograms = m3uService.getEpg(
-                    decryptM3uUrl(playlist), epgChannelId, null, windowStart, windowEnd);
+
+            // 1. Try Xtream server's native xmltv.php endpoint
+            SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlist.getId());
+            String xtreamXmltvUrl = normalizeBaseUrl(creds.serverUrl()) + "/xmltv.php?username=" + creds.username() + "&password=" + creds.password();
+
+            List<EpgProgram> xmltvPrograms = m3uService.getEpgFromXmlUrl(
+                    xtreamXmltvUrl, epgChannelId, null, windowStart, windowEnd);
+
+            // 2. If Xtream server's xmltv.php is empty, try public open EPG sources
+            if (xmltvPrograms.isEmpty()) {
+                xmltvPrograms = fetchExternalGlobalEpg(epgChannelId, windowStart, windowEnd);
+            }
+
             if (!xmltvPrograms.isEmpty()) {
                 log.debug("Tier-3 (XMLTV) returned {} entries for channel {}", xmltvPrograms.size(), channelId);
                 xmltvPrograms.forEach(p -> p.setChannelId(channelId));
@@ -477,6 +488,40 @@ public class CatchUpService {
 
         log.debug("All EPG tiers returned empty for channel {}", channelId);
         return new ArrayList<>();
+    }
+
+    /**
+     * Fallback to public open XMLTV EPG sources when neither the Xtream API
+     * nor the Xtream server's xmltv.php contains guide listings for an epg_channel_id.
+     */
+    private List<EpgProgram> fetchExternalGlobalEpg(String epgChannelId, long windowStart, long windowEnd) {
+        if (epgChannelId == null || epgChannelId.isBlank()) {
+            return Collections.emptyList();
+        }
+        List<String> externalSources = new ArrayList<>();
+        if (epgChannelId.toLowerCase().endsWith(".in")) {
+            externalSources.add("https://iptv-org.github.io/epg/guides/in/beetelevision.com.epg.xml");
+            externalSources.add("https://iptv-org.github.io/epg/guides/in.xml");
+        } else if (epgChannelId.toLowerCase().endsWith(".uk")) {
+            externalSources.add("https://iptv-org.github.io/epg/guides/uk.xml");
+        } else if (epgChannelId.toLowerCase().endsWith(".us")) {
+            externalSources.add("https://iptv-org.github.io/epg/guides/us.xml");
+        }
+        externalSources.add("https://iptv-org.github.io/epg/guides/general.xml");
+
+        for (String sourceUrl : externalSources) {
+            try {
+                List<EpgProgram> programs = m3uService.getEpgFromXmlUrl(sourceUrl, epgChannelId, null, windowStart, windowEnd);
+                if (!programs.isEmpty()) {
+                    log.info("Found {} EPG programmes for epg_channel_id='{}' in external guide {}",
+                            programs.size(), epgChannelId, sourceUrl);
+                    return programs;
+                }
+            } catch (Exception e) {
+                log.debug("External EPG fetch failed for {}: {}", sourceUrl, e.getMessage());
+            }
+        }
+        return Collections.emptyList();
     }
 
     /**

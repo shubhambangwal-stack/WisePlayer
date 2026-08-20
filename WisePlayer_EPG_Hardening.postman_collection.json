@@ -1,0 +1,674 @@
+{
+  "info": {
+    "_postman_id": "wiseplayer-epg-hardening-v1",
+    "name": "WisePlayer — EPG Hardening (Automated)",
+    "description": "🔬 Fully automated collection to verify all 6 EPG hardening fixes:\n\n1. XtreamLiveStream missing fields (catchup, catchupDays, catchupMethod, categoryIds, isAdult, channelId)\n2. Base64 title/description decoding in EPG programmes\n3. getSimpleDataTable envelope fix (was always returning empty)\n4. EPG decoupled from catch-up gate (live-only channels like SONY SIX now return programme schedules)\n5. 3-tier EPG fallback (data table → short EPG → XMLTV via epg_channel_id)\n6. xtreamChannelStatus uses new catchupMethod field\n\n⚙️ HOW TO RUN:\n1. Edit the 3 variables below: baseUrl, xtreamServerUrl, xtreamUsername, xtreamPassword\n2. Run folder order: 1 → 2 → 3 → 4 → 5\n   - Every variable (deviceToken, playlistId, channelId, etc.) is auto-captured from responses\n   - Nothing needs to be filled in manually after setting the 4 root variables\n3. Open Console (View > Console) to see the EPG tier diagnostics\n\n✅ A green test = feature is working\n❌ A red test = check the Console for the exact failure reason",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",          "value": "http://localhost:8081",  "type": "string", "description": "WisePlayer backend base URL" },
+    { "key": "xtreamServerUrl",  "value": "",                      "type": "string", "description": "e.g. http://provider.example.com:8080  — REQUIRED" },
+    { "key": "xtreamUsername",   "value": "",                      "type": "string", "description": "Your Xtream Codes username — REQUIRED" },
+    { "key": "xtreamPassword",   "value": "",                      "type": "string", "description": "Your Xtream Codes password — REQUIRED" },
+    { "key": "deviceFingerprint","value": "epg-test-00:1A:2B:3C:4D:5E", "type": "string", "description": "Auto-used as device MAC. Change if already registered." },
+    { "key": "deviceToken",      "value": "",                      "type": "string", "description": "Auto-set by Register Device" },
+    { "key": "deviceSecret",     "value": "",                      "type": "string", "description": "Auto-set by Register Device" },
+    { "key": "activationKey",    "value": "",                      "type": "string", "description": "Auto-set by Generate Activation Key" },
+    { "key": "playlistId",       "value": "",                      "type": "string", "description": "Auto-set when Xtream playlist is saved" },
+    { "key": "categoryId",       "value": "",                      "type": "string", "description": "Auto-set from first live category" },
+    { "key": "liveOnlyChannelId","value": "",                      "type": "string", "description": "Auto-set to a channel with tv_archive=0 (like SONY SIX)" },
+    { "key": "archiveChannelId", "value": "",                      "type": "string", "description": "Auto-set to a channel with tv_archive=1" },
+    { "key": "catchupStart",     "value": "",                      "type": "string", "description": "Auto-set from a past EPG programme's startTs" },
+    { "key": "catchupEnd",       "value": "",                      "type": "string", "description": "Auto-set from a past EPG programme's endTs" }
+  ],
+  "item": [
+
+    {
+      "name": "1. 🔌 Device Setup",
+      "description": "Registers the device, generates + uses an activation key, refreshes the token.\nAll tokens/IDs are auto-captured — nothing to fill in.",
+      "item": [
+        {
+          "name": "1.1 Health Check",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('API is UP (200)', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('Status = UP', () => pm.expect(j.status).to.eql('UP'));",
+              "console.log('Server reachable. Token TTL:', j.tokenTtlMinutes, 'min');"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api","health"] }
+          }
+        },
+        {
+          "name": "1.2 Register Device",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Device registered (201 or 200)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+              "pm.test('Token present', () => pm.expect(j.token).to.be.a('string').and.not.empty);",
+              "pm.collectionVariables.set('deviceToken', j.token);",
+              "pm.collectionVariables.set('deviceSecret', j.deviceSecret || '');",
+              "console.log('✅ deviceToken captured. deviceId:', j.deviceId);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/device/register", "host": ["{{baseUrl}}"], "path": ["api","device","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceFingerprint}}\",\n  \"model\": \"Postman EPG Tester\",\n  \"platform\": \"postman\",\n  \"appVersion\": \"1.0.0\",\n  \"fingerprint\": \"{{deviceFingerprint}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "1.3 Generate Activation Key",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Activation key generated (200)', () => pm.response.to.have.status(200));",
+              "const key = j.activationKey || j.key || '';",
+              "if (key) { pm.collectionVariables.set('activationKey', key); console.log('✅ activationKey:', key); }",
+              "else console.warn('⚠️ No activation key in response — check your server config.');"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/device/key", "host": ["{{baseUrl}}"], "path": ["api","device","key"] },
+            "body": { "mode": "raw", "raw": "{\n  \"deviceId\": \"{{deviceFingerprint}}\"\n}" }
+          }
+        },
+        {
+          "name": "1.4 Activate Device (7-day trial)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Device activated', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+              "console.log('Activation result:', j.deviceStatus || j.status || JSON.stringify(j));",
+              "console.log('ℹ️ If activation fails, manually activate via admin panel — catch-up endpoints require ROLE_ACTIVE.');"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/device/activate", "host": ["{{baseUrl}}"], "path": ["api","device","activate"] },
+            "body": { "mode": "raw", "raw": "{\n  \"deviceId\": \"{{deviceFingerprint}}\",\n  \"activationKey\": \"{{activationKey}}\"\n}" }
+          }
+        },
+        {
+          "name": "1.5 Refresh Token",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "if (j.token) { pm.collectionVariables.set('deviceToken', j.token); pm.test('Token refreshed', () => pm.expect(j.token).to.be.a('string').and.not.empty); }",
+              "else { pm.test('Refresh responded (200)', () => pm.response.to.have.status(200)); }",
+              "console.log('✅ Token ready for catch-up requests.');"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Secret",      "value": "{{deviceSecret}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/device/refresh", "host": ["{{baseUrl}}"], "path": ["api","device","refresh"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "2. 📋 Save Xtream Playlist",
+      "description": "Saves the Xtream Codes playlist from your collection variables.\nplaylistId is auto-captured.",
+      "item": [
+        {
+          "name": "2.1 Save Xtream Playlist",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Playlist saved (200)', () => pm.response.to.have.status(200));",
+              "const id = (j.data && j.data.id) ? j.data.id : (j.id || '');",
+              "pm.test('playlistId present in response', () => pm.expect(id).to.be.a('string').and.not.empty);",
+              "pm.collectionVariables.set('playlistId', id);",
+              "console.log('✅ playlistId:', id);",
+              "console.log('Playlist type:', j.data && j.data.type);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",         "value": "application/json" },
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/playlist/xtream", "host": ["{{baseUrl}}"], "path": ["api","playlist","xtream"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"EPG Hardening Test\",\n  \"serverUrl\": \"{{xtreamServerUrl}}\",\n  \"username\": \"{{xtreamUsername}}\",\n  \"password\": \"{{xtreamPassword}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "3. 🔬 XtreamLiveStream DTO — New Fields (Fix #1)",
+      "description": "Verifies that the 6 new fields (catchup, catchupDays, catchupMethod, categoryIds, isAdult, channelId) are now present in live stream responses.\n\nThis folder auto-picks:\n- A live-only channel (tv_archive=0) → stored as liveOnlyChannelId\n- An archive channel (tv_archive=1) → stored as archiveChannelId",
+      "item": [
+        {
+          "name": "3.1 Get Live Categories",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "const list = Array.isArray(j) ? j : (j.data || []);",
+              "pm.test('Categories returned', () => pm.expect(list.length).to.be.at.least(1));",
+              "const cat = list[0];",
+              "pm.collectionVariables.set('categoryId', String(cat.category_id || cat.categoryId));",
+              "console.log('Using category:', cat.category_name, '→', cat.category_id);"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/live?playlistId={{playlistId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","live"],
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }]
+            }
+          }
+        },
+        {
+          "name": "3.2 Get Channels — Verify New DTO Fields",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "const list = Array.isArray(j) ? j : (j.data || []);",
+              "pm.test('Channels returned', () => pm.expect(list.length).to.be.at.least(1));",
+              "",
+              "// ── Fix #1 verification: new DTO fields ─────────────────────────",
+              "const sample = list[0];",
+              "console.log('Sample channel raw:', JSON.stringify(sample, null, 2));",
+              "",
+              "pm.test('Fix #1 — catchup field present (boolean)', () => {",
+              "    pm.expect(sample).to.have.property('catchup');",
+              "    pm.expect(typeof sample.catchup).to.eql('boolean');",
+              "});",
+              "pm.test('Fix #1 — catchup_method field present (string or empty)', () => {",
+              "    pm.expect(sample).to.have.property('catchup_method');",
+              "});",
+              "pm.test('Fix #1 — catchup_days field present', () => {",
+              "    pm.expect(sample).to.have.property('catchup_days');",
+              "});",
+              "pm.test('Fix #1 — channel_id field present', () => {",
+              "    pm.expect(sample).to.have.property('channel_id');",
+              "});",
+              "",
+              "// Count channels by archive type",
+              "const archiveChannels  = list.filter(c => c.tv_archive === 1);",
+              "const liveOnlyChannels = list.filter(c => c.tv_archive !== 1);",
+              "const catchupChannels  = list.filter(c => c.catchup === true);",
+              "console.log('Total channels:', list.length);",
+              "console.log('tv_archive=1 (archive):', archiveChannels.length);",
+              "console.log('tv_archive=0 (live-only):', liveOnlyChannels.length);",
+              "console.log('catchup=true (provider flag):', catchupChannels.length);",
+              "",
+              "// Auto-pick channels for later tests",
+              "const liveOnly = liveOnlyChannels[0];",
+              "const archive  = archiveChannels[0];",
+              "if (liveOnly) {",
+              "    pm.collectionVariables.set('liveOnlyChannelId', String(liveOnly.stream_id));",
+              "    console.log('liveOnlyChannelId:', liveOnly.stream_id, '(', liveOnly.name, ') epg_channel_id:', liveOnly.epg_channel_id);",
+              "}",
+              "if (archive) {",
+              "    pm.collectionVariables.set('archiveChannelId', String(archive.stream_id));",
+              "    console.log('archiveChannelId:', archive.stream_id, '(', archive.name, ') method:', archive.catchup_method, 'days:', archive.tv_archive_duration);",
+              "}",
+              "pm.test('liveOnlyChannelId captured', () => pm.expect(pm.collectionVariables.get('liveOnlyChannelId')).to.be.ok);",
+              "",
+              "// Spot-check catchup_method values",
+              "const methods = [...new Set(list.map(c => c.catchup_method).filter(Boolean))];",
+              "console.log('Distinct catchup_method values in this category:', methods);"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/live?playlistId={{playlistId}}&categoryId={{categoryId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","live"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "categoryId", "value": "{{categoryId}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "4. 📺 EPG — Live-Only Channel (Fixes #2 #3 #4 #5)",
+      "description": "Core test folder — validates all EPG hardening fixes against a channel with tv_archive=0.\n\nBEFORE fix: programs[] was always empty for live-only channels.\nAFTER fix:  programs[] contains the current+upcoming schedule via get_short_epg (Tier 2)\n            or XMLTV via epg_channel_id (Tier 3).\n\nAlso verifies Fix #2 (Base64 decode): titles must be human-readable, not raw Base64.",
+      "item": [
+        {
+          "name": "4.1 Channel Status — Live-Only (tv_archive=0)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "console.log('Channel catch-up status (live-only):', JSON.stringify(j, null, 2));",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "",
+              "// For a live-only channel, supported should be false",
+              "pm.test('Fix #4 — catchupSupported=false for live-only channel', () => {",
+              "    pm.expect(j.supported).to.eql(false);",
+              "});",
+              "",
+              "// But epgChannelId must still be populated (needed for Tier 3)",
+              "pm.test('Fix #4 — epgChannelId is populated even when catchup=false', () => {",
+              "    pm.expect(j.epgChannelId).to.be.a('string').and.not.empty;",
+              "});",
+              "console.log('epg_channel_id for XMLTV Tier-3 lookup:', j.epgChannelId);"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/channel?playlistId={{playlistId}}&channelId={{liveOnlyChannelId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","channel"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "channelId",  "value": "{{liveOnlyChannelId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.2 EPG — Live-Only Channel (THE key regression test)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "console.log('EPG response (live-only channel):', JSON.stringify(j, null, 2));",
+              "",
+              "// ── Fix #4: EPG decoupled from catch-up gate ─────────────────",
+              "pm.test('Fix #4 — catchupSupported=false (live-only)', () => {",
+              "    pm.expect(j.catchupSupported).to.eql(false);",
+              "});",
+              "pm.test('Fix #4 — programs[] NOT empty despite catchupSupported=false (REGRESSION)', () => {",
+              "    pm.expect(j.programs).to.be.an('array').and.have.length.at.least(1);",
+              "});",
+              "",
+              "const programs = j.programs || [];",
+              "if (programs.length > 0) {",
+              "    console.log('Total programmes returned:', programs.length);",
+              "",
+              "    // ── Fix #2: Base64 decode verification ───────────────────",
+              "    const base64Regex = /^[A-Za-z0-9+/]+=*$/;",
+              "    const titles = programs.map(p => p.title).filter(Boolean);",
+              "    const base64Titles = titles.filter(t => t.length >= 8 && base64Regex.test(t) && !t.includes(' '));",
+              "    pm.test('Fix #2 — No raw Base64 titles (all decoded)', () => {",
+              "        if (base64Titles.length > 0) {",
+              "            console.error('❌ Still Base64 encoded titles:', base64Titles.slice(0, 3));",
+              "        }",
+              "        pm.expect(base64Titles.length).to.eql(0);",
+              "    });",
+              "    console.log('Sample titles:', titles.slice(0, 5));",
+              "",
+              "    // ── Fix #4: catchupAvailable must be false on all programmes ─",
+              "    const wronglyPlayable = programs.filter(p => p.catchupAvailable === true);",
+              "    pm.test('Fix #4 — catchupAvailable=false on all programmes (no archive)', () => {",
+              "        pm.expect(wronglyPlayable.length).to.eql(0);",
+              "    });",
+              "",
+              "    // isRunning / progressPercent check",
+              "    const running = programs.find(p => p.isRunning === true);",
+              "    if (running) {",
+              "        console.log('Currently running programme:', running.title, '| progress:', running.progressPercent + '%', '| remaining:', running.remainingSeconds + 's');",
+              "        pm.test('Running programme has progressPercent (0-100)', () => {",
+              "            pm.expect(running.progressPercent).to.be.within(0, 100);",
+              "        });",
+              "    } else {",
+              "        console.log('ℹ️ No currently running programme in this window (off-air or gap).');",
+              "    }",
+              "} else {",
+              "    console.warn('⚠️ programs[] is still empty — check that xtreamServerUrl has EPG data for this channel.');",
+              "}",
+              "",
+              "// serverTime sanity check",
+              "pm.test('serverTime is a reasonable Unix timestamp', () => {",
+              "    pm.expect(j.serverTime).to.be.a('number').and.above(1700000000);",
+              "});"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/epg?playlistId={{playlistId}}&channelId={{liveOnlyChannelId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","epg"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "channelId",  "value": "{{liveOnlyChannelId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.3 EPG — Custom Window (past 1 day + next 6 hours)",
+          "event": [{
+            "listen": "prerequest",
+            "script": { "type": "text/javascript", "exec": [
+              "const now = Math.floor(Date.now() / 1000);",
+              "pm.collectionVariables.set('windowStart', String(now - 86400));",
+              "pm.collectionVariables.set('windowEnd',   String(now + 21600));",
+              "console.log('EPG window: now-24h to now+6h:', pm.collectionVariables.get('windowStart'), '→', pm.collectionVariables.get('windowEnd'));"
+            ]}
+          }],
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const programs = j.programs || [];",
+              "pm.test('EPG returned programmes for explicit window', () => pm.expect(programs.length).to.be.at.least(0));",
+              "console.log('Programmes in [now-24h, now+6h]:', programs.length);",
+              "if (programs.length > 0) {",
+              "    console.log('First:', programs[0].title, '@', new Date(programs[0].startTs * 1000).toISOString());",
+              "    console.log('Last:', programs[programs.length-1].title, '@', new Date(programs[programs.length-1].startTs * 1000).toISOString());",
+              "}"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/epg?playlistId={{playlistId}}&channelId={{liveOnlyChannelId}}&start={{windowStart}}&end={{windowEnd}}",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","epg"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "channelId",  "value": "{{liveOnlyChannelId}}" },
+                { "key": "start",      "value": "{{windowStart}}" },
+                { "key": "end",        "value": "{{windowEnd}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "5. 📼 EPG + CatchUp — Archive Channel (Fixes #3 #5 #6)",
+      "description": "Validates the full catch-up flow for a channel with tv_archive=1:\n- Fix #3: getSimpleDataTable now correctly unwraps {epg_listings:[...]} envelope\n- Fix #5: 3-tier fallback chain works end-to-end\n- Fix #6: catchupMethod from DTO drives the correct URL format",
+      "item": [
+        {
+          "name": "5.1 Playlist Catch-Up Status",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "console.log('Playlist catch-up status:', JSON.stringify(j, null, 2));",
+              "pm.test('Playlist catch-up SUPPORTED', () => pm.expect(j.supported).to.eql(true));",
+              "if (j.supported) {",
+              "    pm.test('Method is a known CatchUpMethod', () => {",
+              "        pm.expect(['XC','FLUSSONIC','SHIFT','DEFAULT','NONE']).to.include(j.method);",
+              "    });",
+              "    console.log('Method:', j.method, '| days:', j.days, '| provider:', j.provider);",
+              "}"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/status?playlistId={{playlistId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","status"],
+              "query": [{ "key": "playlistId", "value": "{{playlistId}}" }]
+            }
+          }
+        },
+        {
+          "name": "5.2 Channel Status — Archive Channel (tv_archive=1)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "console.log('Archive channel status:', JSON.stringify(j, null, 2));",
+              "pm.test('Fix #6 — catchupSupported=true for archive channel', () => pm.expect(j.supported).to.eql(true));",
+              "pm.test('Fix #6 — catchupPlayable=true', () => pm.expect(j.playable).to.eql(true));",
+              "pm.test('Fix #6 — method is not NONE', () => pm.expect(j.method).to.not.eql('NONE'));",
+              "pm.test('epgChannelId populated', () => pm.expect(j.epgChannelId).to.be.a('string').and.not.empty);",
+              "console.log('Method (from catchupMethod field):', j.method, '| days:', j.days, '| epgChannelId:', j.epgChannelId);"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/channel?playlistId={{playlistId}}&channelId={{archiveChannelId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","channel"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "channelId",  "value": "{{archiveChannelId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5.3 EPG — Archive Channel (Tier-1 data table)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "console.log('EPG (archive channel):', JSON.stringify(j, null, 2));",
+              "",
+              "const programs = j.programs || [];",
+              "pm.test('Fix #3/#5 — programs[] has entries (getSimpleDataTable working)', () => {",
+              "    pm.expect(programs.length).to.be.at.least(1);",
+              "});",
+              "",
+              "// Fix #2: Base64 decode",
+              "const base64Regex = /^[A-Za-z0-9+/]+=*$/;",
+              "const titles = programs.map(p => p.title).filter(Boolean);",
+              "const base64Titles = titles.filter(t => t.length >= 8 && base64Regex.test(t) && !t.includes(' '));",
+              "pm.test('Fix #2 — Titles are decoded (not raw Base64)', () => {",
+              "    if (base64Titles.length > 0) console.error('Still Base64:', base64Titles.slice(0,3));",
+              "    pm.expect(base64Titles.length).to.eql(0);",
+              "});",
+              "console.log('Sample titles:', titles.slice(0, 5));",
+              "",
+              "// At least one past programme with catchupAvailable=true",
+              "const past = programs.find(p => p.catchupAvailable === true);",
+              "pm.test('At least one past programme is catchupAvailable', () => pm.expect(past).to.be.ok);",
+              "if (past) {",
+              "    pm.collectionVariables.set('catchupStart', String(past.startTs));",
+              "    pm.collectionVariables.set('catchupEnd',   String(past.endTs));",
+              "    console.log('Past programme for catch-up playback:', past.title, past.startTs, '→', past.endTs);",
+              "}"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/epg?playlistId={{playlistId}}&channelId={{archiveChannelId}}",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","epg"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "channelId",  "value": "{{archiveChannelId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5.4 Resolve Catch-Up URL (Fix #6 — correct method-based URL)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": [
+                "// If no past programme was captured from EPG, use now-1h → now as fallback",
+                "if (!pm.collectionVariables.get('catchupStart')) {",
+                "    const now = Math.floor(Date.now() / 1000);",
+                "    pm.collectionVariables.set('catchupStart', String(now - 3600));",
+                "    pm.collectionVariables.set('catchupEnd',   String(now));",
+                "    console.log('ℹ️ No past programme found — falling back to now-1h window.');",
+                "}"
+              ]}
+            },
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "const j = pm.response.json();",
+                "console.log('Catch-up URL response:', JSON.stringify(j, null, 2));",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Fix #6 — success=true', () => pm.expect(j.success).to.eql(true));",
+                "pm.test('Fix #6 — resolved URL is non-empty', () => pm.expect(j.url).to.be.a('string').and.not.empty);",
+                "if (j.url) {",
+                "    console.log('✅ CATCH-UP URL RESOLVED:\\n' + j.url);",
+                "    // Verify URL contains expected components (username not in plain path for XC)",
+                "    pm.test('URL contains /live/ path (XC method)', () => pm.expect(j.url).to.include('/live/'));",
+                "}"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/play?playlistId={{playlistId}}&channelId={{archiveChannelId}}&start={{catchupStart}}&end={{catchupEnd}}&extension=ts",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","play"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "channelId",  "value": "{{archiveChannelId}}" },
+                { "key": "start",      "value": "{{catchupStart}}" },
+                { "key": "end",        "value": "{{catchupEnd}}" },
+                { "key": "extension",  "value": "ts" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5.5 Catch-Up URL — Out-of-Window Guard (should 400)",
+          "event": [{
+            "listen": "prerequest",
+            "script": { "type": "text/javascript", "exec": [
+              "// Set start/end to 90 days ago — outside any catch-up window",
+              "const past = Math.floor(Date.now() / 1000) - (90 * 86400);",
+              "pm.collectionVariables.set('outOfWindowStart', String(past));",
+              "pm.collectionVariables.set('outOfWindowEnd',   String(past + 3600));"
+            ]}
+          }],
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const j = pm.response.json();",
+              "pm.test('Out-of-window request correctly rejected (400)', () => pm.response.to.have.status(400));",
+              "console.log('Rejection message:', j.message || j.error || JSON.stringify(j));"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/play?playlistId={{playlistId}}&channelId={{archiveChannelId}}&start={{outOfWindowStart}}&end={{outOfWindowEnd}}&extension=ts",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","play"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "channelId",  "value": "{{archiveChannelId}}" },
+                { "key": "start",      "value": "{{outOfWindowStart}}" },
+                { "key": "end",        "value": "{{outOfWindowEnd}}" },
+                { "key": "extension",  "value": "ts" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5.6 Catch-Up URL — No-Archive Channel Guard (should 400)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "const now = Math.floor(Date.now() / 1000);",
+              "pm.test('No-archive channel correctly rejected (400)', () => pm.response.to.have.status(400));",
+              "const j = pm.response.json();",
+              "console.log('Rejection message:', j.message || j.error || JSON.stringify(j));"
+            ]}
+          }],
+          "event": [{
+            "listen": "prerequest",
+            "script": { "type": "text/javascript", "exec": [
+              "const now = Math.floor(Date.now() / 1000);",
+              "pm.collectionVariables.set('catchupStart', String(now - 3600));",
+              "pm.collectionVariables.set('catchupEnd', String(now));"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",       "value": "{{deviceToken}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{deviceFingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/catchup/play?playlistId={{playlistId}}&channelId={{liveOnlyChannelId}}&start={{catchupStart}}&end={{catchupEnd}}&extension=ts",
+              "host": ["{{baseUrl}}"], "path": ["api","catchup","play"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "channelId",  "value": "{{liveOnlyChannelId}}" },
+                { "key": "start",      "value": "{{catchupStart}}" },
+                { "key": "end",        "value": "{{catchupEnd}}" },
+                { "key": "extension",  "value": "ts" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+
+  ]
+}

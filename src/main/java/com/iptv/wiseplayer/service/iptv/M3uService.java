@@ -145,6 +145,32 @@ public class M3uService {
         return result;
     }
 
+    /**
+     * Fetches and parses EPG programmes directly from any raw XMLTV URL for a channel.
+     * Cached for 4 minutes to avoid re-fetching large XML files.
+     */
+    public List<EpgProgram> getEpgFromXmlUrl(String xmltvUrl, String tvgId, String channelName, long windowStart, long windowEnd) {
+        if (xmltvUrl == null || xmltvUrl.isBlank()) {
+            return Collections.emptyList();
+        }
+        String cacheKey = "direct:epg:" + xmltvUrl.hashCode();
+        List<EpgProgram> all = cache.getOrLoad(cacheKey, EPG_CACHE_TTL, () -> {
+            String xml = fetchEpgContent(xmltvUrl);
+            return xml != null ? xmltvEpgParser.parse(xml, Long.MIN_VALUE / 2, Long.MAX_VALUE / 2) : null;
+        });
+        if (all == null) {
+            return Collections.emptyList();
+        }
+
+        List<EpgProgram> result = new ArrayList<>();
+        for (EpgProgram program : all) {
+            if (matchesChannel(program.getChannelId(), tvgId, channelName)) {
+                result.add(program);
+            }
+        }
+        return result;
+    }
+
     private boolean matchesChannel(String epgChannel, String tvgId, String channelName) {
         if (epgChannel == null || epgChannel.isBlank()) {
             return false;
