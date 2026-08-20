@@ -363,9 +363,9 @@ public class CatchUpService {
         response.setLiveUrl(status.getLiveUrl());
         response.setLiveEdge(now);
 
-        // Always cover from (now - 12h) to (now + 24h) by default, or wider if catchupDays > 1.
-        int days = status.getDays() != null ? Math.max(status.getDays(), DEFAULT_CATCHUP_DAYS) : DEFAULT_CATCHUP_DAYS;
-        long windowStart = start != null ? start : now - Math.max(days * 86400L, (long) EPG_DEFAULT_LOOKBACK_HOURS * 3600L);
+        // Default window: start 15 minutes before 'now' so the currently running show is at the top of the list!
+        // If the caller passes an explicit 'start' parameter (e.g. for catch-up archive playback), use that.
+        long windowStart = start != null ? start : now - 900L;
         long windowEnd = end != null ? end : now + (long) EPG_DEFAULT_LOOKAHEAD_HOURS * 3600L;
 
         // Fetch EPG unconditionally — guide data is independent of catch-up support.
