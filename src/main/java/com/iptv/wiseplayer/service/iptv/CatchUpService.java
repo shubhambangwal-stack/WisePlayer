@@ -444,16 +444,14 @@ public class CatchUpService {
         // ── Tier 1: get_simple_data_table (archive window) ───────────────────
         List<XtreamEpgProgram> raw = Collections.emptyList();
         if (status.isSupported()) {
-            // Only call the archive endpoint when the channel has catch-up support;
-            // the endpoint returns nothing useful for live-only channels.
             raw = xtreamCatalog.getSimpleDataTable(playlist.getId(), numericId, windowStart, windowEnd);
-            log.debug("Tier-1 (data table) returned {} entries for channel {}", raw.size(), channelId);
+            log.info("Tier-1 (data table) returned {} entries for channel {}", raw.size(), channelId);
         }
 
         // ── Tier 2: get_short_epg (current + upcoming) ───────────────────────
         if (raw.isEmpty()) {
             raw = xtreamCatalog.getShortEpg(playlist.getId(), numericId, 72);
-            log.debug("Tier-2 (short EPG) returned {} entries for channel {}", raw.size(), channelId);
+            log.info("Tier-2 (short EPG) returned {} entries for channel {}", raw.size(), channelId);
         }
 
         // ── Map Xtream → EpgProgram (with Base64 decode) ─────────────────────
@@ -461,32 +459,40 @@ public class CatchUpService {
             return mapXtreamPrograms(raw, channelId, windowStart, windowEnd);
         }
 
-        // ── Tier 3: XMLTV via epg_channel_id ─────────────────────────────────
+        // ── Tier 3: XMLTV via epg_channel_id or channel name ─────────────────
         String epgChannelId = resolveEpgChannelId(playlist.getId(), channelId, status);
-        if (epgChannelId != null && !epgChannelId.isBlank()) {
-            log.debug("Tier-3 (XMLTV) lookup via epg_channel_id='{}' for channel {}", epgChannelId, channelId);
+        log.info("Tier-3 (XMLTV) starting for channel {} (epgChannelId='{}')", channelId, epgChannelId);
 
-            // 1. Try Xtream server's native xmltv.php endpoint
+        // 1. Try Xtream server's native xmltv.php endpoint
+        try {
             SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlist.getId());
             String xtreamXmltvUrl = normalizeBaseUrl(creds.serverUrl()) + "/xmltv.php?username=" + creds.username() + "&password=" + creds.password();
 
             List<EpgProgram> xmltvPrograms = m3uService.getEpgFromXmlUrl(
                     xtreamXmltvUrl, epgChannelId, null, windowStart, windowEnd);
 
-            // 2. If Xtream server's xmltv.php is empty, try public open EPG sources
+            // If empty with strict window, try without window filter (handles server time drift)
             if (xmltvPrograms.isEmpty()) {
+                xmltvPrograms = m3uService.getEpgFromXmlUrl(
+                        xtreamXmltvUrl, epgChannelId, null, Long.MIN_VALUE / 2, Long.MAX_VALUE / 2);
+            }
+
+            // 2. If Xtream server's xmltv.php is empty, try public open EPG sources
+            if (xmltvPrograms.isEmpty() && epgChannelId != null && !epgChannelId.isBlank()) {
                 xmltvPrograms = fetchExternalGlobalEpg(epgChannelId, windowStart, windowEnd);
             }
 
             if (!xmltvPrograms.isEmpty()) {
-                log.debug("Tier-3 (XMLTV) returned {} entries for channel {}", xmltvPrograms.size(), channelId);
+                log.info("Tier-3 (XMLTV) returned {} entries for channel {}", xmltvPrograms.size(), channelId);
                 xmltvPrograms.forEach(p -> p.setChannelId(channelId));
                 xmltvPrograms.sort(Comparator.comparingLong(EpgProgram::getStartTs));
                 return xmltvPrograms;
             }
+        } catch (Exception e) {
+            log.warn("Tier-3 XMLTV failed for channel {}: {}", channelId, e.getMessage());
         }
 
-        log.debug("All EPG tiers returned empty for channel {}", channelId);
+        log.info("All EPG tiers returned empty for channel {}", channelId);
         return new ArrayList<>();
     }
 
