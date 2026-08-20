@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.iptv.wiseplayer.service.WatchProgressService;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,13 +25,16 @@ public class SeriesController {
     private final XtreamCatalogService catalogService;
     private final XtreamStreamResolver streamResolver;
     private final CatchupEnrichmentService enrichmentService;
+    private final WatchProgressService watchProgressService;
 
     public SeriesController(XtreamCatalogService catalogService,
                             XtreamStreamResolver streamResolver,
-                            CatchupEnrichmentService enrichmentService) {
+                            CatchupEnrichmentService enrichmentService,
+                            WatchProgressService watchProgressService) {
         this.catalogService = catalogService;
         this.streamResolver = streamResolver;
         this.enrichmentService = enrichmentService;
+        this.watchProgressService = watchProgressService;
     }
 
     /**
@@ -92,6 +97,13 @@ public class SeriesController {
             @RequestParam(required = false, defaultValue = "mkv") String containerExtension) {
 
         String url = streamResolver.resolveSeriesEpisodeUrl(playlistId, episodeId, containerExtension);
-        return ResponseEntity.ok(Map.of("url", url));
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("url", url);
+        
+        watchProgressService.getProgress(playlistId, episodeId, "SERIES")
+                .ifPresent(progress -> response.put("watch_progress", progress));
+
+        return ResponseEntity.ok(response);
     }
 }
