@@ -448,52 +448,63 @@ public class CatchUpService {
             log.info("Tier-1 (data table) returned {} entries for channel {}", raw.size(), channelId);
         }
 
-        // ── Tier 2: get_short_epg (current + upcoming) ───────────────────────
-        if (raw.isEmpty()) {
-            raw = xtreamCatalog.getShortEpg(playlist.getId(), numericId, 300);
-            log.info("Tier-2 (short EPG) returned {} entries for channel {}", raw.size(), channelId);
-        }
+        List<EpgProgram> allPrograms = new ArrayList<>();
 
-        // ── Map Xtream → EpgProgram (with Base64 decode) ─────────────────────
         if (!raw.isEmpty()) {
-            return mapXtreamPrograms(raw, channelId, windowStart, windowEnd);
+            allPrograms.addAll(mapXtreamPrograms(raw, channelId, windowStart, windowEnd));
+        } else {
+            // ── Tier 2: get_short_epg (current + upcoming) ───────────────────
+            List<XtreamEpgProgram> shortEpg = xtreamCatalog.getShortEpg(playlist.getId(), numericId, 300);
+            log.info("Tier-2 (short EPG) returned {} entries for channel {}", shortEpg.size(), channelId);
+            if (!shortEpg.isEmpty()) {
+                allPrograms.addAll(mapXtreamPrograms(shortEpg, channelId, windowStart, windowEnd));
+            }
         }
 
         // ── Tier 3: XMLTV via epg_channel_id or channel name ─────────────────
-        String epgChannelId = resolveEpgChannelId(playlist.getId(), channelId, status);
-        log.info("Tier-3 (XMLTV) starting for channel {} (epgChannelId='{}')", channelId, epgChannelId);
+        // Always attempt XMLTV enrichment if we have fewer than 10 programmes
+        if (allPrograms.size() < 10) {
+            String epgChannelId = resolveEpgChannelId(playlist.getId(), channelId, status);
+            log.info("Tier-3 (XMLTV) starting enrichment for channel {} (epgChannelId='{}')", channelId, epgChannelId);
 
-        // 1. Try Xtream server's native xmltv.php endpoint
-        try {
-            SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlist.getId());
-            String xtreamXmltvUrl = normalizeBaseUrl(creds.serverUrl()) + "/xmltv.php?username=" + creds.username() + "&password=" + creds.password();
+            try {
+                SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlist.getId());
+                String xtreamXmltvUrl = normalizeBaseUrl(creds.serverUrl()) + "/xmltv.php?username=" + creds.username() + "&password=" + creds.password();
 
-            List<EpgProgram> xmltvPrograms = m3uService.getEpgFromXmlUrl(
-                    xtreamXmltvUrl, epgChannelId, null, windowStart, windowEnd);
+                List<EpgProgram> xmltvPrograms = m3uService.getEpgFromXmlUrl(
+                        xtreamXmltvUrl, epgChannelId, null, windowStart, windowEnd);
 
-            // If empty with strict window, try without window filter (handles server time drift)
-            if (xmltvPrograms.isEmpty()) {
-                xmltvPrograms = m3uService.getEpgFromXmlUrl(
-                        xtreamXmltvUrl, epgChannelId, null, Long.MIN_VALUE / 2, Long.MAX_VALUE / 2);
+                if (xmltvPrograms.isEmpty()) {
+                    xmltvPrograms = m3uService.getEpgFromXmlUrl(
+                            xtreamXmltvUrl, epgChannelId, null, Long.MIN_VALUE / 2, Long.MAX_VALUE / 2);
+                }
+
+                if (xmltvPrograms.isEmpty() && epgChannelId != null && !epgChannelId.isBlank()) {
+                    xmltvPrograms = fetchExternalGlobalEpg(epgChannelId, windowStart, windowEnd);
+                }
+
+                if (!xmltvPrograms.isEmpty()) {
+                    log.info("Tier-3 (XMLTV) returned {} entries for channel {}", xmltvPrograms.size(), channelId);
+                    xmltvPrograms.forEach(p -> p.setChannelId(channelId));
+                    // Merge and deduplicate based on startTs
+                    Map<Long, EpgProgram> mergedMap = new HashMap<>();
+                    for (EpgProgram p : allPrograms) {
+                        mergedMap.put(p.getStartTs(), p);
+                    }
+                    for (EpgProgram p : xmltvPrograms) {
+                        mergedMap.putIfAbsent(p.getStartTs(), p);
+                    }
+                    allPrograms = new ArrayList<>(mergedMap.values());
+                }
+            } catch (Exception e) {
+                log.warn("Tier-3 XMLTV failed for channel {}: {}", channelId, e.getMessage());
             }
-
-            // 2. If Xtream server's xmltv.php is empty, try public open EPG sources
-            if (xmltvPrograms.isEmpty() && epgChannelId != null && !epgChannelId.isBlank()) {
-                xmltvPrograms = fetchExternalGlobalEpg(epgChannelId, windowStart, windowEnd);
-            }
-
-            if (!xmltvPrograms.isEmpty()) {
-                log.info("Tier-3 (XMLTV) returned {} entries for channel {}", xmltvPrograms.size(), channelId);
-                xmltvPrograms.forEach(p -> p.setChannelId(channelId));
-                xmltvPrograms.sort(Comparator.comparingLong(EpgProgram::getStartTs));
-                return xmltvPrograms;
-            }
-        } catch (Exception e) {
-            log.warn("Tier-3 XMLTV failed for channel {}: {}", channelId, e.getMessage());
         }
 
-        log.info("All EPG tiers returned empty for channel {}", channelId);
-        return new ArrayList<>();
+        allPrograms.sort(Comparator.comparingLong(EpgProgram::getStartTs)
+                .thenComparingLong(EpgProgram::getEndTs));
+        log.info("Total merged EPG entries for channel {}: {}", channelId, allPrograms.size());
+        return allPrograms;
     }
 
     /**
