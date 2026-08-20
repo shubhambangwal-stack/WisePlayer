@@ -34,12 +34,13 @@ public class LiveTvController {
     public ResponseEntity<?> handleRequest(
             @RequestParam UUID playlistId,
             @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) Integer streamId) {
+            @RequestParam(required = false) Integer streamId,
+            @RequestParam(required = false) String extension) {
 
         // 1. Play Stream (if streamId is present)
         if (streamId != null) {
             String url = streamResolver.resolveStreamUrl(playlistId, streamId,
-                    com.iptv.wiseplayer.service.iptv.XtreamStreamResolver.StreamType.LIVE);
+                    com.iptv.wiseplayer.service.iptv.XtreamStreamResolver.StreamType.LIVE, extension);
             return ResponseEntity.ok(java.util.Map.of("url", url));
         }
 

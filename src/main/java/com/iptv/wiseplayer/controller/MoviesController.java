@@ -57,11 +57,26 @@ public class MoviesController {
 
         // 1. Play Stream (if streamId is present)
         if (streamId != null) {
+            // Auto-detect container_extension from metadata if not explicitly provided by client
+            if (resolvedExt == null || resolvedExt.isBlank()) {
+                try {
+                    List<XtreamVodStream> streams = catalogService.getVodStreams(playlistId, null);
+                    if (streams != null) {
+                        resolvedExt = streams.stream()
+                                .filter(s -> s.getStreamId() == streamId)
+                                .map(XtreamVodStream::getContainerExtension)
+                                .filter(e -> e != null && !e.isBlank())
+                                .findFirst()
+                                .orElse(null);
+                    }
+                } catch (Exception ignored) { }
+            }
+
             String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD, resolvedExt);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("url", url);
-            
+
             watchProgressService.getProgress(playlistId, streamId, "VOD")
                     .ifPresent(progress -> response.put("watch_progress", progress));
 
