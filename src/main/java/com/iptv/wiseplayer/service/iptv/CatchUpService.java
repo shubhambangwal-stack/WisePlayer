@@ -371,8 +371,29 @@ public class CatchUpService {
         // Fetch EPG unconditionally — guide data is independent of catch-up support.
         List<EpgProgram> programs = fetchPrograms(playlist, channelId, status, windowStart, windowEnd);
         annotatePrograms(programs, status, now);
-        response.setPrograms(programs);
 
+        // When no explicit 'start' parameter is requested (default Live EPG view),
+        // dynamically place the currently running programme at index 0 (top of the list),
+        // followed by upcoming shows, filtering out completed past shows.
+        if (start == null && !programs.isEmpty()) {
+            List<EpgProgram> liveAndUpcoming = new ArrayList<>();
+            EpgProgram runningProgram = null;
+            for (EpgProgram p : programs) {
+                if (p.isRunning()) {
+                    runningProgram = p;
+                } else if (!p.isPast()) {
+                    liveAndUpcoming.add(p);
+                }
+            }
+            if (runningProgram != null) {
+                liveAndUpcoming.add(0, runningProgram);
+            }
+            if (!liveAndUpcoming.isEmpty()) {
+                programs = liveAndUpcoming;
+            }
+        }
+
+        response.setPrograms(programs);
         cache.put(key, response, EPG_TTL);
         return response;
     }
