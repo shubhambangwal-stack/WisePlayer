@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.iptv.wiseplayer.service.WatchProgressService;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,13 +24,16 @@ public class MoviesController {
     private final XtreamCatalogService catalogService;
     private final XtreamStreamResolver streamResolver;
     private final CatchupEnrichmentService enrichmentService;
+    private final WatchProgressService watchProgressService;
 
     public MoviesController(XtreamCatalogService catalogService,
                             XtreamStreamResolver streamResolver,
-                            CatchupEnrichmentService enrichmentService) {
+                            CatchupEnrichmentService enrichmentService,
+                            WatchProgressService watchProgressService) {
         this.catalogService = catalogService;
         this.streamResolver = streamResolver;
         this.enrichmentService = enrichmentService;
+        this.watchProgressService = watchProgressService;
     }
 
     @Operation(summary = "Handle VOD Request", description = "Dispatches request based on parameters: categories, streams, or play url. " +
@@ -53,7 +58,14 @@ public class MoviesController {
         // 1. Play Stream (if streamId is present)
         if (streamId != null) {
             String url = streamResolver.resolveStreamUrl(playlistId, streamId, XtreamStreamResolver.StreamType.VOD, resolvedExt);
-            return ResponseEntity.ok(Map.of("url", url));
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("url", url);
+            
+            watchProgressService.getProgress(playlistId, streamId, "VOD")
+                    .ifPresent(progress -> response.put("watch_progress", progress));
+
+            return ResponseEntity.ok(response);
         }
 
         // 2. Get VOD Streams (if categoryId is present)
