@@ -506,14 +506,14 @@ public class CatchUpService {
         }
         List<String> externalSources = new ArrayList<>();
         if (epgChannelId.toLowerCase().endsWith(".in")) {
-            externalSources.add("https://iptv-org.github.io/epg/guides/in/beetelevision.com.epg.xml");
-            externalSources.add("https://iptv-org.github.io/epg/guides/in.xml");
+            externalSources.add("https://raw.githubusercontent.com/iptv-org/epg/master/guides/in.xml");
+            externalSources.add("https://raw.githubusercontent.com/iptv-org/epg/master/guides/in/beetelevision.com.epg.xml");
         } else if (epgChannelId.toLowerCase().endsWith(".uk")) {
-            externalSources.add("https://iptv-org.github.io/epg/guides/uk.xml");
+            externalSources.add("https://raw.githubusercontent.com/iptv-org/epg/master/guides/uk.xml");
         } else if (epgChannelId.toLowerCase().endsWith(".us")) {
-            externalSources.add("https://iptv-org.github.io/epg/guides/us.xml");
+            externalSources.add("https://raw.githubusercontent.com/iptv-org/epg/master/guides/us.xml");
         }
-        externalSources.add("https://iptv-org.github.io/epg/guides/general.xml");
+        externalSources.add("https://raw.githubusercontent.com/iptv-org/epg/master/guides/general.xml");
 
         for (String sourceUrl : externalSources) {
             try {

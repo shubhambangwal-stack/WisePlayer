@@ -33,10 +33,48 @@ public class XtreamEpgProgram {
     private String lang;
 
     @JsonProperty("start")
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = FlexibleTimestampDeserializer.class)
     private long start;
 
     @JsonProperty("end")
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = FlexibleTimestampDeserializer.class)
     private long end;
+
+    /**
+     * Flexible Jackson deserializer that handles both numeric Unix timestamps
+     * (seconds) and formatted date-time strings (e.g. "2026-08-20 08:30:00").
+     */
+    public static class FlexibleTimestampDeserializer extends com.fasterxml.jackson.databind.JsonDeserializer<Long> {
+        private static final java.time.format.DateTimeFormatter FORMATTER =
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        @Override
+        public Long deserialize(com.fasterxml.jackson.core.JsonParser p,
+                                com.fasterxml.jackson.databind.DeserializationContext ctxt)
+                throws java.io.IOException {
+            String text = p.getText();
+            if (text == null || text.isBlank()) {
+                return 0L;
+            }
+            text = text.trim();
+            try {
+                return Long.parseLong(text);
+            } catch (NumberFormatException ignored) {
+                // Try parsing as "yyyy-MM-dd HH:mm:ss"
+                try {
+                    java.time.LocalDateTime ldt = java.time.LocalDateTime.parse(text, FORMATTER);
+                    return ldt.toEpochSecond(java.time.ZoneOffset.UTC);
+                } catch (Exception e) {
+                    // Try ISO-8601 fallback
+                    try {
+                        return java.time.Instant.parse(text).getEpochSecond();
+                    } catch (Exception ex) {
+                        return 0L;
+                    }
+                }
+            }
+        }
+    }
 
     /** Raw (Base64-encoded) description — use {@link #getDecodedDescription()} for display. */
     @JsonProperty("description")
