@@ -13,6 +13,8 @@ public class XtreamStreamResolver {
         LIVE, VOD, SERIES
     }
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(XtreamStreamResolver.class);
+
     public XtreamStreamResolver(SecureCredentialStore credentialStore) {
         this.credentialStore = credentialStore;
     }
@@ -23,6 +25,13 @@ public class XtreamStreamResolver {
      * since the container extension must come from the episode metadata.
      */
     public String resolveStreamUrl(UUID playlistId, int streamId, StreamType type) {
+        return resolveStreamUrl(playlistId, streamId, type, null);
+    }
+
+    /**
+     * Resolves a stream URL for Live or VOD streams using custom extensions if provided.
+     */
+    public String resolveStreamUrl(UUID playlistId, int streamId, StreamType type, String customExtension) {
         // Note: authentication is enforced by Spring Security before this point.
         // Making a live auth call here would reject legitimate channel switches
         // because the upstream provider still counts the previous stream as active.
@@ -37,19 +46,21 @@ public class XtreamStreamResolver {
         switch (type) {
             case LIVE:
                 typePath = "live";
-                extension = "ts";
+                extension = (customExtension != null && !customExtension.isBlank()) ? customExtension : "ts";
                 break;
             case VOD:
                 typePath = "movie";
-                extension = "mp4";
+                extension = (customExtension != null && !customExtension.isBlank()) ? customExtension : "mp4";
                 break;
             default:
                 throw new IllegalArgumentException(
                         "Use resolveSeriesEpisodeUrl() for SERIES streams — container extension is required.");
         }
 
-        return String.format("%s/%s/%s/%s/%d.%s",
+        String finalUrl = String.format("%s/%s/%s/%s/%d.%s",
                 baseUrl, typePath, creds.username(), creds.password(), streamId, extension);
+        logger.info("Resolved {} stream URL for streamId {} with extension {}: {}", type, streamId, extension, finalUrl);
+        return finalUrl;
     }
 
     /**

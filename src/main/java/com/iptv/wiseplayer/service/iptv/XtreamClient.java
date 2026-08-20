@@ -163,6 +163,9 @@ public class XtreamClient {
                     .exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<List<XtreamVodStream>>() {
                     }).getBody();
             logger.info("getVodStreams completed. Retrieved {} VOD streams.", result != null ? result.size() : 0);
+            if (result != null && !result.isEmpty()) {
+                logger.info("Sample VOD stream containerExtension: streamId={}, ext={}", result.get(0).getStreamId(), result.get(0).getContainerExtension());
+            }
             return result != null ? result : Collections.emptyList();
         } catch (Exception e) {
             logger.error("Error fetching VOD streams: {}", e.getMessage(), e);
