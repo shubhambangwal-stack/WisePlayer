@@ -102,6 +102,87 @@
           }
         }
       ]
+    },
+    {
+      "name": "Authenticated Playlists",
+      "item": [
+        {
+          "name": "Get Authenticated Playlists with PIN",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist?pin=1234",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist"],
+              "query": [
+                {
+                  "key": "pin",
+                  "value": "1234"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Authenticated Playlists with Default PIN",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist?pin=0000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist"],
+              "query": [
+                {
+                  "key": "pin",
+                  "value": "0000"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reseller Playlists",
+      "item": [
+        {
+          "name": "Reseller Create Playlist with PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{resellerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Sports\",\n  \"m3uUrl\": \"http://example.com/sports.m3u\",\n  \"pin\": \"5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists"]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -116,6 +197,10 @@
     {
       "key": "token",
       "value": "jwt_token_here"
+    },
+    {
+      "key": "resellerToken",
+      "value": "jwt_reseller_token_here"
     }
   ]
 }
