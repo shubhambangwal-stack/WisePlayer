@@ -56,6 +56,9 @@ public class Playlist {
     @Column(name = "pinned", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private boolean pinned = false;
 
+    @Column(name = "pin_hash", length = 100)
+    private String pinHash;
+
     // Catch-up / Archive capability snapshot (cached per playlist to reduce API calls)
     @Column(name = "catchup_supported", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private boolean catchupSupported = false;
@@ -243,5 +246,13 @@ public class Playlist {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getPinHash() {
+        return pinHash;
+    }
+
+    public void setPinHash(String pinHash) {
+        this.pinHash = pinHash;
     }
 }

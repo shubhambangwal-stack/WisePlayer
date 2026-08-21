@@ -269,26 +269,39 @@ public class PlaylistServiceImpl implements PlaylistService {
     public java.util.List<PlaylistResponse> getPublicPlaylistsWithPin(String deviceId, String pin) {
         Device device = resolveDevice(deviceId);
 
-        String storedHash = device.getPublicPinHash();
+        String deviceStoredHash = device.getPublicPinHash();
+        String defaultPinHash = passwordEncoder.encode("0000");
 
-        // Strict mode: PIN must be configured on the device
-        if (storedHash == null) {
-            throw new AccessDeniedException(
-                    "This device has no public PIN configured. The device owner must set a PIN first.");
+        String effectivePin = (pin == null || pin.isBlank()) ? "0000" : pin;
+
+        java.util.List<Playlist> allPlaylists = playlistRepository.findByDeviceIdOrderByPinnedDescCreatedAtDesc(device.getDeviceId());
+        java.util.List<PlaylistResponse> accessiblePlaylists = new java.util.ArrayList<>();
+
+        for (Playlist playlist : allPlaylists) {
+            boolean isPinValid = false;
+
+            if (com.iptv.wiseplayer.domain.enums.OwnerType.DEVICE.equals(playlist.getOwnerType()) || playlist.getOwnerType() == null) {
+                // Device-level PIN for regular users
+                String hashToCheck = (deviceStoredHash != null) ? deviceStoredHash : defaultPinHash;
+                isPinValid = passwordEncoder.matches(effectivePin, hashToCheck);
+            } else if (com.iptv.wiseplayer.domain.enums.OwnerType.RESELLER.equals(playlist.getOwnerType()) || com.iptv.wiseplayer.domain.enums.OwnerType.SUB_RESELLER.equals(playlist.getOwnerType())) {
+                // Playlist-level PIN for resellers and subresellers
+                String playlistHash = playlist.getPinHash();
+                String hashToCheck = (playlistHash != null) ? playlistHash : defaultPinHash;
+                isPinValid = passwordEncoder.matches(effectivePin, hashToCheck);
+            }
+
+            if (isPinValid) {
+                accessiblePlaylists.add(mapToResponse(playlist));
+            }
         }
 
-        // PIN is set — caller must supply the correct PIN
-        if (pin == null || pin.isBlank()) {
-            throw new AccessDeniedException(
-                    "This device is PIN-protected. Please provide the 4-digit PIN.");
-        }
-
-        if (!passwordEncoder.matches(pin, storedHash)) {
-            log.warn("Incorrect PIN attempt for device {}", device.getDeviceId());
+        if (accessiblePlaylists.isEmpty() && !allPlaylists.isEmpty()) {
+            log.warn("Incorrect PIN attempt for device {} with PIN {}", device.getDeviceId(), effectivePin);
             throw new AccessDeniedException("Incorrect PIN. Access denied.");
         }
 
-        return getPlaylists(device.getDeviceId());
+        return accessiblePlaylists;
     }
 
     @Override

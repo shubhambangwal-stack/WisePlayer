@@ -797,7 +797,7 @@ public class PaymentServiceImpl implements PaymentService {
         // Extract ID prefix from invoice Number INV-XXXXXXX
         String idPrefix = invoiceNumber.startsWith("INV-") ? invoiceNumber.substring(4) : invoiceNumber;
 
-        Payments targetPayment = null;
+        Payments targetPayment = null;  
 
         // If deviceId is provided and valid, try to find by device first (security check)
         if (deviceId != null && !deviceId.trim().isEmpty() && !"null".equalsIgnoreCase(deviceId)) {
