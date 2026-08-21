@@ -65,10 +65,10 @@ public class PlaylistController {
                 "data", response));
     }
 
-    @Operation(summary = "Get All Playlists", description = "Retrieves all saved playlists for the authenticated device. Pinned playlist is listed first.")
+    @Operation(summary = "Get All Playlists", description = "Retrieves all saved playlists for the authenticated device. Pinned playlist is listed first. If a playlist has a PIN set, the correct 4-digit PIN must be supplied.")
     @GetMapping
-    public ResponseEntity<List<PlaylistResponse>> getPlaylists() {
-        List<PlaylistResponse> response = playlistService.getPlaylists(deviceContext.getCurrentDeviceId());
+    public ResponseEntity<List<PlaylistResponse>> getPlaylists(@RequestParam(value = "pin", required = false) String pin) {
+        List<PlaylistResponse> response = playlistService.getPlaylists(deviceContext.getCurrentDeviceId(), pin);
         return ResponseEntity.ok(response);
     }
 

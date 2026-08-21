@@ -16,7 +16,7 @@ public interface PlaylistService {
 
     PlaylistResponse savePublicM3uPlaylist(String deviceId, M3uPlaylistRequest request);
 
-    List<PlaylistResponse> getPlaylists(UUID deviceId);
+    List<PlaylistResponse> getPlaylists(UUID deviceId, String pin);
 
     List<PlaylistResponse> getPublicPlaylists(String deviceId);
 

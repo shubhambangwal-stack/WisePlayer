@@ -213,7 +213,7 @@ public class PlaylistServiceImpl implements PlaylistService {
     }
 
     @Override
-    public java.util.List<PlaylistResponse> getPlaylists(UUID deviceId) {
+    public java.util.List<PlaylistResponse> getPlaylists(UUID deviceId, String pin) {
         // Validation check for device status
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -223,9 +223,38 @@ public class PlaylistServiceImpl implements PlaylistService {
             throw new AccessDeniedException("Access Denied: Your device status is " + device.getDeviceStatus());
         }
 
-        return playlistRepository.findByDeviceIdOrderByPinnedDescCreatedAtDesc(deviceId).stream()
-                .map(this::mapToResponse)
-                .collect(java.util.stream.Collectors.toList());
+        String deviceStoredHash = device.getPublicPinHash();
+        String defaultPinHash = passwordEncoder.encode("0000");
+        String effectivePin = (pin == null || pin.isBlank()) ? "0000" : pin;
+
+        java.util.List<Playlist> allPlaylists = playlistRepository.findByDeviceIdOrderByPinnedDescCreatedAtDesc(deviceId);
+        java.util.List<PlaylistResponse> accessiblePlaylists = new java.util.ArrayList<>();
+
+        for (Playlist playlist : allPlaylists) {
+            boolean isPinValid = false;
+
+            if (com.iptv.wiseplayer.domain.enums.OwnerType.DEVICE.equals(playlist.getOwnerType()) || playlist.getOwnerType() == null) {
+                // Device-level PIN for regular users
+                String hashToCheck = (deviceStoredHash != null) ? deviceStoredHash : defaultPinHash;
+                isPinValid = passwordEncoder.matches(effectivePin, hashToCheck);
+            } else if (com.iptv.wiseplayer.domain.enums.OwnerType.RESELLER.equals(playlist.getOwnerType()) || com.iptv.wiseplayer.domain.enums.OwnerType.SUB_RESELLER.equals(playlist.getOwnerType())) {
+                // Playlist-level PIN for resellers and subresellers
+                String playlistHash = playlist.getPinHash();
+                String hashToCheck = (playlistHash != null) ? playlistHash : defaultPinHash;
+                isPinValid = passwordEncoder.matches(effectivePin, hashToCheck);
+            }
+
+            if (isPinValid) {
+                accessiblePlaylists.add(mapToResponse(playlist));
+            }
+        }
+
+        if (accessiblePlaylists.isEmpty() && !allPlaylists.isEmpty()) {
+            log.warn("Incorrect PIN attempt for authenticated device {} with PIN {}", deviceId, effectivePin);
+            throw new AccessDeniedException("Incorrect PIN. Access denied.");
+        }
+
+        return accessiblePlaylists;
     }
 
     private Device resolveDevice(String deviceId) {
@@ -262,46 +291,13 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     public java.util.List<PlaylistResponse> getPublicPlaylists(String deviceId) {
         Device device = resolveDevice(deviceId);
-        return getPlaylists(device.getDeviceId());
+        return getPlaylists(device.getDeviceId(), null);
     }
 
     @Override
     public java.util.List<PlaylistResponse> getPublicPlaylistsWithPin(String deviceId, String pin) {
         Device device = resolveDevice(deviceId);
-
-        String deviceStoredHash = device.getPublicPinHash();
-        String defaultPinHash = passwordEncoder.encode("0000");
-
-        String effectivePin = (pin == null || pin.isBlank()) ? "0000" : pin;
-
-        java.util.List<Playlist> allPlaylists = playlistRepository.findByDeviceIdOrderByPinnedDescCreatedAtDesc(device.getDeviceId());
-        java.util.List<PlaylistResponse> accessiblePlaylists = new java.util.ArrayList<>();
-
-        for (Playlist playlist : allPlaylists) {
-            boolean isPinValid = false;
-
-            if (com.iptv.wiseplayer.domain.enums.OwnerType.DEVICE.equals(playlist.getOwnerType()) || playlist.getOwnerType() == null) {
-                // Device-level PIN for regular users
-                String hashToCheck = (deviceStoredHash != null) ? deviceStoredHash : defaultPinHash;
-                isPinValid = passwordEncoder.matches(effectivePin, hashToCheck);
-            } else if (com.iptv.wiseplayer.domain.enums.OwnerType.RESELLER.equals(playlist.getOwnerType()) || com.iptv.wiseplayer.domain.enums.OwnerType.SUB_RESELLER.equals(playlist.getOwnerType())) {
-                // Playlist-level PIN for resellers and subresellers
-                String playlistHash = playlist.getPinHash();
-                String hashToCheck = (playlistHash != null) ? playlistHash : defaultPinHash;
-                isPinValid = passwordEncoder.matches(effectivePin, hashToCheck);
-            }
-
-            if (isPinValid) {
-                accessiblePlaylists.add(mapToResponse(playlist));
-            }
-        }
-
-        if (accessiblePlaylists.isEmpty() && !allPlaylists.isEmpty()) {
-            log.warn("Incorrect PIN attempt for device {} with PIN {}", device.getDeviceId(), effectivePin);
-            throw new AccessDeniedException("Incorrect PIN. Access denied.");
-        }
-
-        return accessiblePlaylists;
+        return getPlaylists(device.getDeviceId(), pin);
     }
 
     @Override
