@@ -67,8 +67,12 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "X-Device-Fingerprint",
+                "value": "{{fingerprint}}"
               }
             ],
             "url": {
@@ -90,8 +94,12 @@
             "method": "DELETE",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "X-Device-Fingerprint",
+                "value": "{{fingerprint}}"
               }
             ],
             "url": {
@@ -112,8 +120,12 @@
             "method": "GET",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "X-Device-Fingerprint",
+                "value": "{{fingerprint}}"
               }
             ],
             "url": {
@@ -135,8 +147,12 @@
             "method": "GET",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              },
+              {
+                "key": "X-Device-Fingerprint",
+                "value": "{{fingerprint}}"
               }
             ],
             "url": {
@@ -181,6 +197,31 @@
               "path": ["api", "reseller", "playlists"]
             }
           }
+        },
+        {
+          "name": "SubReseller Create Playlist with PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{subResellerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Sports SubReseller\",\n  \"m3uUrl\": \"http://example.com/sports.m3u\",\n  \"pin\": \"5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subreseller/playlists",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subreseller", "playlists"]
+            }
+          }
         }
       ]
     }
@@ -201,6 +242,14 @@
     {
       "key": "resellerToken",
       "value": "jwt_reseller_token_here"
+    },
+    {
+      "key": "subResellerToken",
+      "value": "jwt_subreseller_token_here"
+    },
+    {
+      "key": "fingerprint",
+      "value": "device_fingerprint_here"
     }
   ]
 }
