@@ -1,0 +1,121 @@
+{
+  "info": {
+    "name": "WisePlayer PIN Testing Collection",
+    "description": "Collection to test Device and Playlist-level PIN functionality.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Public Playlists",
+      "item": [
+        {
+          "name": "Get Playlists with Valid PIN",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}?pin=1234",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}"],
+              "query": [
+                {
+                  "key": "pin",
+                  "value": "1234"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Playlists with Default PIN (0000)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}?pin=0000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}"],
+              "query": [
+                {
+                  "key": "pin",
+                  "value": "0000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Playlists without PIN (should use default 0000)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Device Settings",
+      "item": [
+        {
+          "name": "Set Device PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/device/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "device", "pin"],
+              "query": [
+                {
+                  "key": "pin",
+                  "value": "1234"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Device PIN",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/device/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "device", "pin"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "deviceId",
+      "value": "device_mac_or_id"
+    },
+    {
+      "key": "token",
+      "value": "jwt_token_here"
+    }
+  ]
+}

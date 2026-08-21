@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  * admins always stay consistent.
  */
 @Service
-public class RolePermissionService {
+public class    RolePermissionService {
 
     private static final Logger log = LoggerFactory.getLogger(RolePermissionService.class);
 
