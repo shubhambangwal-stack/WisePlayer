@@ -32,12 +32,14 @@ public class ResellerPlaylistServiceImpl implements ResellerPlaylistService {
     private final DeviceRepository deviceRepository;
     private final EncryptionUtil encryptionUtil;
     private final XtreamClient xtreamClient;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
-    public ResellerPlaylistServiceImpl(PlaylistRepository playlistRepository, DeviceRepository deviceRepository, EncryptionUtil encryptionUtil, XtreamClient xtreamClient) {
+    public ResellerPlaylistServiceImpl(PlaylistRepository playlistRepository, DeviceRepository deviceRepository, EncryptionUtil encryptionUtil, XtreamClient xtreamClient, org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.playlistRepository = playlistRepository;
         this.deviceRepository = deviceRepository;
         this.encryptionUtil = encryptionUtil;
         this.xtreamClient = xtreamClient;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // ─── Read ────────────────────────────────────────────────────────────────
@@ -72,6 +74,10 @@ public class ResellerPlaylistServiceImpl implements ResellerPlaylistService {
         playlist.setPassword(encryptionUtil.encrypt(request.getPassword()));
         playlist.setOwnerType(ownerType);
         playlist.setOwnerId(resellerId);
+        
+        if (request.getPin() != null && !request.getPin().isBlank()) {
+            playlist.setPinHash(passwordEncoder.encode(request.getPin()));
+        }
 
         Playlist saved = playlistRepository.save(playlist);
         return mapToResponse(saved);
@@ -86,6 +92,10 @@ public class ResellerPlaylistServiceImpl implements ResellerPlaylistService {
         playlist.setM3uUrl(encryptionUtil.encrypt(request.getM3uUrl()));
         playlist.setOwnerType(ownerType);
         playlist.setOwnerId(resellerId);
+
+        if (request.getPin() != null && !request.getPin().isBlank()) {
+            playlist.setPinHash(passwordEncoder.encode(request.getPin()));
+        }
 
         Playlist saved = playlistRepository.save(playlist);
         return mapToResponse(saved);

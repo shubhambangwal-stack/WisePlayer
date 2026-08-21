@@ -159,7 +159,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/device/key/status").authenticated()
 
                         // Content Endpoints (Require ACTIVE status)
-                        .requestMatchers("/api/playlist/**").hasRole("ACTIVE")
+                        .requestMatchers("/api/playlist", "/api/playlist/**").hasRole("ACTIVE")
                         .requestMatchers("/api/live/**").hasRole("ACTIVE")
                         .requestMatchers("/api/stream/**", "/api/v2/stream/**").hasRole("ACTIVE")
                         .requestMatchers("/api/catchup/**").hasRole("ACTIVE")

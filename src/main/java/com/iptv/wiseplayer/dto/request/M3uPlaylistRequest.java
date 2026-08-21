@@ -10,6 +10,8 @@ public class M3uPlaylistRequest {
     @NotBlank(message = "M3U URL is required")
     private String m3uUrl;
 
+    private String pin;
+
     public M3uPlaylistRequest() {
     }
 
@@ -32,5 +34,13 @@ public class M3uPlaylistRequest {
 
     public void setM3uUrl(String m3uUrl) {
         this.m3uUrl = m3uUrl;
+    }
+
+    public String getPin() {
+        return pin;
+    }
+
+    public void setPin(String pin) {
+        this.pin = pin;
     }
 }

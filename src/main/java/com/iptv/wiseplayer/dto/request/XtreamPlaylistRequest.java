@@ -16,6 +16,8 @@ public class XtreamPlaylistRequest {
     @NotBlank(message = "Password is required")
     private String password;
 
+    private String pin;
+
     public XtreamPlaylistRequest() {
     }
 
@@ -56,5 +58,13 @@ public class XtreamPlaylistRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getPin() {
+        return pin;
+    }
+
+    public void setPin(String pin) {
+        this.pin = pin;
     }
 }
