@@ -56,6 +56,8 @@ public interface PlaylistService {
     /** Unpin a playlist for an authenticated device (by UUID). */
     PlaylistResponse unpinPlaylist(UUID deviceId, UUID playlistId);
 
+    PlaylistResponse togglePlaylistLock(UUID deviceId, UUID playlistId, boolean isLocked);
+
     /** Get the currently pinned playlist for an authenticated device. */
     Optional<PlaylistResponse> getPinnedPlaylist(UUID deviceId);
 
