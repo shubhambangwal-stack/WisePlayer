@@ -174,52 +174,135 @@
       "name": "Reseller Playlists",
       "item": [
         {
-          "name": "Reseller Create Playlist with PIN",
+          "name": "Reseller Create M3U Playlist with PIN",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{resellerToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Premium Sports\",\n  \"m3uUrl\": \"http://example.com/sports.m3u\",\n  \"pin\": \"5678\"\n}"
+              "raw": "{\n  \"name\": \"Premium Sports\",\n  \"m3uUrl\": \"http://iptv-provider.com:8080/get.php?username=testuser&password=testpass&type=m3u_plus&output=ts\",\n  \"pin\": \"5678\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/reseller/playlists",
+              "raw": "{{baseUrl}}/api/reseller/playlists/m3u",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "reseller", "playlists"]
+              "path": ["api", "reseller", "playlists", "m3u"]
             }
           }
         },
         {
-          "name": "SubReseller Create Playlist with PIN",
+          "name": "SubReseller Create M3U Playlist with PIN",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{subResellerToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Premium Sports SubReseller\",\n  \"m3uUrl\": \"http://example.com/sports.m3u\",\n  \"pin\": \"5678\"\n}"
+              "raw": "{\n  \"name\": \"Premium Sports SubReseller\",\n  \"m3uUrl\": \"http://iptv-provider.com:8080/get.php?username=testuser2&password=testpass2&type=m3u_plus&output=ts\",\n  \"pin\": \"5678\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/subreseller/playlists",
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/m3u",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "subreseller", "playlists"]
+              "path": ["api", "sub-reseller", "playlists", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "Reseller Create Xtream Playlist with PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Xtream Sports\",\n  \"serverUrl\": \"http://iptv-provider.com:8080\",\n  \"username\": \"xtream_user\",\n  \"password\": \"xtream_pass\",\n  \"pin\": \"5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/xtream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "xtream"]
+            }
+          }
+        },
+        {
+          "name": "SubReseller Create Xtream Playlist with PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Xtream Sports SubReseller\",\n  \"serverUrl\": \"http://iptv-provider.com:8080\",\n  \"username\": \"xtream_user2\",\n  \"password\": \"xtream_pass2\",\n  \"pin\": \"5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/xtream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "xtream"]
+            }
+          }
+        },
+        {
+          "name": "❌ INVALID - M3U URL without m3u extension (should fail validation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid Playlist\",\n  \"m3uUrl\": \"http://example.com/sports\",\n  \"pin\": \"5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "❌ INVALID - Xtream URL with path (should fail validation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid Xtream\",\n  \"serverUrl\": \"http://provider.com/panel/api.php\",\n  \"username\": \"user\",\n  \"password\": \"pass\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/xtream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "xtream"]
+            }
+          }
+        },
+        {
+          "name": "❌ INVALID - PIN wrong format (should fail validation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid PIN\",\n  \"m3uUrl\": \"http://iptv-provider.com:8080/get.php?type=m3u_plus\",\n  \"pin\": \"abc\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "m3u"]
             }
           }
         }
