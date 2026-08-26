@@ -1,12 +1,335 @@
 {
   "info": {
-    "name": "WisePlayer PIN Testing Collection",
-    "description": "Collection to test Device and Playlist-level PIN functionality.",
+    "name": "WisePlayer Complete Feature Collection",
+    "description": "Tests for Global Search, Playlist-level PIN management (set/verify/remove), PIN-protected Playlist Deletion, and Device PIN.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Public Playlists",
+      "name": "1. Global Search",
+      "item": [
+        {
+          "name": "Search All Content (Live + VOD + Series)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?playlistId={{playlistId}}&q=batman&type=ALL&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "q", "value": "batman" },
+                { "key": "type", "value": "ALL" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Only VOD (Movies)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?playlistId={{playlistId}}&q=batman&type=VOD&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "q", "value": "batman" },
+                { "key": "type", "value": "VOD" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Only Live TV",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?playlistId={{playlistId}}&q=sports&type=LIVE&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "q", "value": "sports" },
+                { "key": "type", "value": "LIVE" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Only Series",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?playlistId={{playlistId}}&q=game of thrones&type=SERIES&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "q", "value": "game of thrones" },
+                { "key": "type", "value": "SERIES" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search – Page 2 (Pagination Test)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?playlistId={{playlistId}}&q=the&type=ALL&page=1&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "playlistId", "value": "{{playlistId}}" },
+                { "key": "q", "value": "the" },
+                { "key": "type", "value": "ALL" },
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Playlist-Level PIN – Authenticated Device",
+      "item": [
+        {
+          "name": "Set Playlist PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"1234\",\n  \"confirmPin\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/playlist-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "{{playlistId}}", "playlist-pin"]
+            }
+          }
+        },
+        {
+          "name": "Verify Playlist PIN – Correct",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/verify-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "{{playlistId}}", "verify-pin"]
+            }
+          }
+        },
+        {
+          "name": "Verify Playlist PIN – Wrong (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"9999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/verify-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "{{playlistId}}", "verify-pin"]
+            }
+          }
+        },
+        {
+          "name": "Remove Playlist PIN",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/playlist-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "{{playlistId}}", "playlist-pin"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Playlist-Level PIN – Public Device",
+      "item": [
+        {
+          "name": "Set Public Playlist PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"5678\",\n  \"confirmPin\": \"5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}/playlist-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}", "playlist-pin"]
+            }
+          }
+        },
+        {
+          "name": "Verify Public Playlist PIN – Correct",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}/verify-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}", "verify-pin"]
+            }
+          }
+        },
+        {
+          "name": "Verify Public Playlist PIN – Wrong (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"0000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}/verify-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}", "verify-pin"]
+            }
+          }
+        },
+        {
+          "name": "Remove Public Playlist PIN",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}/playlist-pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}", "playlist-pin"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. PIN-Protected Delete",
+      "item": [
+        {
+          "name": "Delete Playlist – No PIN set (free delete with pin=0000)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}?pin=0000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}"],
+              "query": [{ "key": "pin", "value": "0000" }]
+            }
+          }
+        },
+        {
+          "name": "Delete Playlist – With Correct PIN (after PIN is set)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}?pin=1234",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}"],
+              "query": [{ "key": "pin", "value": "1234" }]
+            }
+          }
+        },
+        {
+          "name": "Delete Playlist – Wrong PIN (expect 403)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}?pin=9999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}"],
+              "query": [{ "key": "pin", "value": "9999" }]
+            }
+          }
+        },
+        {
+          "name": "Delete Playlist – No PIN param (free if no PIN set, denied if PIN set)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Device-Level PIN (existing)",
       "item": [
         {
           "name": "Get Playlists with Valid PIN",
@@ -17,74 +340,27 @@
               "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}?pin=1234",
               "host": ["{{baseUrl}}"],
               "path": ["api", "playlist", "public", "{{deviceId}}"],
-              "query": [
-                {
-                  "key": "pin",
-                  "value": "1234"
-                }
-              ]
+              "query": [{ "key": "pin", "value": "1234" }]
             }
           }
         },
-        {
-          "name": "Get Playlists with Default PIN (0000)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}?pin=0000",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "playlist", "public", "{{deviceId}}"],
-              "query": [
-                {
-                  "key": "pin",
-                  "value": "0000"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Playlists without PIN (should use default 0000)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "playlist", "public", "{{deviceId}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Device Settings",
-      "item": [
         {
           "name": "Set Device PIN",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "X-Device-Token",
-                "value": "{{token}}"
-              },
-              {
-                "key": "X-Device-Fingerprint",
-                "value": "{{fingerprint}}"
-              }
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"1234\",\n  \"confirmPin\": \"1234\"\n}"
+            },
             "url": {
-              "raw": "{{baseUrl}}/api/device/pin",
+              "raw": "{{baseUrl}}/api/playlist/pin",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "device", "pin"],
-              "query": [
-                {
-                  "key": "pin",
-                  "value": "1234"
-                }
-              ]
+              "path": ["api", "playlist", "pin"]
             }
           }
         },
@@ -93,108 +369,37 @@
           "request": {
             "method": "DELETE",
             "header": [
-              {
-                "key": "X-Device-Token",
-                "value": "{{token}}"
-              },
-              {
-                "key": "X-Device-Fingerprint",
-                "value": "{{fingerprint}}"
-              }
+              { "key": "X-Device-Token", "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint", "value": "{{fingerprint}}" }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/device/pin",
+              "raw": "{{baseUrl}}/api/playlist/pin",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "device", "pin"]
+              "path": ["api", "playlist", "pin"]
             }
           }
         }
       ]
     },
     {
-      "name": "Authenticated Playlists",
-      "item": [
-        {
-          "name": "Get Authenticated Playlists with PIN",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-Device-Token",
-                "value": "{{token}}"
-              },
-              {
-                "key": "X-Device-Fingerprint",
-                "value": "{{fingerprint}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/playlist?pin=1234",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "playlist"],
-              "query": [
-                {
-                  "key": "pin",
-                  "value": "1234"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Authenticated Playlists with Default PIN",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-Device-Token",
-                "value": "{{token}}"
-              },
-              {
-                "key": "X-Device-Fingerprint",
-                "value": "{{fingerprint}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/playlist?pin=0000",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "playlist"],
-              "query": [
-                {
-                  "key": "pin",
-                  "value": "0000"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Reseller Playlists",
+      "name": "6. Reseller Playlists – PIN",
       "item": [
         {
           "name": "Reseller Create Playlist with PIN",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{resellerToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Premium Sports\",\n  \"m3uUrl\": \"http://example.com/sports.m3u\",\n  \"pin\": \"5678\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/reseller/playlists",
+              "raw": "{{baseUrl}}/api/reseller/playlists/m3u",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "reseller", "playlists"]
+              "path": ["api", "reseller", "playlists", "m3u"]
             }
           }
         },
@@ -203,23 +408,17 @@
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{subResellerToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Premium Sports SubReseller\",\n  \"m3uUrl\": \"http://example.com/sports.m3u\",\n  \"pin\": \"5678\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/subreseller/playlists",
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/m3u",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "subreseller", "playlists"]
+              "path": ["api", "sub-reseller", "playlists", "m3u"]
             }
           }
         }
@@ -227,29 +426,12 @@
     }
   ],
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:8080"
-    },
-    {
-      "key": "deviceId",
-      "value": "device_mac_or_id"
-    },
-    {
-      "key": "token",
-      "value": "jwt_token_here"
-    },
-    {
-      "key": "resellerToken",
-      "value": "jwt_reseller_token_here"
-    },
-    {
-      "key": "subResellerToken",
-      "value": "jwt_subreseller_token_here"
-    },
-    {
-      "key": "fingerprint",
-      "value": "device_fingerprint_here"
-    }
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "deviceId", "value": "device_mac_or_id_here" },
+    { "key": "playlistId", "value": "playlist-uuid-here" },
+    { "key": "token", "value": "device_jwt_token_here" },
+    { "key": "fingerprint", "value": "device_fingerprint_here" },
+    { "key": "resellerToken", "value": "jwt_reseller_token_here" },
+    { "key": "subResellerToken", "value": "jwt_subreseller_token_here" }
   ]
 }

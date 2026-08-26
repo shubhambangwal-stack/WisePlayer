@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.controller;
 
 import com.iptv.wiseplayer.dto.request.M3uPlaylistRequest;
+import com.iptv.wiseplayer.dto.request.PlaylistPinRequest;
 import com.iptv.wiseplayer.dto.request.SetDevicePinRequest;
 import com.iptv.wiseplayer.dto.request.XtreamPlaylistRequest;
 import com.iptv.wiseplayer.dto.response.PlaylistResponse;
@@ -92,6 +93,9 @@ public class PlaylistController {
             + "Requires an active device token. Send an empty-body DELETE to /pin to remove the PIN.")
     @PostMapping("/pin")
     public ResponseEntity<?> setDevicePin(@Valid @RequestBody SetDevicePinRequest request) {
+        if (request.getConfirmPin() == null || !request.getConfirmPin().equals(request.getPin())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "PIN and Confirm PIN do not match"));
+        }
         playlistService.setDevicePin(deviceContext.getCurrentDeviceId(), request.getPin());
         return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -122,12 +126,14 @@ public class PlaylistController {
                 "data", response));
     }
 
-    @Operation(summary = "Delete Public Playlist", description = "Deletes a specific playlist by ID for a MAC address/device ID.")
+    @Operation(summary = "Delete Public Playlist",
+        description = "Deletes a specific playlist by ID. If the playlist has a PIN set, the correct PIN must be supplied via ?pin= query parameter. Use pin=0000 when no PIN is configured.")
     @DeleteMapping("/public/{deviceId}/{playlistId}")
     public ResponseEntity<?> deletePublicPlaylist(
             @PathVariable String deviceId,
-            @PathVariable java.util.UUID playlistId) {
-        playlistService.deletePublicPlaylist(deviceId, playlistId);
+            @PathVariable java.util.UUID playlistId,
+            @RequestParam(value = "pin", required = false) String pin) {
+        playlistService.deletePublicPlaylistWithPin(deviceId, playlistId, pin);
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Playlist deleted successfully"));
@@ -197,5 +203,117 @@ public class PlaylistController {
                 .orElse(ResponseEntity.status(404).body(Map.of(
                         "success", false,
                         "message", "No playlist is currently pinned for this device")));
+    }
+
+    // ── Playlist-level PIN management ────────────────────────────────────
+
+    @Operation(
+        summary = "Set Playlist PIN",
+        description = "Sets or replaces a 4-digit PIN on a specific playlist for the authenticated device. "
+            + "Once set, this PIN is required when deleting the playlist.")
+    @PostMapping("/{playlistId}/playlist-pin")
+    public ResponseEntity<?> setPlaylistPin(
+            @PathVariable java.util.UUID playlistId,
+            @Valid @RequestBody PlaylistPinRequest request) {
+        if (request.getConfirmPin() == null || !request.getConfirmPin().equals(request.getPin())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "PIN and Confirm PIN do not match"));
+        }
+        PlaylistResponse response = playlistService.setPlaylistPin(
+                deviceContext.getCurrentDeviceId(), playlistId, request.getPin());
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist PIN set successfully",
+                "data", response));
+    }
+
+    @Operation(
+        summary = "Remove Playlist PIN",
+        description = "Removes the PIN protection from a specific playlist for the authenticated device.")
+    @DeleteMapping("/{playlistId}/playlist-pin")
+    public ResponseEntity<?> removePlaylistPin(@PathVariable java.util.UUID playlistId) {
+        PlaylistResponse response = playlistService.removePlaylistPin(
+                deviceContext.getCurrentDeviceId(), playlistId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist PIN removed successfully",
+                "data", response));
+    }
+
+    @Operation(
+        summary = "Verify Playlist PIN",
+        description = "Verifies the supplied 4-digit PIN against the playlist's stored PIN. "
+            + "Returns {valid: true} when correct. Useful before showing sensitive actions on the client.")
+    @PostMapping("/{playlistId}/verify-pin")
+    public ResponseEntity<?> verifyPlaylistPin(
+            @PathVariable java.util.UUID playlistId,
+            @Valid @RequestBody PlaylistPinRequest request) {
+        boolean valid = playlistService.verifyPlaylistPin(
+                deviceContext.getCurrentDeviceId(), playlistId, request.getPin());
+        if (!valid) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "valid", false,
+                    "message", "Incorrect PIN"));
+        }
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "valid", true,
+                "message", "PIN verified successfully"));
+    }
+
+    // ── Public Playlist-level PIN management ───────────────────────────
+
+    @Operation(
+        summary = "Set Public Playlist PIN",
+        description = "Sets or replaces a 4-digit PIN on a specific public playlist. "
+            + "Once set, this PIN is required when deleting the playlist.")
+    @PostMapping("/public/{deviceId}/{playlistId}/playlist-pin")
+    public ResponseEntity<?> setPublicPlaylistPin(
+            @PathVariable String deviceId,
+            @PathVariable java.util.UUID playlistId,
+            @Valid @RequestBody PlaylistPinRequest request) {
+        if (request.getConfirmPin() == null || !request.getConfirmPin().equals(request.getPin())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "PIN and Confirm PIN do not match"));
+        }
+        PlaylistResponse response = playlistService.setPublicPlaylistPin(deviceId, playlistId, request.getPin());
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist PIN set successfully",
+                "data", response));
+    }
+
+    @Operation(
+        summary = "Remove Public Playlist PIN",
+        description = "Removes the PIN from a specific public playlist.")
+    @DeleteMapping("/public/{deviceId}/{playlistId}/playlist-pin")
+    public ResponseEntity<?> removePublicPlaylistPin(
+            @PathVariable String deviceId,
+            @PathVariable java.util.UUID playlistId) {
+        PlaylistResponse response = playlistService.removePublicPlaylistPin(deviceId, playlistId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist PIN removed successfully",
+                "data", response));
+    }
+
+    @Operation(
+        summary = "Verify Public Playlist PIN",
+        description = "Verifies the supplied PIN against a public playlist's stored PIN.")
+    @PostMapping("/public/{deviceId}/{playlistId}/verify-pin")
+    public ResponseEntity<?> verifyPublicPlaylistPin(
+            @PathVariable String deviceId,
+            @PathVariable java.util.UUID playlistId,
+            @Valid @RequestBody PlaylistPinRequest request) {
+        boolean valid = playlistService.verifyPublicPlaylistPin(deviceId, playlistId, request.getPin());
+        if (!valid) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "valid", false,
+                    "message", "Incorrect PIN"));
+        }
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "valid", true,
+                "message", "PIN verified successfully"));
     }
 }

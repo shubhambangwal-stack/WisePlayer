@@ -94,6 +94,9 @@ public class XtreamClient {
     /**
      * Fetches live streams for a category.
      */
+    /**
+     * Fetches live streams for a category, or ALL live streams when categoryId is null/blank.
+     */
     public List<XtreamLiveStream> getLiveStreams(String serverUrl, String username, String password,
             String categoryId) {
         UriComponentsBuilder builder = buildBaseUrl(serverUrl, username, password)
@@ -149,12 +152,17 @@ public class XtreamClient {
     /**
      * Fetches VOD streams for a category.
      */
+    /**
+     * Fetches VOD streams for a category, or ALL VOD streams when categoryId is null/blank.
+     */
     public List<XtreamVodStream> getVodStreams(String serverUrl, String username, String password,
             String categoryId) {
-        String url = buildBaseUrl(serverUrl, username, password)
-                .queryParam("action", "get_vod_streams")
-                .queryParam("category_id", categoryId)
-                .toUriString();
+        UriComponentsBuilder builder = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_vod_streams");
+        if (categoryId != null && !categoryId.trim().isEmpty()) {
+            builder.queryParam("category_id", categoryId);
+        }
+        String url = builder.toUriString();
         logger.info("getVodStreams starting. Server: {}, categoryId: {}, URL: {}", serverUrl, categoryId, url);
 
         try {
@@ -198,12 +206,17 @@ public class XtreamClient {
     /**
      * Fetches Series for a category.
      */
+    /**
+     * Fetches Series for a category, or ALL series when categoryId is null/blank.
+     */
     public List<XtreamSeries> getSeries(String serverUrl, String username, String password,
             String categoryId) {
-        String url = buildBaseUrl(serverUrl, username, password)
-                .queryParam("action", "get_series")
-                .queryParam("category_id", categoryId)
-                .toUriString();
+        UriComponentsBuilder builder = buildBaseUrl(serverUrl, username, password)
+                .queryParam("action", "get_series");
+        if (categoryId != null && !categoryId.trim().isEmpty()) {
+            builder.queryParam("category_id", categoryId);
+        }
+        String url = builder.toUriString();
         logger.info("getSeries starting. Server: {}, categoryId: {}, URL: {}", serverUrl, categoryId, url);
 
         try {

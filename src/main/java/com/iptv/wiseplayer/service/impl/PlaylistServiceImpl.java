@@ -326,12 +326,89 @@ public class PlaylistServiceImpl implements PlaylistService {
     @Override
     @Transactional
     public void deletePublicPlaylist(String deviceId, UUID playlistId) {
+        // Legacy: treat as deletePublicPlaylistWithPin with the default PIN
+        deletePublicPlaylistWithPin(deviceId, playlistId, "0000");
+    }
+
+    // ── Playlist-level PIN management ────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public PlaylistResponse setPlaylistPin(UUID deviceId, UUID playlistId, String pin) {
+        Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+        playlist.setPinHash(passwordEncoder.encode(pin));
+        log.info("Playlist-level PIN set for playlistId={}", playlistId);
+        return mapToResponse(playlistRepository.save(playlist));
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse removePlaylistPin(UUID deviceId, UUID playlistId) {
+        Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+        playlist.setPinHash(null);
+        log.info("Playlist-level PIN removed for playlistId={}", playlistId);
+        return mapToResponse(playlistRepository.save(playlist));
+    }
+
+    @Override
+    public boolean verifyPlaylistPin(UUID deviceId, UUID playlistId, String pin) {
+        Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+        String stored = playlist.getPinHash();
+        if (stored == null) {
+            // No PIN set — accept the default "0000" or any attempt gracefully
+            return "0000".equals(pin) || pin == null;
+        }
+        return passwordEncoder.matches(pin, stored);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse setPublicPlaylistPin(String deviceId, UUID playlistId, String pin) {
+        Device device = resolveDevice(deviceId);
+        return setPlaylistPin(device.getDeviceId(), playlistId, pin);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse removePublicPlaylistPin(String deviceId, UUID playlistId) {
+        Device device = resolveDevice(deviceId);
+        return removePlaylistPin(device.getDeviceId(), playlistId);
+    }
+
+    @Override
+    public boolean verifyPublicPlaylistPin(String deviceId, UUID playlistId, String pin) {
+        Device device = resolveDevice(deviceId);
+        return verifyPlaylistPin(device.getDeviceId(), playlistId, pin);
+    }
+
+    /**
+     * Deletes a public playlist after verifying its PIN.
+     * If the playlist has NO pin_hash stored, the deletion is allowed freely (default open).
+     * If a pin_hash IS stored, the supplied PIN must match.
+     */
+    @Override
+    @Transactional
+    public void deletePublicPlaylistWithPin(String deviceId, UUID playlistId, String pin) {
         Device device = resolveDevice(deviceId);
 
         Playlist playlist = playlistRepository.findByIdAndDeviceId(playlistId, device.getDeviceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
-                
+
+        String storedHash = playlist.getPinHash();
+        if (storedHash != null && !storedHash.isBlank()) {
+            // PIN is set — must verify
+            String effectivePin = (pin == null || pin.isBlank()) ? "0000" : pin;
+            if (!passwordEncoder.matches(effectivePin, storedHash)) {
+                log.warn("Incorrect PIN attempt for playlist deletion. playlistId={}", playlistId);
+                throw new AccessDeniedException("Incorrect PIN. Playlist deletion denied.");
+            }
+        }
+
         playlistRepository.delete(playlist);
+        log.info("Playlist {} deleted successfully.", playlistId);
     }
 
     @Override

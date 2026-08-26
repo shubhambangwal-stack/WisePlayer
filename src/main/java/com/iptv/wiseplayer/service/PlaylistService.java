@@ -23,32 +23,55 @@ public interface PlaylistService {
     /**
      * Retrieves public playlists after verifying the device PIN.
      * If the device has no PIN set, access is granted freely (backward-compatible).
-     *
-     * @param deviceId the device MAC address, fingerprint, or UUID
-     * @param pin      the 4-digit PIN to verify (may be null if no PIN is set)
      */
     List<PlaylistResponse> getPublicPlaylistsWithPin(String deviceId, String pin);
 
     /**
      * Sets (or replaces) the 4-digit public access PIN for the authenticated device.
-     *
-     * @param deviceId the UUID of the authenticated device
-     * @param pin      the raw 4-digit PIN to hash and store
      */
     void setDevicePin(UUID deviceId, String pin);
 
     /**
      * Removes the public access PIN from the authenticated device.
-     *
-     * @param deviceId the UUID of the authenticated device
      */
     void removeDevicePin(UUID deviceId);
 
+    /** Legacy delete without PIN (delegates to deletePublicPlaylistWithPin with null). */
     void deletePublicPlaylist(String deviceId, UUID playlistId);
 
     PlaylistResponse updatePublicM3uPlaylist(String deviceId, UUID playlistId, M3uPlaylistRequest request);
 
-    // ── Playlist Pin/Unpin (favourite) ───────────────────────────────────────
+    // ── Playlist-level PIN management ─────────────────────────────────────────
+
+    /** Sets or replaces the 4-digit PIN on a specific playlist owned by the device. */
+    PlaylistResponse setPlaylistPin(UUID deviceId, UUID playlistId, String pin);
+
+    /** Removes the PIN from a specific playlist owned by the device. */
+    PlaylistResponse removePlaylistPin(UUID deviceId, UUID playlistId);
+
+    /**
+     * Verifies the provided PIN against the stored hash for a playlist.
+     * Returns true if PIN matches, or if no PIN is set and pin is null/"0000".
+     */
+    boolean verifyPlaylistPin(UUID deviceId, UUID playlistId, String pin);
+
+    /** Sets or replaces the 4-digit PIN on a specific public playlist. */
+    PlaylistResponse setPublicPlaylistPin(String deviceId, UUID playlistId, String pin);
+
+    /** Removes the PIN from a specific public playlist. */
+    PlaylistResponse removePublicPlaylistPin(String deviceId, UUID playlistId);
+
+    /** Verifies the PIN for a public playlist. */
+    boolean verifyPublicPlaylistPin(String deviceId, UUID playlistId, String pin);
+
+    /**
+     * Deletes a public playlist after verifying its PIN.
+     * If no PIN is set on the playlist, deletion proceeds freely.
+     * If a PIN is set, the supplied pin must match.
+     */
+    void deletePublicPlaylistWithPin(String deviceId, UUID playlistId, String pin);
+
+    // ── Playlist Pin/Unpin (favourite star) ───────────────────────────────────
 
     /** Pin a playlist for an authenticated device (by UUID). */
     PlaylistResponse pinPlaylist(UUID deviceId, UUID playlistId);
