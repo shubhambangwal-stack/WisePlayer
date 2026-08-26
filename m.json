@@ -1,0 +1,156 @@
+{
+  "info": {
+    "name": "WisePlayer Playlist API Collection",
+    "description": "Comprehensive collection for testing WisePlayer Playlist APIs including Lock and Pin functionalities.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Playlist Security (Lock)",
+      "item": [
+        {
+          "name": "Toggle Playlist Lock (Lock)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"isLocked\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/lock",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "lock"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Playlist Lock (Unlock)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"playlistId\": \"{{playlistId}}\",\n  \"isLocked\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/lock",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "lock"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Playlist Pinning (Favorites)",
+      "item": [
+        {
+          "name": "Pin a Playlist",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "{{playlistId}}", "pin"]
+            }
+          }
+        },
+        {
+          "name": "Unpin a Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "{{playlistId}}", "pin"]
+            }
+          }
+        },
+        {
+          "name": "Get Pinned Playlists",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/pinned",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "pinned"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "General Playlists",
+      "item": [
+        {
+          "name": "Get All Playlists",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Device-Token",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "playlistId",
+      "value": "your-playlist-uuid"
+    },
+    {
+      "key": "token",
+      "value": "your-device-token"
+    }
+  ]
+}

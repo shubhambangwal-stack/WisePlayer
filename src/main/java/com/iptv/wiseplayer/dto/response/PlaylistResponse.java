@@ -18,12 +18,13 @@ public class PlaylistResponse {
     private String m3uUrl;
     private boolean pinned;
     private CatchUpStatus catchUp;
+    private boolean isLocked;
 
     public PlaylistResponse() {
     }
 
     public PlaylistResponse(UUID id, UUID deviceId, String name, PlaylistType type, String serverUrl, String username,
-            String password, String m3uUrl, boolean pinned) {
+            String password, String m3uUrl, boolean pinned, boolean isLocked) {
         this.id = id;
         this.deviceId = deviceId;
         this.name = name;
@@ -33,6 +34,7 @@ public class PlaylistResponse {
         this.password = password;
         this.m3uUrl = m3uUrl;
         this.pinned = pinned;
+        this.isLocked = isLocked;
     }
 
     public UUID getId() {
@@ -113,5 +115,13 @@ public class PlaylistResponse {
 
     public void setCatchUp(CatchUpStatus catchUp) {
         this.catchUp = catchUp;
+    }
+
+    public boolean getIsLocked() {
+        return isLocked;
+    }
+
+    public void setIsLocked(boolean isLocked) {
+        this.isLocked = isLocked;
     }
 }

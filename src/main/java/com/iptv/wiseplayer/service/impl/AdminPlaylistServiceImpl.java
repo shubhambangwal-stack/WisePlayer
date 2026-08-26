@@ -207,6 +207,7 @@ public class AdminPlaylistServiceImpl implements AdminPlaylistService {
                 username,
                 password,
                 m3uUrl,
-                playlist.isPinned());
+                playlist.isPinned(),
+                playlist.getPinHash() != null);
     }
 }

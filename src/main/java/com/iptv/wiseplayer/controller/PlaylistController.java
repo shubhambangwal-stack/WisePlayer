@@ -139,6 +139,18 @@ public class PlaylistController {
                 "message", "Playlist deleted successfully"));
     }
 
+    @Operation(summary = "Toggle Playlist Lock", description = "Toggles the lock status of a playlist for a device.")
+    @PostMapping("/lock")
+    public ResponseEntity<?> togglePlaylistLock(@RequestBody Map<String, Object> request) {
+        java.util.UUID playlistId = java.util.UUID.fromString((String) request.get("playlistId"));
+        boolean isLocked = (Boolean) request.get("isLocked");
+        PlaylistResponse response = playlistService.togglePlaylistLock(deviceContext.getCurrentDeviceId(), playlistId, isLocked);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Playlist lock status toggled successfully",
+                "data", response));
+    }
+
     // ── Pin / Unpin Endpoints ────────────────────────────────────────────────
 
     @Operation(summary = "Pin Playlist", description = "Pins a playlist for the authenticated device. Automatically unpins any previously pinned playlist (one pin per device).")

@@ -55,9 +55,10 @@ public class XmltvEpgParser {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false);
             factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
             factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
 
@@ -102,16 +103,28 @@ public class XmltvEpgParser {
             return null;
         }
         try {
-            // XMLTV: "20260601123000 +0200" -> parse LocalDateTime + offset
+            // XMLTV: "20260820140000 +0530" or "20260820140000 +05:30" or "20260820140000"
             String trimmed = value.trim();
+            if (trimmed.length() < 14) {
+                return null;
+            }
             String dateTimePart = trimmed.substring(0, 14);
             LocalDateTime local = LocalDateTime.parse(dateTimePart, DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-            if (trimmed.length() > 15) {
-                String offsetPart = trimmed.substring(15).trim();
-                ZoneOffset offset = ZoneOffset.of(offsetPart);
-                return local.toEpochSecond(offset);
+
+            if (trimmed.length() >= 19) {
+                String offsetPart = trimmed.substring(14).trim();
+                // Format "+0530" -> "+05:30" if missing colon
+                if (offsetPart.matches("^[+-]\\d{4}$")) {
+                    offsetPart = offsetPart.substring(0, 3) + ":" + offsetPart.substring(3);
+                }
+                try {
+                    ZoneOffset offset = ZoneOffset.of(offsetPart);
+                    return local.toEpochSecond(offset);
+                } catch (Exception ignored) { }
             }
-            return local.toEpochSecond(ZoneOffset.UTC);
+            // If offset is missing or invalid, interpret local time relative to server system timezone offset
+            ZoneOffset defaultOffset = java.time.ZoneId.systemDefault().getRules().getOffset(Instant.now());
+            return local.toEpochSecond(defaultOffset);
         } catch (Exception e) {
             log.warn("Invalid XMLTV timestamp '{}': {}", value, e.getMessage());
             return null;
