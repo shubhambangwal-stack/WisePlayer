@@ -27,6 +27,9 @@ public class XtreamCatalogService {
         return xtreamClient.getLiveCategories(creds.serverUrl(), creds.username(), creds.password());
     }
 
+    /**
+     * Fetch live streams. If categoryId is null or blank, fetches ALL live streams across all categories.
+     */
     public List<XtreamLiveStream> getLiveStreams(UUID playlistId, String categoryId) {
         SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
         return xtreamClient.getLiveStreams(creds.serverUrl(), creds.username(), creds.password(), categoryId);
@@ -37,6 +40,9 @@ public class XtreamCatalogService {
         return xtreamClient.getVodCategories(creds.serverUrl(), creds.username(), creds.password());
     }
 
+    /**
+     * Fetch VOD streams. If categoryId is null or blank, fetches ALL VOD streams across all categories.
+     */
     public List<XtreamVodStream> getVodStreams(UUID playlistId, String categoryId) {
         SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
         return xtreamClient.getVodStreams(creds.serverUrl(), creds.username(), creds.password(), categoryId);
@@ -47,6 +53,9 @@ public class XtreamCatalogService {
         return xtreamClient.getSeriesCategories(creds.serverUrl(), creds.username(), creds.password());
     }
 
+    /**
+     * Fetch series. If categoryId is null or blank, fetches ALL series across all categories.
+     */
     public List<XtreamSeries> getSeries(UUID playlistId, String categoryId) {
         SecureCredentialStore.Credentials creds = credentialStore.getCredentials(playlistId);
         return xtreamClient.getSeries(creds.serverUrl(), creds.username(), creds.password(), categoryId);

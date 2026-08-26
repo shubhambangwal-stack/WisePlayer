@@ -5,13 +5,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 /**
- * Request payload for setting or updating a device's 4-digit public access PIN.
+ * Request payload for setting or verifying a playlist-level 4-digit PIN.
  */
-@Schema(description = "Request payload for setting a 4-digit public playlist PIN")
-public class SetDevicePinRequest {
+@Schema(description = "Request payload for setting or verifying a 4-digit playlist PIN")
+public class PlaylistPinRequest {
 
     @Schema(
-        description = "A 4-digit numeric PIN to protect public playlist access",
+        description = "A 4-digit numeric PIN to protect this playlist",
         requiredMode = Schema.RequiredMode.REQUIRED,
         example = "1234"
     )
@@ -26,19 +26,8 @@ public class SetDevicePinRequest {
     )
     private String confirmPin;
 
-    public String getPin() {
-        return pin;
-    }
-
-    public void setPin(String pin) {
-        this.pin = pin;
-    }
-
-    public String getConfirmPin() {
-        return confirmPin;
-    }
-
-    public void setConfirmPin(String confirmPin) {
-        this.confirmPin = confirmPin;
-    }
+    public String getPin() { return pin; }
+    public void setPin(String pin) { this.pin = pin; }
+    public String getConfirmPin() { return confirmPin; }
+    public void setConfirmPin(String confirmPin) { this.confirmPin = confirmPin; }
 }

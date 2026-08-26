@@ -1,0 +1,827 @@
+{
+  "info": {
+    "name": "WisePlayer - Complete Playlist Collection",
+    "description": "Full coverage of every playlist endpoint. START with '0. Device Setup' to register and activate your device first.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",           "value": "http://localhost:8081" },
+    { "key": "token",             "value": "PASTE_DEVICE_TOKEN_HERE" },
+    { "key": "fingerprint",       "value": "PASTE_RAW_FINGERPRINT_HERE" },
+    { "key": "resellerToken",     "value": "PASTE_RESELLER_JWT_HERE" },
+    { "key": "subResellerToken",  "value": "PASTE_SUB_RESELLER_JWT_HERE" },
+    { "key": "deviceId",          "value": "DEVICE_MAC_OR_UUID" },
+    { "key": "playlistId",        "value": "PLAYLIST_UUID_HERE" },
+    { "key": "activationKey",     "value": "6_DIGIT_KEY_HERE" }
+  ],
+  "item": [
+
+    {
+      "name": "0. Device Setup (Run First!)",
+      "description": "STEP 1: Register → STEP 2: Reseller Login → STEP 3: Generate Key → STEP 4: Activate → STEP 5: Validate (get token). After step 5, paste the token+fingerprint into collection variables.",
+      "item": [
+        {
+          "name": "STEP 1 — Register Device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.deviceId) {",
+                  "  pm.collectionVariables.set('deviceId', json.data.deviceId);",
+                  "  console.log('deviceId saved:', json.data.deviceId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"AA:BB:CC:DD:EE:FF\",\n  \"deviceModel\": \"Test Device\",\n  \"osVersion\": \"14.0\",\n  \"platform\": \"android\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/device/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "device", "register"]
+            }
+          }
+        },
+        {
+          "name": "STEP 2 — Reseller Login (get resellerToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('resellerToken', json.data.token);",
+                  "  console.log('resellerToken saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"reseller@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "login"]
+            }
+          }
+        },
+        {
+          "name": "STEP 3 — Generate 6-Digit Activation Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.key) {",
+                  "  pm.collectionVariables.set('activationKey', json.data.key);",
+                  "  console.log('activationKey saved:', json.data.key);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"AA:BB:CC:DD:EE:FF\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/device/key",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "device", "key"]
+            }
+          }
+        },
+        {
+          "name": "STEP 4 — Activate Device with Key",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"AA:BB:CC:DD:EE:FF\",\n  \"activationKey\": \"{{activationKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/device/activate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "device", "activate"]
+            }
+          }
+        },
+        {
+          "name": "STEP 5 — Validate Device (get token + fingerprint)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "  console.log('token saved');",
+                  "}",
+                  "// Set the raw fingerprint (the deviceId you registered with)",
+                  "pm.collectionVariables.set('fingerprint', 'AA:BB:CC:DD:EE:FF');",
+                  "console.log('fingerprint set to AA:BB:CC:DD:EE:FF');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"AA:BB:CC:DD:EE:FF\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/device/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "device", "validate"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "1. Device — M3U Playlists (Authenticated)",
+      "description": "Requires X-Device-Token + X-Device-Fingerprint headers. Device must be ACTIVE.",
+      "item": [
+        {
+          "name": "Save M3U Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" },
+              { "key": "Content-Type",           "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My M3U Playlist\",\n  \"m3uUrl\": \"http://example.com/playlist.m3u\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "Save M3U Playlist (with PIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" },
+              { "key": "Content-Type",           "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PIN Protected M3U\",\n  \"m3uUrl\": \"http://example.com/playlist.m3u\",\n  \"pin\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "Save Xtream Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" },
+              { "key": "Content-Type",           "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Xtream Playlist\",\n  \"serverUrl\": \"http://xtream-server.com\",\n  \"username\": \"myuser\",\n  \"password\": \"mypass\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/xtream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "xtream"]
+            }
+          }
+        },
+        {
+          "name": "Get All Playlists (No PIN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist"]
+            }
+          }
+        },
+        {
+          "name": "Get All Playlists (With PIN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist?pin=1234",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist"],
+              "query": [{ "key": "pin", "value": "1234" }]
+            }
+          }
+        },
+        {
+          "name": "Get All Playlists (Default PIN 0000)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist?pin=0000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist"],
+              "query": [{ "key": "pin", "value": "0000" }]
+            }
+          }
+        },
+        {
+          "name": "Get Pinned Playlist",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/pinned",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "pinned"]
+            }
+          }
+        },
+        {
+          "name": "Pin a Playlist",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "{{playlistId}}", "pin"]
+            }
+          }
+        },
+        {
+          "name": "Unpin a Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/{{playlistId}}/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "{{playlistId}}", "pin"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "2. Device — PIN Management",
+      "description": "Set or remove the device-level public access PIN.",
+      "item": [
+        {
+          "name": "Set Device PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" },
+              { "key": "Content-Type",           "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "pin"]
+            }
+          }
+        },
+        {
+          "name": "Remove Device PIN",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-Device-Token",        "value": "{{token}}" },
+              { "key": "X-Device-Fingerprint",  "value": "{{fingerprint}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "pin"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "3. Public (Website) — Playlists",
+      "description": "No auth token required. Accessed by MAC/fingerprint/UUID in URL path.",
+      "item": [
+        {
+          "name": "Get Public Playlists (No PIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Public Playlists (With PIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}?pin=1234",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}"],
+              "query": [{ "key": "pin", "value": "1234" }]
+            }
+          }
+        },
+        {
+          "name": "Get Public Playlists (Default PIN 0000)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}?pin=0000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}"],
+              "query": [{ "key": "pin", "value": "0000" }]
+            }
+          }
+        },
+        {
+          "name": "Save Public M3U Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Public M3U Playlist\",\n  \"m3uUrl\": \"http://example.com/playlist.m3u\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "Update Public M3U Playlist",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated M3U Name\",\n  \"m3uUrl\": \"http://example.com/updated.m3u\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Public Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Public Pinned Playlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/pinned",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "pinned"]
+            }
+          }
+        },
+        {
+          "name": "Pin Public Playlist",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}", "pin"]
+            }
+          }
+        },
+        {
+          "name": "Unpin Public Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/playlist/public/{{deviceId}}/{{playlistId}}/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "playlist", "public", "{{deviceId}}", "{{playlistId}}", "pin"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "4. Reseller — Playlists",
+      "description": "Requires Authorization: Bearer {{resellerToken}}. Role: RESELLER.",
+      "item": [
+        {
+          "name": "Get All Reseller Playlists",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists"]
+            }
+          }
+        },
+        {
+          "name": "Get Reseller Playlist by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "{{playlistId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Reseller M3U Playlist (No PIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Reseller M3U Playlist\",\n  \"m3uUrl\": \"http://example.com/reseller.m3u\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "Create Reseller M3U Playlist (With PIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PIN Protected Reseller M3U\",\n  \"m3uUrl\": \"http://example.com/reseller.m3u\",\n  \"pin\": \"5678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "Create Reseller Xtream Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Reseller Xtream Playlist\",\n  \"serverUrl\": \"http://xtream.example.com\",\n  \"username\": \"reselleruser\",\n  \"password\": \"resellerpass\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/xtream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "xtream"]
+            }
+          }
+        },
+        {
+          "name": "Update Reseller Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Playlist Name\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "{{playlistId}}"]
+            }
+          }
+        },
+        {
+          "name": "Assign Playlist to Device",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{resellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/{{playlistId}}/assign",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "{{playlistId}}", "assign"]
+            }
+          }
+        },
+        {
+          "name": "Unassign Playlist from Device",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/{{playlistId}}/assign",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "{{playlistId}}", "assign"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Pin (Bookmark) Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/{{playlistId}}/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "{{playlistId}}", "pin"]
+            }
+          }
+        },
+        {
+          "name": "Delete Reseller Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{resellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/reseller/playlists/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reseller", "playlists", "{{playlistId}}"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "5. Sub-Reseller — Playlists",
+      "description": "Requires Authorization: Bearer {{subResellerToken}}. Role: SUB_RESELLER.",
+      "item": [
+        {
+          "name": "Get All Sub-Reseller Playlists",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists"]
+            }
+          }
+        },
+        {
+          "name": "Get Sub-Reseller Playlist by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "{{playlistId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Sub-Reseller M3U Playlist (No PIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sub-Reseller M3U Playlist\",\n  \"m3uUrl\": \"http://example.com/subreseller.m3u\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "Create Sub-Reseller M3U Playlist (With PIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PIN Protected Sub-Reseller M3U\",\n  \"m3uUrl\": \"http://example.com/subreseller.m3u\",\n  \"pin\": \"9999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/m3u",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "m3u"]
+            }
+          }
+        },
+        {
+          "name": "Create Sub-Reseller Xtream Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sub-Reseller Xtream Playlist\",\n  \"serverUrl\": \"http://xtream.example.com\",\n  \"username\": \"subuser\",\n  \"password\": \"subpass\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/xtream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "xtream"]
+            }
+          }
+        },
+        {
+          "name": "Update Sub-Reseller Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Sub-Reseller Playlist Name\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "{{playlistId}}"]
+            }
+          }
+        },
+        {
+          "name": "Assign Playlist to Device",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{subResellerToken}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{playlistId}}/assign",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "{{playlistId}}", "assign"]
+            }
+          }
+        },
+        {
+          "name": "Unassign Playlist from Device",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{playlistId}}/assign",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "{{playlistId}}", "assign"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Pin (Bookmark) Playlist",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{playlistId}}/pin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "{{playlistId}}", "pin"]
+            }
+          }
+        },
+        {
+          "name": "Delete Sub-Reseller Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{subResellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/sub-reseller/playlists/{{playlistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sub-reseller", "playlists", "{{playlistId}}"]
+            }
+          }
+        }
+      ]
+    }
+
+  ]
+}
