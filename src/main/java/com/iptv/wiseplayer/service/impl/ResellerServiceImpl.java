@@ -284,10 +284,30 @@ public class ResellerServiceImpl implements ResellerService {
         java.time.LocalDateTime expFrom = (expiresFrom    != null) ? expiresFrom.atStartOfDay() : null;
         java.time.LocalDateTime expTo   = (expiresTo      != null) ? expiresTo.atTime(23, 59, 59) : null;
 
-        return deviceRepository.searchResellerUsers(
+        org.springframework.data.domain.Page<Device> page = deviceRepository.searchResellerUsers(
                 resellerId, searchParam, status, subParam,
                 regFrom, regTo, expFrom, expTo,
                 pageable);
+
+        // Enrich each device with its subscription status (batch fetch — no N+1)
+        if (!page.isEmpty()) {
+            java.util.List<UUID> deviceIds = page.getContent().stream()
+                    .map(Device::getDeviceId)
+                    .collect(java.util.stream.Collectors.toList());
+
+            java.util.Map<UUID, com.iptv.wiseplayer.domain.enums.SubscriptionStatus> statusMap =
+                    subscriptionRepository.findByDeviceIdIn(deviceIds).stream()
+                            .collect(java.util.stream.Collectors.toMap(
+                                    Subscription::getDeviceId,
+                                    Subscription::getStatus,
+                                    (a, b) -> a  // keep first if duplicates
+                            ));
+
+            page.getContent().forEach(d ->
+                    d.setSubscriptionStatus(statusMap.get(d.getDeviceId())));
+        }
+
+        return page;
     }
 
     @Override

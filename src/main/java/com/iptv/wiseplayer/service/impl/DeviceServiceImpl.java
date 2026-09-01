@@ -139,7 +139,6 @@ public class DeviceServiceImpl implements DeviceService {
                 .orElseThrow(() -> new DeviceNotFoundException(
                         "Device not found. Please register device first."));
 
-
         // Update last seen timestamp
         device.setLastSeenAt(LocalDateTime.now());
         deviceRepository.save(device);

@@ -1,6 +1,7 @@
 package com.iptv.wiseplayer.domain.entity;
 
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
+import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -88,6 +89,13 @@ public class Device {
      */
     @Column(name = "public_pin_hash", length = 100)
     private String publicPinHash;
+
+    /**
+     * Transient field — populated at query time from the subscriptions table.
+     * Not stored in the devices table.
+     */
+    @Transient
+    private SubscriptionStatus subscriptionStatus;
 
 
 
@@ -246,5 +254,13 @@ public class Device {
 
     public void setPublicPinHash(String publicPinHash) {
         this.publicPinHash = publicPinHash;
+    }
+
+    public SubscriptionStatus getSubscriptionStatus() {
+        return subscriptionStatus;
+    }
+
+    public void setSubscriptionStatus(SubscriptionStatus subscriptionStatus) {
+        this.subscriptionStatus = subscriptionStatus;
     }
 }
