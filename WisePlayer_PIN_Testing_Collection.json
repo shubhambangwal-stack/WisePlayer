@@ -385,7 +385,7 @@
       "name": "6. Reseller Playlists – PIN",
       "item": [
         {
-          "name": "Reseller Create Playlist with PIN",
+          "name": "Reseller Create M3U Playlist with PIN",
           "request": {
             "method": "POST",
             "header": [
@@ -394,7 +394,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Premium Sports\",\n  \"m3uUrl\": \"http://example.com/sports.m3u\",\n  \"pin\": \"5678\"\n}"
+              "raw": "{\n  \"name\": \"Premium Sports\",\n  \"m3uUrl\": \"http://iptv-provider.com:8080/get.php?username=testuser&password=testpass&type=m3u_plus&output=ts\",\n  \"pin\": \"5678\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/reseller/playlists/m3u",
@@ -404,7 +404,7 @@
           }
         },
         {
-          "name": "SubReseller Create Playlist with PIN",
+          "name": "SubReseller Create M3U Playlist with PIN",
           "request": {
             "method": "POST",
             "header": [
@@ -413,7 +413,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Premium Sports SubReseller\",\n  \"m3uUrl\": \"http://example.com/sports.m3u\",\n  \"pin\": \"5678\"\n}"
+              "raw": "{\n  \"name\": \"Invalid PIN\",\n  \"m3uUrl\": \"http://iptv-provider.com:8080/get.php?type=m3u_plus\",\n  \"pin\": \"abc\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/sub-reseller/playlists/m3u",

@@ -222,6 +222,7 @@ public class ResellerPlaylistServiceImpl implements ResellerPlaylistService {
                 username,
                 password,
                 m3uUrl,
-                playlist.isPinned());
+                playlist.isPinned(),
+                playlist.getPinHash() != null);
     }
 }

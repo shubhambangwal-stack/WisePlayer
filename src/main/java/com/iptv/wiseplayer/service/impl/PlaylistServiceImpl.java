@@ -447,7 +447,8 @@ public class PlaylistServiceImpl implements PlaylistService {
                 username,
                 password,
                 m3uUrl,
-                playlist.isPinned());
+                playlist.isPinned(),
+                playlist.getPinHash() != null);
 
         // Attach cached catch-up availability (data-driven; never fabricated).
         try {
@@ -556,6 +557,21 @@ public class PlaylistServiceImpl implements PlaylistService {
 
         return playlistRepository.findByDeviceIdAndPinnedTrue(deviceId)
                 .map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional
+    public PlaylistResponse togglePlaylistLock(UUID deviceId, UUID playlistId, boolean isLocked) {
+        Playlist target = playlistRepository.findByIdAndDeviceId(playlistId, deviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found or access denied"));
+        
+        if (isLocked) {
+            // For simple boolean lock without specific PIN hashing from frontend, we just use a dummy hash or default
+            target.setPinHash("LOCKED"); 
+        } else {
+            target.setPinHash(null);
+        }
+        return mapToResponse(playlistRepository.save(target));
     }
 
     @Override

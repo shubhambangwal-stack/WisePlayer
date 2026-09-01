@@ -46,7 +46,8 @@ public class XtreamStreamResolver {
         switch (type) {
             case LIVE:
                 typePath = "live";
-                extension = (customExtension != null && !customExtension.isBlank()) ? customExtension : "ts";
+                // Default Live streams to m3u8 (HLS) for instant 1s player startup
+                extension = (customExtension != null && !customExtension.isBlank()) ? customExtension : "m3u8";
                 break;
             case VOD:
                 typePath = "movie";
