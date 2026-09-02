@@ -14,6 +14,8 @@ import com.iptv.wiseplayer.dto.response.ResellerDashboardResponse;
 import com.iptv.wiseplayer.exception.ResourceNotFoundException;
 import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.service.ResellerService;
+import com.iptv.wiseplayer.service.AdminPlanService;
+import com.iptv.wiseplayer.dto.response.PlanResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,6 +31,7 @@ import com.iptv.wiseplayer.dto.request.ResellerResetPasswordRequest;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/reseller")
@@ -41,15 +44,18 @@ public class ResellerController {
     private final AdminRepository adminRepository;
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
     private final com.iptv.wiseplayer.util.BulkPermissionUtil bulkPermissionUtil;
+    private final AdminPlanService adminPlanService;
 
     public ResellerController(ResellerService resellerService,
             AdminRepository adminRepository,
             com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository,
-            com.iptv.wiseplayer.util.BulkPermissionUtil bulkPermissionUtil) {
+            com.iptv.wiseplayer.util.BulkPermissionUtil bulkPermissionUtil,
+            AdminPlanService adminPlanService) {
         this.resellerService = resellerService;
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
         this.bulkPermissionUtil = bulkPermissionUtil;
+        this.adminPlanService = adminPlanService;
     }
 
     // --- Authentication Endpoints ---
@@ -325,5 +331,12 @@ public class ResellerController {
     public ResponseEntity<Map<String, Object>> changePassword(@Valid @RequestBody com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {
         resellerService.changePassword(getCurrentResellerId(), request);
         return ResponseEntity.ok(Map.of("success", true, "message", "Password changed successfully"));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_RESELLER')")
+    @GetMapping("/plans")
+    @Operation(summary = "List Available Plans", description = "Returns all active subscription plans the reseller can assign to devices")
+    public ResponseEntity<List<PlanResponse>> getAvailablePlans() {
+        return ResponseEntity.ok(adminPlanService.getActivePlans());
     }
 }

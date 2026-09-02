@@ -1,7 +1,6 @@
 package com.iptv.wiseplayer.dto.response;
 
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -10,7 +9,7 @@ public class AdminDeviceResponse {
     private UUID deviceId;
     private String fingerprintHash;
     private DeviceStatus deviceStatus;
-    private SubscriptionType subscriptionType;
+    private String planName;
     private String deviceModel;
     private String osVersion;
     private String platform;
@@ -29,8 +28,8 @@ public class AdminDeviceResponse {
     public DeviceStatus getDeviceStatus() { return deviceStatus; }
     public void setDeviceStatus(DeviceStatus deviceStatus) { this.deviceStatus = deviceStatus; }
 
-    public SubscriptionType getSubscriptionType() { return subscriptionType; }
-    public void setSubscriptionType(SubscriptionType subscriptionType) { this.subscriptionType = subscriptionType; }
+    public String getPlanName() { return planName; }
+    public void setPlanName(String planName) { this.planName = planName; }
 
     public String getDeviceModel() { return deviceModel; }
     public void setDeviceModel(String deviceModel) { this.deviceModel = deviceModel; }

@@ -98,12 +98,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         Subscription savedSubscription = subscriptionRepository.save(subscriptionToUpdate);
 
         // 3. Update Device status via DeviceService
-        SubscriptionType type = resolveSubscriptionType(planConfig);
-
-        deviceService.updateDeviceSubscription(
+        deviceService.updateDevicePlan(
                 resolvedDeviceId,
                 com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
-                type,
+                planConfig.getName(),
                 endDate);
 
         return mapToResponse(savedSubscription);
@@ -140,8 +138,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         SubscriptionResponse resp = new SubscriptionResponse();
         resp.setSubscriptionId(resolvedDeviceId); // Use device ID as placeholder
         resp.setDeviceId(resolvedDeviceId);
-        resp.setPlanName(device.getSubscriptionType() != null ? device.getSubscriptionType().name() : "TRIAL");
-        resp.setType(device.getSubscriptionType() != null ? device.getSubscriptionType() : SubscriptionType.TRIAL);
+        resp.setPlanName(device.getPlanName() != null ? device.getPlanName() : "TRIAL");
+        resp.setType(resolveSubscriptionTypeByName(device.getPlanName()));
 
         // Determine dates and status based on device state
         if (device.getExpiresAt() != null) {
@@ -154,7 +152,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             if (LocalDateTime.now().isAfter(device.getExpiresAt())) {
                 resp.setStatus(SubscriptionStatus.EXPIRED);
             } else {
-                resp.setStatus(device.getSubscriptionType() == SubscriptionType.TRIAL
+                resp.setStatus("TRIAL".equalsIgnoreCase(device.getPlanName())
                         ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE);
             }
         } else {
@@ -178,13 +176,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             sub.setStatus(SubscriptionStatus.EXPIRED);
             subscriptionRepository.save(sub);
 
-            // Determine subscription type from plan name for device update
-            SubscriptionType type = resolveSubscriptionTypeByName(sub.getPlanName());
-
-            deviceService.updateDeviceSubscription(
+            deviceService.updateDevicePlan(
                     sub.getDeviceId(),
                     com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE,
-                    type,
+                    sub.getPlanName(),
                     sub.getEndDate());
         }
     }
@@ -231,10 +226,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         subscriptionRepository.save(trialSub);
 
-        deviceService.updateDeviceSubscription(
+        deviceService.updateDevicePlan(
                 deviceId,
                 com.iptv.wiseplayer.domain.enums.DeviceStatus.ACTIVE,
-                SubscriptionType.TRIAL,
+                "TRIAL",
                 expiresAt);
     }
 
@@ -260,10 +255,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             log.info("Subscription record marked as EXPIRED for device: {}", resolvedDeviceId);
         }
 
-        deviceService.updateDeviceSubscription(
+        deviceService.updateDevicePlan(
                 resolvedDeviceId,
                 com.iptv.wiseplayer.domain.enums.DeviceStatus.INACTIVE,
-                SubscriptionType.TRIAL,
+                subOpt.isPresent() ? subOpt.get().getPlanName() : "TRIAL",
                 LocalDateTime.now().minusSeconds(1));
 
         log.info("Device subscription status revoked/downgraded for device: {}", resolvedDeviceId);

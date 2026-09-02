@@ -55,11 +55,11 @@ public class AdminDeviceService {
     public Page<AdminDeviceResponse> getAllDevices(
             String deviceId,
             DeviceStatus status,
-            SubscriptionType subscription,
+            String planName,
             String model,
             String platform,
             Pageable pageable) {
-        return deviceRepository.searchDevices(deviceId, status, subscription, model, platform, pageable)
+        return deviceRepository.searchDevices(deviceId, status, planName, model, platform, pageable)
                 .map(this::convertToResponse);
     }
 
@@ -128,7 +128,7 @@ public class AdminDeviceService {
         response.setDeviceId(device.getDeviceId());
         response.setFingerprintHash(device.getFingerprintHash());
         response.setDeviceStatus(device.getDeviceStatus());
-        response.setSubscriptionType(device.getSubscriptionType());
+        response.setPlanName(device.getPlanName());
         response.setDeviceModel(device.getDeviceModel());
         response.setOsVersion(device.getOsVersion());
         response.setPlatform(device.getPlatform());

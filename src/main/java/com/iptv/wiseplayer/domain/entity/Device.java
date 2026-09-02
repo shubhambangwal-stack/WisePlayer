@@ -38,9 +38,15 @@ public class Device {
     @Column(name = "device_status", nullable = false, length = 20)
     private DeviceStatus deviceStatus;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "subscription_type", nullable = false, length = 20)
-    private com.iptv.wiseplayer.domain.enums.SubscriptionType subscriptionType = com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL;
+    /**
+     * Stores the actual plan name from subscription_plan_configs
+     * (e.g., "TRIAL", "Gold Annual", "Weekly", "VIP Lifetime").
+     * Previously this was a hard-coded enum — now fully dynamic.
+     * DB column type must be VARCHAR(100). SQL migration:
+     *   ALTER TABLE devices MODIFY COLUMN subscription_type VARCHAR(100) NOT NULL DEFAULT 'TRIAL';
+     */
+    @Column(name = "subscription_type", nullable = false, length = 100)
+    private String planName = "TRIAL";
 
     @Column(name = "device_model", length = 100)
     private String deviceModel;
@@ -143,12 +149,12 @@ public class Device {
         this.deviceStatus = deviceStatus;
     }
 
-    public com.iptv.wiseplayer.domain.enums.SubscriptionType getSubscriptionType() {
-        return subscriptionType;
+    public String getPlanName() {
+        return planName;
     }
 
-    public void setSubscriptionType(com.iptv.wiseplayer.domain.enums.SubscriptionType subscriptionType) {
-        this.subscriptionType = subscriptionType;
+    public void setPlanName(String planName) {
+        this.planName = planName;
     }
 
     public String getDeviceModel() {

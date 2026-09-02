@@ -14,6 +14,8 @@ import com.iptv.wiseplayer.repository.AdminRepository;
 import com.iptv.wiseplayer.service.ResellerService;
 import com.iptv.wiseplayer.service.CreditService;
 import com.iptv.wiseplayer.service.PaymentService;
+import com.iptv.wiseplayer.service.AdminPlanService;
+import com.iptv.wiseplayer.dto.response.PlanResponse;
 import com.iptv.wiseplayer.domain.entity.Admin;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/sub-reseller")
@@ -37,17 +40,20 @@ public class SubResellerController {
     private final PaymentService paymentService;
     private final AdminRepository adminRepository;
     private final com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository;
+    private final AdminPlanService adminPlanService;
 
     public SubResellerController(ResellerService resellerService,
                                  CreditService creditService,
                                  PaymentService paymentService,
                                  AdminRepository adminRepository,
-                                 com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository) {
+                                 com.iptv.wiseplayer.repository.SuperAdminRepository superAdminRepository,
+                                 AdminPlanService adminPlanService) {
         this.resellerService = resellerService;
         this.creditService = creditService;
         this.paymentService = paymentService;
         this.adminRepository = adminRepository;
         this.superAdminRepository = superAdminRepository;
+        this.adminPlanService = adminPlanService;
     }
 
     @GetMapping("/credits/balance")
@@ -163,5 +169,11 @@ public class SubResellerController {
     public ResponseEntity<java.util.Map<String, Object>> changePassword(@Valid @RequestBody com.iptv.wiseplayer.dto.request.ChangePasswordRequest request) {
         resellerService.changePassword(getCurrentSubResellerId(), request);
         return ResponseEntity.ok(java.util.Map.of("success", true, "message", "Password changed successfully"));
+    }
+
+    @GetMapping("/plans")
+    @Operation(summary = "List Available Plans", description = "Returns all active subscription plans the sub-reseller can assign to devices")
+    public ResponseEntity<List<PlanResponse>> getAvailablePlans() {
+        return ResponseEntity.ok(adminPlanService.getActivePlans());
     }
 }

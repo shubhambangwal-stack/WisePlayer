@@ -3,7 +3,6 @@ package com.iptv.wiseplayer.service.impl;
 import com.iptv.wiseplayer.domain.entity.Device;
 import com.iptv.wiseplayer.domain.entity.DeviceAuditLog;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.dto.request.DeviceRegistrationRequest;
 import com.iptv.wiseplayer.dto.request.DeviceValidationRequest;
 import com.iptv.wiseplayer.dto.response.DeviceRegistrationResponse;
@@ -84,15 +83,15 @@ public class DeviceServiceImpl implements DeviceService {
             return new DeviceRegistrationResponse(
                     savedDevice.getDeviceId(),
                     savedDevice.getDeviceStatus(),
-                    savedDevice.getSubscriptionType(),
+                    savedDevice.getPlanName(),
                     tokenUtil.generateToken(savedDevice.getDeviceId().toString(), fingerprintHash),
                     rawSecret,
                     savedDevice.getRegisteredAt());
         }
 
-        // Create new device (Trial type by default, but not started yet)
+        // Create new device — plan name defaults to "TRIAL"
         Device newDevice = new Device(fingerprintHash, DeviceStatus.INACTIVE);
-        newDevice.setSubscriptionType(SubscriptionType.TRIAL);
+        newDevice.setPlanName("TRIAL");
         newDevice.setDeviceModel(request.getDeviceModel());
         newDevice.setOsVersion(request.getOsVersion());
         newDevice.setPlatform(request.getPlatform());
@@ -117,7 +116,7 @@ public class DeviceServiceImpl implements DeviceService {
         return new DeviceRegistrationResponse(
                 savedDevice.getDeviceId(),
                 savedDevice.getDeviceStatus(),
-                savedDevice.getSubscriptionType(),
+                savedDevice.getPlanName(),
                 tokenUtil.generateToken(savedDevice.getDeviceId().toString(), fingerprintHash),
                 rawSecret,
                 savedDevice.getRegisteredAt());
@@ -148,7 +147,7 @@ public class DeviceServiceImpl implements DeviceService {
             return new DeviceValidationResponse(
                     device.getDeviceId(),
                     device.getDeviceStatus(),
-                    device.getSubscriptionType(),
+                    device.getPlanName(),
                     null,
                     false,
                     "Your account has been locked. Please contact your reseller.",
@@ -181,22 +180,28 @@ public class DeviceServiceImpl implements DeviceService {
         String message = determineValidationMessage(device);
 
         DeviceStatus responseStatus = device.getDeviceStatus();
-        SubscriptionType responseType = device.getSubscriptionType();
-        
+        String responsePlanName = device.getPlanName();
+
+        // If device expired, override plan name to signal expiry
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
-            responseType = SubscriptionType.EXPIRED;
+            responsePlanName = "EXPIRED";
             responseStatus = DeviceStatus.INACTIVE;
         }
 
         DeviceValidationResponse response = new DeviceValidationResponse(
                 device.getDeviceId(),
                 responseStatus,
-                responseType,
+                responsePlanName,
                 null,
                 allowed,
                 message,
                 device.getLastSeenAt());
-        
+
+        // Enrich with expiresAt and subscriptionStatus for the website's 3-branch logic
+        response.setExpiresAt(device.getExpiresAt());
+        subscriptionRepository.findByDeviceId(device.getDeviceId())
+                .ifPresent(sub -> response.setSubscriptionStatus(sub.getStatus()));
+
         return response;
     }
 
@@ -232,7 +237,7 @@ public class DeviceServiceImpl implements DeviceService {
                 return "Your subscription has expired. Please renew to continue access.";
             }
 
-            if (device.getSubscriptionType() == SubscriptionType.TRIAL) {
+            if ("TRIAL".equalsIgnoreCase(device.getPlanName())) {
                 return "Device is in free trial period. Please subscribe to continue access later.";
             }
             return "Device is active and authorized";
@@ -243,14 +248,14 @@ public class DeviceServiceImpl implements DeviceService {
 
     @Override
     @Transactional
-    public void updateDeviceSubscription(java.util.UUID deviceId, DeviceStatus status, SubscriptionType type,
-            LocalDateTime expiresAt) {
+    public void updateDevicePlan(java.util.UUID deviceId, DeviceStatus status,
+            String planName, LocalDateTime expiresAt) {
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new DeviceNotFoundException("Device not found with ID: " + deviceId));
 
         DeviceStatus oldStatus = device.getDeviceStatus();
         device.setDeviceStatus(status);
-        device.setSubscriptionType(type);
+        device.setPlanName(planName != null ? planName : "TRIAL");
         device.setExpiresAt(expiresAt);
         // Force status based on expiration date
         if (expiresAt != null) {
@@ -263,7 +268,7 @@ public class DeviceServiceImpl implements DeviceService {
         deviceRepository.save(device);
 
         logAudit(deviceId, oldStatus, device.getDeviceStatus(), "SUBSCRIPTION_UPDATE",
-                "Status set to " + device.getDeviceStatus());
+                "Plan set to '" + device.getPlanName() + "', status set to " + device.getDeviceStatus());
     }
 
     @Override
@@ -302,21 +307,28 @@ public class DeviceServiceImpl implements DeviceService {
         String message = determineValidationMessage(device);
 
         DeviceStatus responseStatus = device.getDeviceStatus();
-        SubscriptionType responseType = device.getSubscriptionType();
-        
+        String responsePlanName = device.getPlanName();
+
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
-            responseType = SubscriptionType.EXPIRED;
+            responsePlanName = "EXPIRED";
             responseStatus = DeviceStatus.INACTIVE;
         }
 
-        return new DeviceValidationResponse(
+        DeviceValidationResponse response = new DeviceValidationResponse(
                 device.getDeviceId(),
                 responseStatus,
-                responseType,
+                responsePlanName,
                 newAccessToken,
                 allowed,
                 message,
                 device.getLastSeenAt());
+
+        // Enrich with expiresAt and subscriptionStatus
+        response.setExpiresAt(device.getExpiresAt());
+        subscriptionRepository.findByDeviceId(device.getDeviceId())
+                .ifPresent(sub -> response.setSubscriptionStatus(sub.getStatus()));
+
+        return response;
     }
 
     private void logAudit(UUID deviceId, DeviceStatus oldStatus, DeviceStatus newStatus, String action, String reason) {

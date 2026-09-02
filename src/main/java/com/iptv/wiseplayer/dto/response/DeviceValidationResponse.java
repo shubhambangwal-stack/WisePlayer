@@ -1,7 +1,7 @@
 package com.iptv.wiseplayer.dto.response;
 
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionType;
+import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -14,22 +14,37 @@ public class DeviceValidationResponse {
 
     private UUID deviceId;
     private DeviceStatus status;
-    private SubscriptionType subscriptionType;
+    /**
+     * The actual plan name from subscription_plan_configs
+     * (e.g., "TRIAL", "Gold Annual", "Weekly").
+     * Replaces the old hard-coded subscriptionType enum.
+     */
+    private String planName;
+    /**
+     * Canonical subscription status: ACTIVE, TRIAL, EXPIRED, PAUSED, CANCELLED.
+     * Used by the website's checkPlanExpired() logic.
+     */
+    private SubscriptionStatus subscriptionStatus;
     private String token;
     private boolean allowed;
     private String message;
     private String deviceSecret;
     private LocalDateTime lastSeenAt;
+    /**
+     * Plan expiry datetime. Used by checkPlanExpired() date-based check.
+     * null means device was never activated (brand-new device).
+     */
+    private LocalDateTime expiresAt;
 
     // Constructors
     public DeviceValidationResponse() {
     }
 
-    public DeviceValidationResponse(UUID deviceId, DeviceStatus status, SubscriptionType subscriptionType, String token,
-            boolean allowed, String message, LocalDateTime lastSeenAt) {
+    public DeviceValidationResponse(UUID deviceId, DeviceStatus status, String planName,
+            String token, boolean allowed, String message, LocalDateTime lastSeenAt) {
         this.deviceId = deviceId;
         this.status = status;
-        this.subscriptionType = subscriptionType;
+        this.planName = planName;
         this.token = token;
         this.allowed = allowed;
         this.message = message;
@@ -61,12 +76,20 @@ public class DeviceValidationResponse {
         this.status = status;
     }
 
-    public SubscriptionType getSubscriptionType() {
-        return subscriptionType;
+    public String getPlanName() {
+        return planName;
     }
 
-    public void setSubscriptionType(SubscriptionType subscriptionType) {
-        this.subscriptionType = subscriptionType;
+    public void setPlanName(String planName) {
+        this.planName = planName;
+    }
+
+    public SubscriptionStatus getSubscriptionStatus() {
+        return subscriptionStatus;
+    }
+
+    public void setSubscriptionStatus(SubscriptionStatus subscriptionStatus) {
+        this.subscriptionStatus = subscriptionStatus;
     }
 
     public boolean isAllowed() {
@@ -99,5 +122,13 @@ public class DeviceValidationResponse {
 
     public void setLastSeenAt(LocalDateTime lastSeenAt) {
         this.lastSeenAt = lastSeenAt;
+    }
+
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
     }
 }

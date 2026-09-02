@@ -10,8 +10,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 
-import com.iptv.wiseplayer.domain.enums.SubscriptionType;
-
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,14 +23,14 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
         @Query("SELECT d FROM Device d WHERE " +
                         "(:deviceId IS NULL OR :deviceId = '' OR CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :deviceId, '%')) OR LOWER(d.macAddress) LIKE LOWER(CONCAT('%', :deviceId, '%'))) AND " +
                         "(:status IS NULL OR d.deviceStatus = :status) AND " +
-                        "(:subscription IS NULL OR d.subscriptionType = :subscription) AND " +
+                        "(:planName IS NULL OR :planName = '' OR d.planName = :planName) AND " +
                         "(:model IS NULL OR :model = '' OR LOWER(d.deviceModel) LIKE LOWER(CONCAT('%', :model, '%'))) AND " +
                         "(:platform IS NULL OR :platform = '' OR LOWER(d.platform) LIKE LOWER(CONCAT('%', :platform, '%')))")
 
         Page<Device> searchDevices(
                         @Param("deviceId") String deviceId,
                         @Param("status") DeviceStatus status,
-                        @Param("subscription") SubscriptionType subscription,
+                        @Param("planName") String planName,
                         @Param("model") String model,
                         @Param("platform") String platform,
                         Pageable pageable);
@@ -76,7 +74,9 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
         long countByDeviceStatus(com.iptv.wiseplayer.domain.enums.DeviceStatus status);
 
-        long countBySubscriptionType(com.iptv.wiseplayer.domain.enums.SubscriptionType type);
+        long countByPlanName(String planName);
+
+        long countByExpiresAtBefore(java.time.LocalDateTime date);
 
         long countByResellerId(UUID resellerId);
 
@@ -93,7 +93,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID> {
                 "   LOWER(d.macAddress) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
                 "   CAST(d.deviceId AS string) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
                 "(:status IS NULL OR d.deviceStatus = :status) AND " +
-                "(:subscription IS NULL OR :subscription = '' OR UPPER(CAST(d.subscriptionType AS string)) = UPPER(:subscription)) AND " +
+                "(:subscription IS NULL OR :subscription = '' OR UPPER(d.planName) = UPPER(:subscription)) AND " +
                 "(CAST(:registeredFrom AS java.time.LocalDateTime) IS NULL OR d.registeredAt >= :registeredFrom) AND " +
                 "(CAST(:registeredTo AS java.time.LocalDateTime) IS NULL OR d.registeredAt <= :registeredTo) AND " +
                 "(CAST(:expiresFrom AS java.time.LocalDateTime) IS NULL OR d.expiresAt >= :expiresFrom) AND " +

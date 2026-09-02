@@ -1,7 +1,6 @@
 package com.iptv.wiseplayer.service.impl;
 
 import com.iptv.wiseplayer.domain.entity.Device;
-import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.exception.ConnectionLimitException;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.service.AntiFraudGuardService;
@@ -34,7 +33,7 @@ public class AntiFraudGuardServiceImpl implements AntiFraudGuardService {
 
         // Determine max allowed connections based on subscription type
         int maxConnections = 3; // Default for active/premium devices
-        if (device.getSubscriptionType() == SubscriptionType.TRIAL) {
+        if ("TRIAL".equalsIgnoreCase(device.getPlanName())) {
             maxConnections = 1; // Trials are restricted to a single stream
         }
 

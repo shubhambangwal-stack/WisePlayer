@@ -3,7 +3,6 @@ package com.iptv.wiseplayer.service;
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 import com.iptv.wiseplayer.domain.enums.PaymentStatus;
 import com.iptv.wiseplayer.domain.enums.SubscriptionStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionType;
 import com.iptv.wiseplayer.repository.DeviceRepository;
 import com.iptv.wiseplayer.repository.PaymentRepository;
 import com.iptv.wiseplayer.repository.SubscriptionRepository;
@@ -37,8 +36,8 @@ public class AdminDashboardService {
         // Device Stats
         stats.put("totalDevices", deviceRepository.count());
         stats.put("activeDevices", deviceRepository.countByDeviceStatus(DeviceStatus.ACTIVE));
-        stats.put("trialDevices", deviceRepository.countBySubscriptionType(SubscriptionType.TRIAL));
-        stats.put("expiredDevices", deviceRepository.countBySubscriptionType(SubscriptionType.EXPIRED));
+        stats.put("trialDevices", deviceRepository.countByPlanName("TRIAL"));
+        stats.put("expiredDevices", deviceRepository.countByExpiresAtBefore(java.time.LocalDateTime.now()));
 
         // Subscription Stats
         stats.put("totalSubscriptions", subscriptionRepository.count());

@@ -1,7 +1,7 @@
 package com.iptv.wiseplayer.dto.response;
 
 import com.iptv.wiseplayer.domain.enums.DeviceStatus;
-import com.iptv.wiseplayer.domain.enums.SubscriptionType;
+import com.iptv.wiseplayer.domain.enums.DeviceStatus;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -14,7 +14,7 @@ public class DeviceRegistrationResponse {
 
     private UUID deviceId;
     private DeviceStatus status;
-    private SubscriptionType subscriptionType;
+    private String planName;
     private String token;
     private String deviceSecret;
     private LocalDateTime registeredAt;
@@ -23,12 +23,12 @@ public class DeviceRegistrationResponse {
     public DeviceRegistrationResponse() {
     }
 
-    public DeviceRegistrationResponse(UUID deviceId, DeviceStatus status, SubscriptionType subscriptionType,
+    public DeviceRegistrationResponse(UUID deviceId, DeviceStatus status, String planName,
             String token, String deviceSecret,
             LocalDateTime registeredAt) {
         this.deviceId = deviceId;
         this.status = status;
-        this.subscriptionType = subscriptionType;
+        this.planName = planName;
         this.token = token;
         this.deviceSecret = deviceSecret;
         this.registeredAt = registeredAt;
@@ -51,12 +51,12 @@ public class DeviceRegistrationResponse {
         this.status = status;
     }
 
-    public SubscriptionType getSubscriptionType() {
-        return subscriptionType;
+    public String getPlanName() {
+        return planName;
     }
 
-    public void setSubscriptionType(SubscriptionType subscriptionType) {
-        this.subscriptionType = subscriptionType;
+    public void setPlanName(String planName) {
+        this.planName = planName;
     }
 
     public String getToken() {

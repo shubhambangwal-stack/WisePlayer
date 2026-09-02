@@ -67,20 +67,20 @@ public class ResellerServiceImpl implements ResellerService {
     private final CrudPermissionGuard crudPermissionGuard;
 
     public ResellerServiceImpl(DeviceRepository deviceRepository,
-                               AdminRepository adminRepository,
-                               ActivationRequestRepository activationRequestRepository,
-                               DeviceTokenUtil tokenUtil,
-                               AdminTokenUtil adminTokenUtil,
-                               PasswordEncoder passwordEncoder,
-                               com.iptv.wiseplayer.service.CreditService creditService,
-                               com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
-                               SubscriptionServiceImpl subscriptionService,
-                               com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository,
-                               ResellerEmailOtpRepository resellerEmailOtpRepository,
-                               PasswordResetTokenRepository passwordResetTokenRepository,
-                               EmailService emailService,
-                               com.iptv.wiseplayer.repository.RolePermissionRepository rolePermissionRepository,
-                               CrudPermissionGuard crudPermissionGuard) {
+            AdminRepository adminRepository,
+            ActivationRequestRepository activationRequestRepository,
+            DeviceTokenUtil tokenUtil,
+            AdminTokenUtil adminTokenUtil,
+            PasswordEncoder passwordEncoder,
+            com.iptv.wiseplayer.service.CreditService creditService,
+            com.iptv.wiseplayer.repository.SubscriptionRepository subscriptionRepository,
+            SubscriptionServiceImpl subscriptionService,
+            com.iptv.wiseplayer.repository.ResellerCustomerRepository resellerCustomerRepository,
+            ResellerEmailOtpRepository resellerEmailOtpRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository,
+            EmailService emailService,
+            com.iptv.wiseplayer.repository.RolePermissionRepository rolePermissionRepository,
+            CrudPermissionGuard crudPermissionGuard) {
         this.deviceRepository = deviceRepository;
         this.adminRepository = adminRepository;
         this.activationRequestRepository = activationRequestRepository;
@@ -161,7 +161,8 @@ public class ResellerServiceImpl implements ResellerService {
             if (existing.isActive()) {
                 throw new ResourceAlreadyExistsException("Email already registered");
             }
-            // Unverified account with this email exists — reuse it, update all fields including username
+            // Unverified account with this email exists — reuse it, update all fields
+            // including username
             existing.setUsername(request.getUsername());
             existing.setFullName(request.getFullName());
             existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
@@ -178,9 +179,9 @@ public class ResellerServiceImpl implements ResellerService {
             reseller = adminRepository.save(existing);
         } else {
             // Apply role-level defaults from role_permissions table before saving
-            com.iptv.wiseplayer.domain.entity.RolePermission defaults =
-                    rolePermissionRepository.findByRole(AdminRole.RESELLER)
-                            .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(AdminRole.RESELLER));
+            com.iptv.wiseplayer.domain.entity.RolePermission defaults = rolePermissionRepository
+                    .findByRole(AdminRole.RESELLER)
+                    .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(AdminRole.RESELLER));
 
             reseller = new Admin();
             reseller.setUsername(request.getUsername());
@@ -201,16 +202,20 @@ public class ResellerServiceImpl implements ResellerService {
 
         emailService.sendRegistrationSuccessEmail(saved.getEmail(), saved.getUsername(), saved.getFullName());
 
-        String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole(), saved.isCanCreate(), saved.isCanRead(), saved.isCanUpdate(), saved.isCanDelete());
+        String token = adminTokenUtil.generateToken(saved.getUsername(), saved.getRole(), saved.isCanCreate(),
+                saved.isCanRead(), saved.isCanUpdate(), saved.isCanDelete());
         return new AdminAuthResponse(true, token, saved.getEmail(), saved.getUsername(), saved.getFullName(),
-                saved.getRole().name(), saved.isCanCreate(), saved.isCanRead(), saved.isCanUpdate(), saved.isCanDelete());
+                saved.getRole().name(), saved.isCanCreate(), saved.isCanRead(), saved.isCanUpdate(),
+                saved.isCanDelete());
     }
+
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
     public void purgeExpiredOtps() {
         resellerEmailOtpRepository.deleteAllExpired(LocalDateTime.now());
         log.info("Purged expired OTPs from reseller_email_otps");
     }
+
     @Override
     public ResellerDashboardResponse getDashboardOverview(UUID resellerId) {
         ResellerDashboardResponse response = new ResellerDashboardResponse();
@@ -228,27 +233,29 @@ public class ResellerServiceImpl implements ResellerService {
     @RequiresCrud(CrudOperation.CREATE)
     public java.util.Map<String, Object> createEndUser(UUID resellerId, DeviceRegistrationRequest request) {
         String macAddress = request.getDeviceId();
-        
+
         // Check if the device exists in the devices table (registered through the app)
         String fingerprintHash = tokenUtil.hashFingerprint(macAddress);
         java.util.Optional<Device> existingDevice = deviceRepository.findByFingerprintHash(fingerprintHash);
-        
+
         if (existingDevice.isEmpty()) {
-            throw new ResourceNotFoundException("Device not found. Only devices registered through the app can be added.");
+            throw new ResourceNotFoundException(
+                    "Device not found. Only devices registered through the app can be added.");
         }
-        
+
         // Check if device already claimed by this reseller
         if (resellerCustomerRepository.findByResellerIdAndMacAddress(resellerId, macAddress).isPresent()) {
             throw new ResourceAlreadyExistsException("You have already added this device.");
         }
-        
+
         // Check if device is claimed by someone else
         if (resellerCustomerRepository.findByMacAddress(macAddress).isPresent()) {
             throw new ResourceAlreadyExistsException("This device is already claimed by another reseller.");
         }
 
         // 1. Add to reseller_customers table
-        com.iptv.wiseplayer.domain.entity.ResellerCustomer rc = new com.iptv.wiseplayer.domain.entity.ResellerCustomer(resellerId, macAddress, request.getDeviceModel());
+        com.iptv.wiseplayer.domain.entity.ResellerCustomer rc = new com.iptv.wiseplayer.domain.entity.ResellerCustomer(
+                resellerId, macAddress, request.getDeviceModel());
         resellerCustomerRepository.save(rc);
 
         // 2. Update its resellerId
@@ -257,10 +264,9 @@ public class ResellerServiceImpl implements ResellerService {
         deviceRepository.save(device);
 
         return java.util.Map.of(
-            "success", true,
-            "message", "Device successfully added to your list.",
-            "macAddress", macAddress
-        );
+                "success", true,
+                "message", "Device successfully added to your list.",
+                "macAddress", macAddress);
     }
 
     // ADD:
@@ -277,12 +283,13 @@ public class ResellerServiceImpl implements ResellerService {
             org.springframework.data.domain.Pageable pageable) {
 
         String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
-        String subParam = (subscription != null && !subscription.trim().isEmpty()) ? subscription.trim().toUpperCase() : null;
+        String subParam = (subscription != null && !subscription.trim().isEmpty()) ? subscription.trim().toUpperCase()
+                : null;
 
         java.time.LocalDateTime regFrom = (registeredFrom != null) ? registeredFrom.atStartOfDay() : null;
-        java.time.LocalDateTime regTo   = (registeredTo   != null) ? registeredTo.atTime(23, 59, 59) : null;
-        java.time.LocalDateTime expFrom = (expiresFrom    != null) ? expiresFrom.atStartOfDay() : null;
-        java.time.LocalDateTime expTo   = (expiresTo      != null) ? expiresTo.atTime(23, 59, 59) : null;
+        java.time.LocalDateTime regTo = (registeredTo != null) ? registeredTo.atTime(23, 59, 59) : null;
+        java.time.LocalDateTime expFrom = (expiresFrom != null) ? expiresFrom.atStartOfDay() : null;
+        java.time.LocalDateTime expTo = (expiresTo != null) ? expiresTo.atTime(23, 59, 59) : null;
 
         org.springframework.data.domain.Page<Device> page = deviceRepository.searchResellerUsers(
                 resellerId, searchParam, status, subParam,
@@ -295,16 +302,15 @@ public class ResellerServiceImpl implements ResellerService {
                     .map(Device::getDeviceId)
                     .collect(java.util.stream.Collectors.toList());
 
-            java.util.Map<UUID, com.iptv.wiseplayer.domain.enums.SubscriptionStatus> statusMap =
-                    subscriptionRepository.findByDeviceIdIn(deviceIds).stream()
-                            .collect(java.util.stream.Collectors.toMap(
-                                    Subscription::getDeviceId,
-                                    Subscription::getStatus,
-                                    (a, b) -> a  // keep first if duplicates
-                            ));
+            java.util.Map<UUID, com.iptv.wiseplayer.domain.enums.SubscriptionStatus> statusMap = subscriptionRepository
+                    .findByDeviceIdIn(deviceIds).stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Subscription::getDeviceId,
+                            Subscription::getStatus,
+                            (a, b) -> a // keep first if duplicates
+                    ));
 
-            page.getContent().forEach(d ->
-                    d.setSubscriptionStatus(statusMap.get(d.getDeviceId())));
+            page.getContent().forEach(d -> d.setSubscriptionStatus(statusMap.get(d.getDeviceId())));
         }
 
         return page;
@@ -338,7 +344,8 @@ public class ResellerServiceImpl implements ResellerService {
             throw new ResourceAlreadyExistsException("Email already exists");
         }
 
-        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getName();
         Admin currentAdmin = adminRepository.findByUsername(currentUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
 
@@ -352,9 +359,9 @@ public class ResellerServiceImpl implements ResellerService {
                 request.getCanUpdate(), request.getCanDelete());
 
         // Apply SUB_RESELLER role defaults from role_permissions table
-        com.iptv.wiseplayer.domain.entity.RolePermission subDefaults =
-                rolePermissionRepository.findByRole(AdminRole.SUB_RESELLER)
-                        .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(AdminRole.SUB_RESELLER));
+        com.iptv.wiseplayer.domain.entity.RolePermission subDefaults = rolePermissionRepository
+                .findByRole(AdminRole.SUB_RESELLER)
+                .orElse(com.iptv.wiseplayer.domain.entity.RolePermission.allTrue(AdminRole.SUB_RESELLER));
 
         Admin sub = new Admin();
         sub.setUsername(request.getUsername());
@@ -365,28 +372,39 @@ public class ResellerServiceImpl implements ResellerService {
         sub.setActive(false);
         sub.setParentId(resellerId);
         sub.setCreatorId(resellerId);
-        // Start from role defaults, then overlay any explicit overrides from the request
+        // Start from role defaults, then overlay any explicit overrides from the
+        // request
         sub.setCanCreate(subDefaults.isCanCreate());
         sub.setCanRead(subDefaults.isCanRead());
         sub.setCanUpdate(subDefaults.isCanUpdate());
         sub.setCanDelete(subDefaults.isCanDelete());
 
-        if (request.getCanCreate() != null) sub.setCanCreate(request.getCanCreate());
-        if (request.getCanRead() != null) sub.setCanRead(request.getCanRead());
-        if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
-        if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
+        if (request.getCanCreate() != null)
+            sub.setCanCreate(request.getCanCreate());
+        if (request.getCanRead() != null)
+            sub.setCanRead(request.getCanRead());
+        if (request.getCanUpdate() != null)
+            sub.setCanUpdate(request.getCanUpdate());
+        if (request.getCanDelete() != null)
+            sub.setCanDelete(request.getCanDelete());
 
-        // 100% Accurate Escalation Prevention: Cap permissions strictly to the creator's permissions.
-        // This prevents loopholes where role defaults might exceed the caller's own permissions.
-        if (!currentAdmin.isCanCreate()) sub.setCanCreate(false);
-        if (!currentAdmin.isCanRead()) sub.setCanRead(false);
-        if (!currentAdmin.isCanUpdate()) sub.setCanUpdate(false);
-        if (!currentAdmin.isCanDelete()) sub.setCanDelete(false);
+        // 100% Accurate Escalation Prevention: Cap permissions strictly to the
+        // creator's permissions.
+        // This prevents loopholes where role defaults might exceed the caller's own
+        // permissions.
+        if (!currentAdmin.isCanCreate())
+            sub.setCanCreate(false);
+        if (!currentAdmin.isCanRead())
+            sub.setCanRead(false);
+        if (!currentAdmin.isCanUpdate())
+            sub.setCanUpdate(false);
+        if (!currentAdmin.isCanDelete())
+            sub.setCanDelete(false);
 
         Admin savedSub = adminRepository.save(sub);
-        
+
         emailService.sendRegistrationSuccessEmail(savedSub.getEmail(), savedSub.getUsername(), savedSub.getFullName());
-        
+
         return savedSub;
     }
 
@@ -397,7 +415,7 @@ public class ResellerServiceImpl implements ResellerService {
             java.math.BigDecimal minCredits, java.math.BigDecimal maxCredits,
             org.springframework.data.domain.Pageable pageable) {
         String fromParam = fromDate != null ? fromDate.atStartOfDay().toString() : null;
-        String toParam   = toDate   != null ? toDate.atTime(23, 59, 59).toString() : null;
+        String toParam = toDate != null ? toDate.atTime(23, 59, 59).toString() : null;
         String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
         return adminRepository.searchSubResellers(
                 resellerId, searchParam, status, fromParam, toParam, minCredits, maxCredits, pageable);
@@ -415,7 +433,8 @@ public class ResellerServiceImpl implements ResellerService {
             throw new AccessDeniedException("Permission denied: Not your sub-reseller");
         }
 
-        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getName();
         Admin currentAdmin = adminRepository.findByUsername(currentUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
 
@@ -433,15 +452,23 @@ public class ResellerServiceImpl implements ResellerService {
             sub.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
-        if (request.getCanCreate() != null) sub.setCanCreate(request.getCanCreate());
-        if (request.getCanRead() != null) sub.setCanRead(request.getCanRead());
-        if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
-        if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
+        if (request.getCanCreate() != null)
+            sub.setCanCreate(request.getCanCreate());
+        if (request.getCanRead() != null)
+            sub.setCanRead(request.getCanRead());
+        if (request.getCanUpdate() != null)
+            sub.setCanUpdate(request.getCanUpdate());
+        if (request.getCanDelete() != null)
+            sub.setCanDelete(request.getCanDelete());
 
-        if (!currentAdmin.isCanCreate()) sub.setCanCreate(false);
-        if (!currentAdmin.isCanRead()) sub.setCanRead(false);
-        if (!currentAdmin.isCanUpdate()) sub.setCanUpdate(false);
-        if (!currentAdmin.isCanDelete()) sub.setCanDelete(false);
+        if (!currentAdmin.isCanCreate())
+            sub.setCanCreate(false);
+        if (!currentAdmin.isCanRead())
+            sub.setCanRead(false);
+        if (!currentAdmin.isCanUpdate())
+            sub.setCanUpdate(false);
+        if (!currentAdmin.isCanDelete())
+            sub.setCanDelete(false);
 
         adminRepository.save(sub);
     }
@@ -457,7 +484,8 @@ public class ResellerServiceImpl implements ResellerService {
             throw new AccessDeniedException("Permission denied: Not your sub-reseller");
         }
 
-        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication().getName();
         Admin currentAdmin = adminRepository.findByUsername(currentUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("Current admin not found"));
 
@@ -468,15 +496,23 @@ public class ResellerServiceImpl implements ResellerService {
         // Centralized escalation check
         crudPermissionGuard.checkEscalation(currentAdmin, request);
 
-        if (request.getCanCreate() != null) sub.setCanCreate(request.getCanCreate());
-        if (request.getCanRead()   != null) sub.setCanRead(request.getCanRead());
-        if (request.getCanUpdate() != null) sub.setCanUpdate(request.getCanUpdate());
-        if (request.getCanDelete() != null) sub.setCanDelete(request.getCanDelete());
+        if (request.getCanCreate() != null)
+            sub.setCanCreate(request.getCanCreate());
+        if (request.getCanRead() != null)
+            sub.setCanRead(request.getCanRead());
+        if (request.getCanUpdate() != null)
+            sub.setCanUpdate(request.getCanUpdate());
+        if (request.getCanDelete() != null)
+            sub.setCanDelete(request.getCanDelete());
 
-        if (!currentAdmin.isCanCreate()) sub.setCanCreate(false);
-        if (!currentAdmin.isCanRead()) sub.setCanRead(false);
-        if (!currentAdmin.isCanUpdate()) sub.setCanUpdate(false);
-        if (!currentAdmin.isCanDelete()) sub.setCanDelete(false);
+        if (!currentAdmin.isCanCreate())
+            sub.setCanCreate(false);
+        if (!currentAdmin.isCanRead())
+            sub.setCanRead(false);
+        if (!currentAdmin.isCanUpdate())
+            sub.setCanUpdate(false);
+        if (!currentAdmin.isCanDelete())
+            sub.setCanDelete(false);
 
         adminRepository.save(sub);
     }
@@ -486,7 +522,7 @@ public class ResellerServiceImpl implements ResellerService {
     @RequiresCrud(CrudOperation.UPDATE)
     public void toggleSubResellerStatus(UUID resellerId, UUID subResellerId) {
         Admin sub = adminRepository.findById(subResellerId)
-                     .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sub-reseller not found"));
 
         if (!resellerId.equals(sub.getParentId())) {
             throw new AccessDeniedException("Permission denied: Not your sub-reseller");
@@ -516,6 +552,7 @@ public class ResellerServiceImpl implements ResellerService {
         }
         adminRepository.delete(sub);
     }
+
     @Override
     @Transactional
     public ActivationRequest submitActivationRequest(UUID resellerId, ResellerActivationRequestDto requestDto) {
@@ -575,12 +612,11 @@ public class ResellerServiceImpl implements ResellerService {
 
         ActivationRequest saved = activationRequestRepository.save(request);
 
-
         // Deduct credits
         try {
             creditService.deductCredits(resellerId, planName, saved.getId());
             saved.setCreditsUsed(cost);
-            if("APPROVED".equalsIgnoreCase(targetStatus)){
+            if ("APPROVED".equalsIgnoreCase(targetStatus)) {
                 SubscriptionActivationRequest activationdto = new SubscriptionActivationRequest();
                 activationdto.setDeviceId(device.getDeviceId().toString());
                 activationdto.setPlanName(planName);
@@ -660,7 +696,7 @@ public class ResellerServiceImpl implements ResellerService {
     @Transactional
     public void pauseResumeSubscription(UUID resellerId, UUID deviceId) {
         Device device = deviceRepository.findByDeviceId(deviceId)
-                  .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
 
         if (!resellerId.equals(device.getResellerId())) {
             throw new AccessDeniedException("Permission denied");
@@ -696,20 +732,18 @@ public class ResellerServiceImpl implements ResellerService {
             Pageable pageable) {
 
         String fromDateTime = fromDate != null ? fromDate.atStartOfDay().toString() : null;
-        String toDateTime   = toDate   != null ? toDate.atTime(23, 59, 59).toString() : null;
-        String searchParam = (search   != null && !search.trim().isEmpty())   ? search.trim()   : null;
-        String statusParam = (status   != null && !status.trim().isEmpty())   ? status.trim()   : null;
-        String planParam   = (planName != null && !planName.trim().isEmpty()) ? planName.trim() : null;
+        String toDateTime = toDate != null ? toDate.atTime(23, 59, 59).toString() : null;
+        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        String statusParam = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
+        String planParam = (planName != null && !planName.trim().isEmpty()) ? planName.trim() : null;
 
-       Page<ActivationRequest> requestsPage =
-                activationRequestRepository.searchResellerRequests(
-                        resellerId, statusParam, planParam,
-                        fromDateTime, toDateTime, minCredits, maxCredits,
-                        searchParam, pageable);
+        Page<ActivationRequest> requestsPage = activationRequestRepository.searchResellerRequests(
+                resellerId, statusParam, planParam,
+                fromDateTime, toDateTime, minCredits, maxCredits,
+                searchParam, pageable);
 
         return requestsPage.map(request -> {
-            com.iptv.wiseplayer.dto.response.ActivationRequestResponse response =
-                    new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();
+            com.iptv.wiseplayer.dto.response.ActivationRequestResponse response = new com.iptv.wiseplayer.dto.response.ActivationRequestResponse();
             response.setId(request.getId());
             response.setResellerId(request.getResellerId());
             response.setDeviceId(request.getDeviceId());
@@ -755,7 +789,7 @@ public class ResellerServiceImpl implements ResellerService {
         admin.setActive(true);
         adminRepository.save(admin);
         resellerEmailOtpRepository.deleteByAdminId(admin.getId());
-        
+
         emailService.sendAccountVerifiedEmail(admin.getEmail(), admin.getUsername(), admin.getFullName());
 
         return Map.of("success", "true", "message", "Email verified. You can now login.");
@@ -819,7 +853,8 @@ public class ResellerServiceImpl implements ResellerService {
         passwordResetTokenRepository.delete(resetToken);
 
         return new AdminAuthResponse(true, null, admin.getEmail(), admin.getUsername(), admin.getFullName(),
-                admin.getRole().name(), admin.isCanCreate(), admin.isCanRead(), admin.isCanUpdate(), admin.isCanDelete());
+                admin.getRole().name(), admin.isCanCreate(), admin.isCanRead(), admin.isCanUpdate(),
+                admin.isCanDelete());
     }
 
     private String generateOtp() {
@@ -838,7 +873,6 @@ public class ResellerServiceImpl implements ResellerService {
         }
     }
 
-
     private void sendOtpForUser(Admin admin) {
         String otp = generateOtp();
         resellerEmailOtpRepository.deleteByAdminId(admin.getId());
@@ -851,10 +885,10 @@ public class ResellerServiceImpl implements ResellerService {
         log.info("OTP sent for user: {}", admin.getUsername());
     }
 
-
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public void updateSubResellersBulkPermissions(java.util.UUID resellerId, com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
+    public void updateSubResellersBulkPermissions(java.util.UUID resellerId,
+            com.iptv.wiseplayer.dto.request.UpdateResellerRequest request) {
         Admin reseller = adminRepository.findById(resellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reseller not found"));
 
@@ -864,7 +898,7 @@ public class ResellerServiceImpl implements ResellerService {
         Boolean canRead = !reseller.isCanRead() ? false : request.getCanRead();
         Boolean canUpdate = !reseller.isCanUpdate() ? false : request.getCanUpdate();
         Boolean canDelete = !reseller.isCanDelete() ? false : request.getCanDelete();
-    
+
         adminRepository.updatePermissionsByParentId(resellerId, canCreate, canRead, canUpdate, canDelete);
     }
 
@@ -872,7 +906,7 @@ public class ResellerServiceImpl implements ResellerService {
     @org.springframework.transaction.annotation.Transactional
     public void updateProfile(UUID adminId, com.iptv.wiseplayer.dto.request.UpdateProfileRequest request) {
         Admin admin = adminRepository.findById(adminId)
-                  .orElseThrow(() -> new ResourceNotFoundException("Admin not found with ID: " + adminId));
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found with ID: " + adminId));
         admin.setFullName(request.getFullName());
         adminRepository.save(admin);
     }
@@ -895,4 +929,3 @@ public class ResellerServiceImpl implements ResellerService {
         adminRepository.save(admin);
     }
 }
-    

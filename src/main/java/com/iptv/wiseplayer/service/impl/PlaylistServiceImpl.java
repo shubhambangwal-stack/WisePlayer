@@ -184,7 +184,7 @@ public class PlaylistServiceImpl implements PlaylistService {
         }
 
         if (device.getExpiresAt() != null && LocalDateTime.now().isAfter(device.getExpiresAt())) {
-            if (device.getSubscriptionType() == com.iptv.wiseplayer.domain.enums.SubscriptionType.TRIAL) {
+            if ("TRIAL".equalsIgnoreCase(device.getPlanName())) {
                 throw new AccessDeniedException("Upload failed: Free trial has ended. Please subscribe to continue.");
             } else {
                 throw new AccessDeniedException("Upload failed: Device subscription has expired. Please renew.");

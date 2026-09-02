@@ -1,0 +1,220 @@
+{
+	"info": {
+		"_postman_id": "ab123456-cd78-90ef-gh12-34567890ijkl",
+		"name": "WisePlayer - Dynamic Plans Flow",
+		"description": "Postman Collection for testing the new dynamic plan flow (Registration, Validation, Reseller Plan Listing, and Subscription Assignment).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Reseller - Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.environment.set(\"resellerToken\", jsonData.token);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"admin@reseller.com\",\n  \"password\": \"password123\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/reseller/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"reseller",
+						"login"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Reseller - Get Available Dynamic Plans",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{resellerToken}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/reseller/plans",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"reseller",
+						"plans"
+					]
+				}
+			}
+		},
+		{
+			"name": "3. Device - Register",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.environment.set(\"deviceToken\", jsonData.token);",
+							"pm.environment.set(\"deviceSecret\", jsonData.deviceSecret);",
+							"pm.environment.set(\"internalDeviceId\", jsonData.deviceId);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"deviceId\": \"MAC-00:11:22:33:44:55\",\n  \"deviceModel\": \"LG WebOS\",\n  \"osVersion\": \"5.0\",\n  \"platform\": \"SmartTV\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/device/register",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"device",
+						"register"
+					]
+				}
+			}
+		},
+		{
+			"name": "4. Device - Validate (Before Payment)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{deviceToken}}"
+					},
+					{
+						"key": "X-Device-Secret",
+						"value": "{{deviceSecret}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fingerprint\": \"MAC-00:11:22:33:44:55\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/device/validate",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"device",
+						"validate"
+					]
+				}
+			}
+		},
+		{
+			"name": "5. Reseller - Activate Subscription (Assign Plan)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{resellerToken}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"deviceId\": \"{{internalDeviceId}}\",\n  \"planName\": \"Gold Annual\",\n  \"amount\": 50.0,\n  \"currency\": \"USD\",\n  \"status\": \"PAID\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/reseller/activation-request",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"reseller",
+						"activation-request"
+					]
+				}
+			}
+		},
+		{
+			"name": "6. Device - Validate (After Payment)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{deviceToken}}"
+					},
+					{
+						"key": "X-Device-Secret",
+						"value": "{{deviceSecret}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fingerprint\": \"MAC-00:11:22:33:44:55\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/device/validate",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"device",
+						"validate"
+					]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080"
+		}
+	]
+}

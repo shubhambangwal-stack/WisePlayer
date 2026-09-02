@@ -38,15 +38,16 @@ public interface DeviceService {
     DeviceValidationResponse validateDevice(DeviceValidationRequest request);
 
     /**
-     * Update device subscription status.
+     * Update device subscription status and plan.
      * Called by Subscription module when subscription status changes.
      *
      * @param deviceId  Device ID
      * @param status    New device status
+     * @param planName  Actual plan name (e.g., "TRIAL", "Gold Annual", "Weekly")
      * @param expiresAt New expiration date (nullable)
      */
-    void updateDeviceSubscription(java.util.UUID deviceId, com.iptv.wiseplayer.domain.enums.DeviceStatus status,
-            com.iptv.wiseplayer.domain.enums.SubscriptionType type, java.time.LocalDateTime expiresAt);
+    void updateDevicePlan(java.util.UUID deviceId, com.iptv.wiseplayer.domain.enums.DeviceStatus status,
+            String planName, java.time.LocalDateTime expiresAt);
 
     /**
      * Resolve internal Device UUID from either a raw fingerprint (MAC) or a UUID
